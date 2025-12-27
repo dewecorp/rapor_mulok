@@ -80,3 +80,4 @@ try {
     echo "<p>Pastikan konfigurasi database di config/database.php sudah benar!</p>";
 }
 
+

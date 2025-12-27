@@ -146,3 +146,4 @@ File-file berikut tidak akan di-commit ke Git:
 - Buka PowerShell sebagai Administrator
 - Atau jalankan: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
+
