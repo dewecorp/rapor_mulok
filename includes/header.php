@@ -58,6 +58,16 @@ $basePath = getBasePath();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo APP_NAME . ' - ' . APP_SHORT; ?></title>
     
+    <!-- Favicon menggunakan logo sekolah -->
+    <?php if (!empty($profil['logo'])): ?>
+        <link rel="icon" type="image/png" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="apple-touch-icon" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+    <?php else: ?>
+        <link rel="icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
+        <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
+    <?php endif; ?>
+    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -66,6 +76,7 @@ $basePath = getBasePath();
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <!-- SweetAlert2 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
     <!-- Toastr -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     
@@ -79,6 +90,27 @@ $basePath = getBasePath();
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f5f5f5;
+            font-size: 18px;
+        }
+        
+        /* Perbesar semua font untuk keterbacaan yang lebih baik */
+        * {
+            font-size: inherit;
+        }
+        
+        h1 { font-size: 2.5rem; }
+        h2 { font-size: 2rem; }
+        h3 { font-size: 1.75rem; }
+        h4 { font-size: 1.5rem; }
+        h5 { font-size: 1.25rem; }
+        h6 { font-size: 1.1rem; }
+        
+        p, span, div, label {
+            font-size: 18px;
+        }
+        
+        input, select, textarea, button {
+            font-size: 18px !important;
         }
         
         .navbar {
@@ -89,11 +121,57 @@ $basePath = getBasePath();
         .navbar-brand {
             font-weight: bold;
             color: white !important;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
         }
         
         .navbar-brand img {
             height: 40px;
             margin-right: 10px;
+        }
+        
+        .navbar-brand-content {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        
+        .navbar-brand-app-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .navbar-brand-school-name {
+            font-size: 14px;
+            font-weight: normal;
+            opacity: 0.9;
+            margin: 0;
+            margin-top: 2px;
+        }
+        
+        .navbar-brand-academic-info {
+            font-size: 13px;
+            font-weight: normal;
+            opacity: 0.85;
+            padding: 2px 8px;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        
+        .navbar-brand-academic-info {
+            font-size: 13px;
+            font-weight: normal;
+            opacity: 0.85;
+            padding: 2px 8px;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            white-space: nowrap;
         }
         
         .user-info {
@@ -117,46 +195,188 @@ $basePath = getBasePath();
         
         .user-details .user-name {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 18px;
             margin: 0;
         }
         
         .user-details .user-role {
-            font-size: 12px;
+            font-size: 16px;
             opacity: 0.9;
             margin: 0;
         }
         
         .datetime-info {
             color: white;
-            text-align: right;
-            font-size: 13px;
-            margin-left: 20px;
+            text-align: center;
+            font-size: 17px;
+            margin: 0 auto;
+            padding: 0;
+            flex: 1;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .datetime-info #datetime {
+            white-space: nowrap;
+        }
+        
+        .navbar .container-fluid {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+        
+        .navbar-brand {
+            flex: 0 0 auto;
+        }
+        
+        .navbar .ms-auto {
+            margin-left: auto !important;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .user-info {
+            flex: 0 0 auto;
         }
         
         .sidebar {
             min-height: calc(100vh - 56px);
-            background: white;
+            background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%);
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
         }
         
         .sidebar .nav-link {
-            color: #333;
-            padding: 12px 20px;
-            border-left: 3px solid transparent;
-            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+            color: #2d5016;
+            padding: 14px 20px;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            margin: 2px 8px;
+            border-radius: 8px;
+            font-size: 18px;
         }
         
-        .sidebar .nav-link:hover,
+        .sidebar .nav-link:hover {
+            background-color: rgba(45, 80, 22, 0.1);
+            border-left-color: var(--hijau-kemenag-light);
+            color: var(--hijau-kemenag-dark);
+            transform: translateX(5px);
+        }
+        
         .sidebar .nav-link.active {
-            background-color: #f0f7f0;
-            border-left-color: var(--hijau-kemenag);
-            color: var(--hijau-kemenag);
+            background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%) !important;
+            border-left-color: #fff !important;
+            color: white !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 8px rgba(45, 80, 22, 0.3) !important;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link.active i {
+            color: white !important;
+        }
+        
+        /* Pastikan style aktif tidak tertimpa oleh hover */
+        .sidebar .nav-link.active:hover {
+            background: linear-gradient(135deg, var(--hijau-kemenag-dark) 0%, var(--hijau-kemenag) 100%) !important;
+            color: white !important;
+        }
+        
+        .sidebar .nav-link.active:hover i {
+            color: white !important;
         }
         
         .sidebar .nav-link i {
             width: 20px;
             margin-right: 10px;
+            color: inherit;
+            transition: color 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover i {
+            color: var(--hijau-kemenag-dark);
+        }
+        
+        /* Style untuk submenu */
+        .sidebar .nav-link.ps-5 {
+            padding-left: 3rem !important;
+            font-size: 17px;
+            margin-left: 20px;
+        }
+        
+        .sidebar .nav-link.ps-5.active {
+            background: linear-gradient(135deg, var(--hijau-kemenag-light) 0%, var(--hijau-kemenag) 100%) !important;
+            border-left-color: #fff !important;
+            color: white !important;
+            font-weight: 600 !important;
+        }
+        
+        .sidebar .nav-link.ps-5.active i {
+            color: white !important;
+        }
+        
+        .sidebar .nav-link.ps-5.active:hover {
+            background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-dark) 100%) !important;
+            color: white !important;
+        }
+        
+        .sidebar .nav-link.ps-5.active:hover i {
+            color: white !important;
+        }
+        
+        /* Style untuk menu collapse */
+        .sidebar .collapse .nav-link {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .sidebar .collapse .nav-link:hover {
+            background-color: rgba(45, 80, 22, 0.15);
+        }
+        
+        /* Style untuk parent menu yang memiliki child aktif */
+        .sidebar .nav-link.has-active-child {
+            background: linear-gradient(135deg, rgba(45, 80, 22, 0.2) 0%, rgba(74, 124, 42, 0.2) 100%) !important;
+            border-left-color: var(--hijau-kemenag) !important;
+            color: var(--hijau-kemenag-dark) !important;
+            font-weight: 600 !important;
+            box-shadow: 0 2px 4px rgba(45, 80, 22, 0.2);
+        }
+        
+        .sidebar .nav-link.has-active-child i:not(.fa-chevron-down) {
+            color: var(--hijau-kemenag-dark) !important;
+        }
+        
+        /* Pastikan chevron icon pada parent menu yang aktif terlihat jelas */
+        .sidebar .nav-link.has-active-child .fa-chevron-down {
+            color: var(--hijau-kemenag-dark) !important;
+        }
+        
+        /* Style hover untuk parent menu yang memiliki child aktif */
+        .sidebar .nav-link.has-active-child:hover {
+            background: linear-gradient(135deg, rgba(45, 80, 22, 0.3) 0%, rgba(74, 124, 42, 0.3) 100%) !important;
+            transform: translateX(5px);
+        }
+        
+        /* Style untuk menu logout */
+        .sidebar .nav-link.text-danger {
+            color: #d32f2f !important;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            margin-top: 10px;
+            padding-top: 16px;
+        }
+        
+        .sidebar .nav-link.text-danger:hover {
+            background-color: rgba(211, 47, 47, 0.1);
+            color: #b71c1c !important;
+        }
+        
+        .sidebar .nav-link.text-danger.active {
+            background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+            color: white !important;
         }
         
         .content-wrapper {
@@ -176,6 +396,7 @@ $basePath = getBasePath();
             border-radius: 10px 10px 0 0 !important;
             padding: 15px 20px;
             font-weight: 600;
+            font-size: 20px;
         }
         
         .btn-primary {
@@ -199,12 +420,123 @@ $basePath = getBasePath();
         }
         
         .table {
-            font-size: 14px;
+            font-size: 18px;
+        }
+        
+        .table th {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .table td {
+            font-size: 18px;
         }
         
         .badge {
-            padding: 5px 10px;
+            padding: 7px 14px;
             font-weight: 500;
+            font-size: 16px;
+        }
+        
+        .form-label {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .form-control, .form-select {
+            font-size: 18px;
+            padding: 10px 15px;
+        }
+        
+        .btn {
+            font-size: 18px;
+            padding: 10px 20px;
+        }
+        
+        /* Style untuk tombol icon-only */
+        .btn i {
+            font-size: 16px;
+        }
+        
+        .btn-sm {
+            padding: 8px 12px;
+        }
+        
+        .btn-sm i {
+            font-size: 16px;
+        }
+        
+        /* Tooltip styling */
+        [title] {
+            cursor: help;
+        }
+        
+        /* Pastikan tombol icon-only memiliki ukuran konsisten */
+        .btn:not(:has(span)):not(:has(strong)):not(:has(b)) {
+            min-width: 38px;
+        }
+        
+        .btn-sm:not(:has(span)):not(:has(strong)):not(:has(b)) {
+            min-width: 34px;
+        }
+        
+        .navbar-brand {
+            font-size: 22px;
+        }
+        
+        /* Perbesar font untuk elemen lainnya */
+        .alert {
+            font-size: 18px;
+        }
+        
+        .modal-title {
+            font-size: 22px;
+        }
+        
+        .modal-body {
+            font-size: 18px;
+        }
+        
+        .dropdown-menu {
+            font-size: 18px;
+        }
+        
+        .dropdown-item {
+            font-size: 18px;
+            padding: 10px 20px;
+        }
+        
+        .pagination {
+            font-size: 18px;
+        }
+        
+        .page-link {
+            font-size: 18px;
+            padding: 10px 15px;
+        }
+        
+        .list-group-item {
+            font-size: 18px;
+        }
+        
+        .card-body {
+            font-size: 18px;
+        }
+        
+        .card-title {
+            font-size: 20px;
+        }
+        
+        .card-text {
+            font-size: 18px;
+        }
+        
+        small, .small {
+            font-size: 16px;
+        }
+        
+        .text-muted {
+            font-size: 17px;
         }
     </style>
 </head>
@@ -213,17 +545,22 @@ $basePath = getBasePath();
         <div class="container-fluid">
             <a class="navbar-brand" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
                 <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
-                <?php echo APP_SHORT; ?>
-            </a>
-            <div class="ms-auto d-flex align-items-center">
-                <div class="datetime-info">
-                    <div id="datetime" style="min-width: 250px;"><?php 
-                        $hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                        $bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                        $now = new DateTime();
-                        echo $hari[$now->format('w')] . ', ' . $now->format('d') . ' ' . $bulan[$now->format('n')-1] . ' ' . $now->format('Y') . ' | ' . $now->format('H:i:s');
-                    ?></div>
+                <div class="navbar-brand-content">
+                    <div class="navbar-brand-app-name">
+                        <?php echo APP_SHORT; ?>
+                        <?php if (!empty($profil['tahun_ajaran_aktif']) || !empty($profil['semester_aktif'])): ?>
+                            <span class="navbar-brand-academic-info">
+                                <?php echo htmlspecialchars($profil['tahun_ajaran_aktif'] ?? '-'); ?> / Semester <?php echo htmlspecialchars($profil['semester_aktif'] ?? '-'); ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="navbar-brand-school-name"><?php echo htmlspecialchars($profil['nama_madrasah'] ?? 'Nama Sekolah'); ?></div>
                 </div>
+            </a>
+            <div class="datetime-info">
+                <div id="datetime"></div>
+            </div>
+            <div class="ms-auto d-flex align-items-center">
                 <div class="user-info">
                     <div class="user-details">
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>

@@ -266,7 +266,7 @@ try {
                             </td>
                             <td>
                                 <?php if ($mengampu_id): ?>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteMengampu(<?php echo $mengampu_id; ?>)">
+                                    <button class="btn btn-sm btn-danger" onclick="deleteMengampu(<?php echo $mengampu_id; ?>)" title="Hapus">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 <?php else: ?>

@@ -307,10 +307,10 @@ try {
                             <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
                             <td><?php echo htmlspecialchars($row['jumlah_jam']); ?> Jam</td>
                             <td>
-                                <button class="btn btn-sm btn-warning" onclick="editMateri(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-warning" onclick="editMateri(<?php echo $row['id']; ?>)" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteMateri(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-danger" onclick="deleteMateri(<?php echo $row['id']; ?>)" title="Hapus">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>

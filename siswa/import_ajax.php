@@ -4,8 +4,8 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-// Pastikan tidak ada output sebelumnya
-if (ob_get_level() > 0) {
+// Pastikan tidak ada output sebelumnya - bersihkan semua output buffer
+while (ob_get_level() > 0) {
     ob_end_clean();
 }
 
@@ -14,18 +14,32 @@ ob_start();
 
 // Set header JSON sebelum output apapun
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-cache, must-revalidate');
 
 // Fungsi untuk mengirim error response
 function sendErrorResponse($message, $code = 500) {
-    ob_end_clean();
-    http_response_code($code);
+    // Bersihkan semua output buffer
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
+    // Pastikan header belum dikirim
+    if (!headers_sent()) {
+        http_response_code($code);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-cache, must-revalidate');
+    }
+    
+    // Kirim JSON response
     echo json_encode([
         'success' => false,
         'message' => $message,
         'success_count' => 0,
         'error_count' => 0,
         'duplicate_count' => 0
-    ], JSON_UNESCAPED_UNICODE);
+    ], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    
+    // Pastikan exit
     exit;
 }
 
@@ -150,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
         $success_count = 0;
         $error_count = 0;
         $duplicate_count = 0;
+        $update_count = 0; // Hitung data yang di-update
         $errors = [];
         
         try {
@@ -170,34 +185,66 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                 $highestColumn = $worksheet->getHighestColumn();
                 $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
                 
+                error_log("Excel file - Highest Row: $highestRow, Highest Column: $highestColumn (Index: $highestColumnIndex)");
+                
                 // Baca semua baris dengan eksplisit - baca sampai kolom E (index 5) untuk memastikan semua kolom terbaca
+                // Gunakan metode yang lebih reliable untuk membaca semua baris
                 $maxColumns = max(5, $highestColumnIndex); // Minimal 5 kolom (tanpa kolom kelas)
                 $rows = [];
+                
+                // Baca menggunakan toArray untuk mendapatkan semua data sekaligus
+                $allRows = $worksheet->toArray(null, true, true, true);
+                error_log("Total rows from toArray: " . count($allRows));
+                
+                // Konversi ke format yang konsisten
                 for ($row = 1; $row <= $highestRow; $row++) {
                     $rowData = [];
+                    $rowHasData = false; // Flag untuk menandai apakah baris ini memiliki data
+                    
+                    // Gunakan data dari toArray jika ada, jika tidak baca langsung dari cell
+                    $arrayRow = isset($allRows[$row]) ? $allRows[$row] : [];
+                    
                     for ($colIndex = 1; $colIndex <= $maxColumns; $colIndex++) {
                         $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
-                        $cell = $worksheet->getCell($colLetter . $row);
-                        $cellValue = $cell->getValue();
                         
                         // Kolom E (index 5) adalah kolom tanggal lahir - perlu penanganan khusus
                         $isTanggalLahirColumn = ($colIndex == 5);
                         
+                        // Selalu baca cell untuk mendapatkan objek Cell yang lengkap
+                        $cell = $worksheet->getCell($colLetter . $row);
+                        
+                        // Untuk kolom tanggal, selalu gunakan getValue() dari cell
+                        // Untuk kolom lain, coba ambil dari array terlebih dahulu untuk performa
+                        if ($isTanggalLahirColumn) {
+                            $cellValue = $cell->getValue();
+                        } else {
+                            // Coba ambil dari array terlebih dahulu
+                            if (isset($arrayRow[$colLetter]) && $arrayRow[$colLetter] !== null && $arrayRow[$colLetter] !== '') {
+                                $cellValue = $arrayRow[$colLetter];
+                            } else {
+                                $cellValue = $cell->getValue();
+                            }
+                        }
+                        
                         // Jika cell adalah tanggal Excel, konversi ke format string
-                        if ($cellValue !== null) {
+                        if ($cellValue !== null && $cellValue !== '') {
                             // Cek apakah cell adalah tanggal dengan beberapa metode
                             $isDate = false;
                             $dateValue = null;
                             
-                            // Metode 1: Cek menggunakan isDateTime()
-                            try {
-                                if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)) {
+                            // Metode 1: Cek menggunakan isDateTime() - hanya untuk kolom tanggal
+                            if ($isTanggalLahirColumn) {
+                                try {
+                                    if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)) {
                                     $isDate = true;
                                     $dateValue = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($cellValue);
-                                    error_log("Row $row, Col $colLetter: Detected as date using isDateTime()");
+                                        $isDate = true;
+                                        $dateValue = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($cellValue);
+                                        error_log("Row $row, Col $colLetter: Detected as date using isDateTime()");
+                                    }
+                                } catch (Exception $e) {
+                                    error_log("Row $row, Col $colLetter: isDateTime() error: " . $e->getMessage());
                                 }
-                            } catch (Exception $e) {
-                                error_log("Row $row, Col $colLetter: isDateTime() error: " . $e->getMessage());
                             }
                             
                             // Metode 2: Cek jika nilai numerik dan dalam range tanggal Excel (1 = 1900-01-01)
@@ -264,12 +311,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                         } else {
                             $rowData[] = '';
                         }
+                        
+                        // Cek jika ada data di cell ini (kolom A dan B harus ada untuk valid)
+                        $cellIndex = count($rowData) - 1;
+                        if ($cellIndex >= 0 && !empty($rowData[$cellIndex])) {
+                            // Khusus untuk kolom A (NISN) dan B (Nama), pastikan tidak kosong
+                            if ($cellIndex == 0 || $cellIndex == 1) {
+                                $rowHasData = true;
+                            } else if ($rowHasData) {
+                                // Jika sudah ada data di kolom A atau B, tetap tandai sebagai punya data
+                                $rowHasData = true;
+                            }
+                        }
                     }
-                    $rows[] = $rowData;
+                    
+                    // Cek apakah baris ini memiliki minimal NISN dan Nama (kolom A dan B)
+                    $hasNisn = !empty(trim($rowData[0] ?? ''));
+                    $hasNama = !empty(trim($rowData[1] ?? ''));
+                    $isValidRow = $hasNisn && $hasNama;
+                    
+                    // Simpan semua baris, termasuk yang kosong (akan di-filter nanti)
+                    $rows[] = [
+                        'row_number' => $row,
+                        'data' => $rowData,
+                        'has_data' => $rowHasData,
+                        'is_valid' => $isValidRow,
+                        'has_nisn' => $hasNisn,
+                        'has_nama' => $hasNama
+                    ];
+                    
+                    error_log("Row $row read - Valid: " . ($isValidRow ? 'Yes' : 'No') . " - Has NISN: " . ($hasNisn ? 'Yes' : 'No') . " - Has Nama: " . ($hasNama ? 'Yes' : 'No') . " - Data count: " . count($rowData));
                 }
                 
+                error_log("Total rows read from Excel: " . count($rows));
+                
                 // Skip header (baris pertama)
-                array_shift($rows);
+                if (count($rows) > 0) {
+                    $headerRow = array_shift($rows);
+                    error_log("Header row skipped: " . json_encode($headerRow));
+                }
+                
+                error_log("Total data rows after skipping header: " . count($rows));
                 
                 // Fungsi normalisasi jenis kelamin
                 $normalizeJenisKelamin = function($value) {
@@ -334,9 +416,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     return null;
                 };
                 
-                foreach ($rows as $rowIndex => $row) {
+                foreach ($rows as $rowIndex => $rowInfo) {
+                    // Handle struktur baru dengan row_number dan data
+                    $rowNumber = isset($rowInfo['row_number']) ? $rowInfo['row_number'] : ($rowIndex + 2); // +2 karena header sudah di-skip
+                    $row = isset($rowInfo['data']) ? $rowInfo['data'] : $rowInfo;
+                    
                     // Skip baris kosong
                     if (empty($row) || !is_array($row)) {
+                        error_log("Row $rowNumber (index $rowIndex) skipped: empty or not array");
                         continue;
                     }
                     
@@ -345,6 +432,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     
                     // Validasi minimal kolom yang diperlukan (NISN dan Nama)
                     if (count($row) < 5) {
+                        error_log("Row $rowNumber (index $rowIndex) skipped: less than 5 columns (found: " . count($row) . ")");
                         continue;
                     }
                     
@@ -352,8 +440,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     $nisn = trim($row[0] ?? '');
                     $nama = trim($row[1] ?? '');
                     
+                    error_log("Row $rowNumber (index $rowIndex) - NISN: '$nisn', Nama: '$nama'");
+                    
                     // Skip jika NISN atau nama kosong
                     if (empty($nisn) || empty($nama)) {
+                        error_log("Row $rowNumber (index $rowIndex) skipped: NISN or Nama is empty");
                         continue;
                     }
                     
@@ -366,22 +457,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     $tanggal_lahir_raw = $row[4] ?? '';
                     
                     // Debug: Log nilai tanggal yang dibaca
-                    error_log("Row $rowIndex - Tanggal lahir raw: '$tanggal_lahir_raw'");
+                    error_log("Row $rowNumber (index $rowIndex) - Tanggal lahir raw: '$tanggal_lahir_raw'");
                     
                     $tanggal_lahir = $normalizeTanggal($tanggal_lahir_raw);
                     
                     // Debug: Log hasil normalisasi
-                    error_log("Row $rowIndex - Tanggal lahir normalized: " . ($tanggal_lahir ?? 'NULL'));
+                    error_log("Row $rowNumber (index $rowIndex) - Tanggal lahir normalized: " . ($tanggal_lahir ?? 'NULL'));
                     
                     $data[] = [
                         'nisn' => $nisn,
                         'nama' => $nama,
                         'jenis_kelamin' => $jenis_kelamin,
                         'tempat_lahir' => trim($row[3] ?? ''),
-                        'tanggal_lahir' => $tanggal_lahir
+                        'tanggal_lahir' => $tanggal_lahir,
+                        'row_number' => $rowNumber // Simpan nomor baris untuk tracking
                         // Kolom kelas tidak diperlukan lagi, menggunakan kelas_id dari filter
                     ];
+                    
+                    error_log("Row $rowNumber (index $rowIndex) - Data added to import list");
                 }
+                
+                error_log("Total valid data rows to import: " . count($data));
             } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
                 throw new Exception('Gagal membaca file Excel: ' . $e->getMessage());
             }
@@ -389,28 +485,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
             // Debug: Log jumlah data yang akan diimport
             error_log('Total data siswa to import: ' . count($data));
             
-            // Validasi NISN ganda di dalam file Excel
-            $nisn_list = [];
-            $duplicate_nisn_in_file = [];
-            foreach ($data as $index => $row_data) {
-                $nisn_check = trim($row_data['nisn'] ?? '');
-                if (!empty($nisn_check)) {
-                    if (isset($nisn_list[$nisn_check])) {
-                        // NISN duplikat ditemukan di file Excel
-                        if (!in_array($nisn_check, $duplicate_nisn_in_file)) {
-                            $duplicate_nisn_in_file[] = $nisn_check;
-                        }
-                    } else {
-                        $nisn_list[$nisn_check] = true;
-                    }
-                }
-            }
-            
-            // Jika ada NISN ganda di file Excel, kembalikan error
-            if (!empty($duplicate_nisn_in_file)) {
-                $duplicate_list = implode(', ', $duplicate_nisn_in_file);
-                sendErrorResponse("Terdapat NISN ganda di dalam file Excel: $duplicate_list. Pastikan setiap baris memiliki NISN yang unik.");
-            }
+            // Catatan: NISN ganda di dalam file Excel akan di-handle dengan mengambil data terakhir
+            // Data duplikat di database akan di-update dengan data baru
             
             // Import data
             foreach ($data as $index => $row_data) {
@@ -445,56 +521,124 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     $result_check = $check_nisn->get_result();
                     
                     if ($result_check->num_rows > 0) {
-                        // Jika NISN sudah ada, abaikan (skip) data ini
+                        // Jika NISN sudah ada, UPDATE data yang ada
                         $existing_data = $result_check->fetch_assoc();
                         $existing_id = $existing_data['id'];
                         
-                        error_log("Data siswa $index - NISN '$nisn_clean' already exists (ID: $existing_id), akan diabaikan");
-                        $duplicate_count++;
+                        error_log("Data siswa $index - NISN '$nisn_clean' already exists (ID: $existing_id), will UPDATE");
+                        
+                        // Ambil kelas lama sebelum update
+                        $old_kelas_id = null;
+                        try {
+                            $stmt_old = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
+                            $stmt_old->bind_param("i", $existing_id);
+                            $stmt_old->execute();
+                            $result_old = $stmt_old->get_result();
+                            if ($result_old && $result_old->num_rows > 0) {
+                                $old_data = $result_old->fetch_assoc();
+                                $old_kelas_id = $old_data['kelas_id'];
+                            }
+                            $stmt_old->close();
+                        } catch (Exception $e) {
+                            error_log("Data siswa $index - Error getting old kelas_id: " . $e->getMessage());
+                        }
+                        
+                        error_log("Data siswa $index - Old kelas_id: " . ($old_kelas_id ?? 'NULL') . ", New kelas_id: " . ($kelas_id ?? 'NULL'));
+                        
+                        // Handle kelas_id yang bisa null untuk UPDATE
+                        if ($kelas_id === null) {
+                            $stmt = $conn->prepare("UPDATE siswa SET nama = ?, jenis_kelamin = ?, tempat_lahir = ?, tanggal_lahir = ?, kelas_id = NULL WHERE nisn = ?");
+                            $stmt->bind_param("sssss", 
+                                $nama_clean,
+                                $jenis_kelamin,
+                                $tempat_lahir_null,
+                                $tanggal_lahir_null,
+                                $nisn_clean
+                            );
+                        } else {
+                            $stmt = $conn->prepare("UPDATE siswa SET nama = ?, jenis_kelamin = ?, tempat_lahir = ?, tanggal_lahir = ?, kelas_id = ? WHERE nisn = ?");
+                            $stmt->bind_param("ssssis", 
+                                $nama_clean,
+                                $jenis_kelamin,
+                                $tempat_lahir_null,
+                                $tanggal_lahir_null,
+                                $kelas_id,
+                                $nisn_clean
+                            );
+                        }
+                        
+                        if ($stmt->execute()) {
+                            $update_count++;
+                            $success_count++; // Update juga dihitung sebagai success
+                            error_log("Data siswa $index - UPDATE successful: $nama_clean");
+                            
+                            // Update jumlah siswa di kelas lama jika berbeda dengan kelas baru
+                            if ($old_kelas_id && $old_kelas_id != $kelas_id) {
+                                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $old_kelas_id) WHERE id = $old_kelas_id");
+                                error_log("Data siswa $index - Updated jumlah_siswa for old kelas_id: $old_kelas_id");
+                            }
+                            
+                            // Update jumlah siswa di kelas baru
+                            if ($kelas_id) {
+                                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_id) WHERE id = $kelas_id");
+                                error_log("Data siswa $index - Updated jumlah_siswa for new kelas_id: $kelas_id");
+                            }
+                            
+                            // Jika kelas_id diubah menjadi NULL, update kelas lama
+                            if ($old_kelas_id && $kelas_id === null) {
+                                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $old_kelas_id) WHERE id = $old_kelas_id");
+                                error_log("Data siswa $index - Updated jumlah_siswa for old kelas_id (now NULL): $old_kelas_id");
+                            }
+                        } else {
+                            $error_count++;
+                            error_log("Data siswa $index - UPDATE failed: " . $stmt->error);
+                        }
+                        
                         $check_nisn->close();
-                        continue; // Skip ke data berikutnya
+                        $stmt->close();
+                        continue; // Lanjut ke data berikutnya
                     }
                     
                     $check_nisn->close();
                     
                     // Jika NISN belum ada, INSERT data baru
-                        // Jika belum ada, INSERT data baru
-                        error_log("Data siswa $index - NISN '$nisn_clean' is new, will INSERT");
-                        // Handle kelas_id yang bisa null
-                        if ($kelas_id === null) {
-                            $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES (?, ?, ?, ?, ?, NULL)");
-                            $stmt->bind_param("sssss", 
-                                $nisn_clean,
-                                $nama_clean,
-                                $jenis_kelamin,
-                                $tempat_lahir_null,
-                                $tanggal_lahir_null
-                            );
-                        } else {
-                            $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES (?, ?, ?, ?, ?, ?)");
-                            $stmt->bind_param("sssssi", 
-                                $nisn_clean,
-                                $nama_clean,
-                                $jenis_kelamin,
-                                $tempat_lahir_null,
-                                $tanggal_lahir_null,
-                                $kelas_id
-                            );
-                        }
-                        
-                        if ($stmt->execute()) {
-                            $success_count++;
-                            error_log("Data siswa $index - INSERT successful: $nama_clean");
-                            // Update jumlah siswa di kelas
-                            if ($kelas_id) {
-                                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_id) WHERE id = $kelas_id");
-                            }
-                        } else {
-                            $error_count++;
-                            error_log("Data siswa $index - INSERT failed: " . $stmt->error);
-                            error_log("Data siswa $index - SQL: INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES ('$nisn_clean', '$nama_clean', '$jenis_kelamin', " . ($tempat_lahir_null ?? 'NULL') . ", " . ($tanggal_lahir_null ?? 'NULL') . ", " . ($kelas_id ?? 'NULL') . ")");
-                        }
+                    error_log("Data siswa $index - NISN '$nisn_clean' is new, will INSERT");
+                    // Handle kelas_id yang bisa null
+                    if ($kelas_id === null) {
+                        $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES (?, ?, ?, ?, ?, NULL)");
+                        $stmt->bind_param("sssss", 
+                            $nisn_clean,
+                            $nama_clean,
+                            $jenis_kelamin,
+                            $tempat_lahir_null,
+                            $tanggal_lahir_null
+                        );
+                    } else {
+                        $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES (?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("sssssi", 
+                            $nisn_clean,
+                            $nama_clean,
+                            $jenis_kelamin,
+                            $tempat_lahir_null,
+                            $tanggal_lahir_null,
+                            $kelas_id
+                        );
                     }
+                    
+                    if ($stmt->execute()) {
+                        $success_count++;
+                        error_log("Data siswa $index - INSERT successful: $nama_clean");
+                        // Update jumlah siswa di kelas
+                        if ($kelas_id) {
+                            $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_id) WHERE id = $kelas_id");
+                        }
+                    } else {
+                        $error_count++;
+                        error_log("Data siswa $index - INSERT failed: " . $stmt->error);
+                        error_log("Data siswa $index - SQL: INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES ('$nisn_clean', '$nama_clean', '$jenis_kelamin', " . ($tempat_lahir_null ?? 'NULL') . ", " . ($tanggal_lahir_null ?? 'NULL') . ", " . ($kelas_id ?? 'NULL') . ")");
+                    }
+                    
+                    $stmt->close();
                 } catch (mysqli_sql_exception $e) {
                     $error_count++;
                     error_log("Data siswa $index - SQL Exception: " . $e->getMessage());
@@ -511,17 +655,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
             }
             
             // Debug: Log hasil akhir
-            error_log("Import siswa completed - Success: $success_count, Error: $error_count, Duplicate: $duplicate_count");
+            error_log("Import siswa completed - Success: $success_count (Insert: " . ($success_count - $update_count) . ", Update: $update_count), Error: $error_count");
             
             // Clear output buffer sebelum mengirim JSON
             ob_end_clean();
             
             // Buat pesan yang lebih informatif
             $message = '';
+            $insert_count = $success_count - $update_count;
+            
             if ($success_count > 0) {
                 $message = "Berhasil mengimpor $success_count data siswa";
-                if ($duplicate_count > 0) {
-                    $message .= " ($duplicate_count data diupdate karena duplikat)";
+                if ($insert_count > 0 && $update_count > 0) {
+                    $message .= " ($insert_count data baru, $update_count data diupdate)";
+                } else if ($update_count > 0) {
+                    $message .= " ($update_count data diupdate)";
+                } else if ($insert_count > 0) {
+                    $message .= " ($insert_count data baru)";
                 }
                 if ($error_count > 0) {
                     $message .= ". $error_count data gagal.";
@@ -531,10 +681,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                 if ($error_count > 0) {
                     $message .= ". $error_count data gagal.";
                 }
-                if ($duplicate_count > 0) {
-                    $message .= " $duplicate_count data duplikat.";
-                }
-                if ($error_count == 0 && $duplicate_count == 0) {
+                if ($error_count == 0) {
                     $message .= " Pastikan file Excel memiliki format yang benar dan minimal 5 kolom (NISN, Nama, Jenis Kelamin, Tempat Lahir, Tanggal Lahir).";
                 }
             }
@@ -561,18 +708,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
             }
             
             // Clear output buffer sebelum mengirim JSON
-            ob_end_clean();
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
             
+            // Pastikan header belum dikirim
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                header('Cache-Control: no-cache, must-revalidate');
+            }
+            
+            // Kirim JSON response
             echo json_encode([
                 'success' => $success_count > 0,
                 'message' => $message,
                 'success_count' => $success_count,
                 'error_count' => $error_count,
-                'duplicate_count' => $duplicate_count,
+                'duplicate_count' => $update_count, // Jumlah data yang di-update
+                'update_count' => $update_count, // Jumlah data yang di-update
+                'insert_count' => $success_count - $update_count, // Jumlah data baru
                 'imported_kelas_ids' => $imported_kelas_ids // Kirim kelas_id yang berhasil diimport
-            ], JSON_UNESCAPED_UNICODE);
+            ], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
             
-            exit; // Pastikan tidak ada output setelah JSON
+            // Pastikan exit
+            exit;
             
         } catch (Exception $e) {
             // Log error untuk debugging
@@ -604,9 +763,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
 
 // Pastikan tidak ada output setelah JSON
 // Jika sampai di sini tanpa exit, berarti ada masalah
-if (ob_get_level() > 0) {
-    ob_end_clean();
-}
 sendErrorResponse('Unexpected end of script');
-exit;
-

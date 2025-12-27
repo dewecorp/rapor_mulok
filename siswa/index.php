@@ -247,10 +247,10 @@ try {
                                 <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-', ENT_QUOTES, 'UTF-8'); ?><?php echo (!empty($row['tempat_lahir']) && !empty($row['tanggal_lahir'])) ? ', ' : ''; ?><?php echo !empty($row['tanggal_lahir']) ? htmlspecialchars(date('d/m/Y', strtotime($row['tanggal_lahir'])), ENT_QUOTES, 'UTF-8') : ''; ?></td>
                                 <td><?php echo htmlspecialchars($row['nama_kelas'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td>
-                                    <button class="btn btn-sm btn-warning" onclick="editSiswa(<?php echo $row['id']; ?>)">
+                                    <button class="btn btn-sm btn-warning" onclick="editSiswa(<?php echo $row['id']; ?>)" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteSiswa(<?php echo $row['id']; ?>)">
+                                    <button class="btn btn-sm btn-danger" onclick="deleteSiswa(<?php echo $row['id']; ?>)" title="Hapus">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
@@ -751,7 +751,24 @@ try {
         xhr.addEventListener('load', () => {
             if (xhr.status === 200) {
                 try {
-                    const response = JSON.parse(xhr.responseText);
+                    // Trim response untuk menghilangkan whitespace
+                    const responseText = xhr.responseText.trim();
+                    
+                    // Log untuk debugging (hapus di production)
+                    console.log('Response received:', responseText.substring(0, 200));
+                    
+                    // Cek jika response kosong
+                    if (!responseText) {
+                        throw new Error('Response kosong dari server');
+                    }
+                    
+                    // Cek jika response dimulai dengan karakter yang tidak valid
+                    if (!responseText.startsWith('{') && !responseText.startsWith('[')) {
+                        console.error('Invalid JSON start:', responseText.substring(0, 100));
+                        throw new Error('Response bukan JSON valid. Response: ' + responseText.substring(0, 100));
+                    }
+                    
+                    const response = JSON.parse(responseText);
                     
                     if (response.success) {
                         statusBadge.innerHTML = '<span class="badge bg-success">Selesai</span>';
@@ -821,10 +838,18 @@ try {
                     }
                 } catch (e) {
                     statusBadge.innerHTML = '<span class="badge bg-danger">Error</span>';
+                    console.error('JSON Parse Error:', e);
+                    console.error('Response Text:', xhr.responseText.substring(0, 500));
+                    
+                    let errorMessage = 'Terjadi kesalahan saat memproses response';
+                    if (e.message) {
+                        errorMessage += ': ' + e.message;
+                    }
+                    
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: 'Terjadi kesalahan saat memproses response',
+                        html: errorMessage + '<br><small>Silakan cek console browser untuk detail error</small>',
                         confirmButtonColor: '#2d5016'
                     });
                 }

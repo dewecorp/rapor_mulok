@@ -16,14 +16,22 @@ if (isLoggedIn()) {
 $error = '';
 $conn = getConnection();
 
-// Ambil foto login dari pengaturan (handle jika tabel belum ada)
+// Ambil foto login, logo, nama sekolah, tahun ajaran dan semester dari pengaturan (handle jika tabel belum ada)
 $foto_login = 'login-bg.jpg';
+$logo_sekolah = 'logo.png';
+$nama_sekolah = 'Nama Sekolah';
+$tahun_ajaran = '';
+$semester = '';
 try {
-    $query_profil = "SELECT foto_login FROM profil_madrasah LIMIT 1";
+    $query_profil = "SELECT foto_login, logo, nama_madrasah, tahun_ajaran_aktif, semester_aktif FROM profil_madrasah LIMIT 1";
     $result_profil = $conn->query($query_profil);
     if ($result_profil && $result_profil->num_rows > 0) {
         $profil = $result_profil->fetch_assoc();
         $foto_login = $profil['foto_login'] ?? 'login-bg.jpg';
+        $logo_sekolah = $profil['logo'] ?? 'logo.png';
+        $nama_sekolah = $profil['nama_madrasah'] ?? 'Nama Sekolah';
+        $tahun_ajaran = $profil['tahun_ajaran_aktif'] ?? '';
+        $semester = $profil['semester_aktif'] ?? '';
     }
 } catch (Exception $e) {
     // Tabel belum ada, gunakan default
@@ -132,8 +140,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             error_log("Error recording login activity: " . $e->getMessage());
                         }
                         
-                        // Pastikan session tersimpan
-                        session_write_close();
+                        // Set session untuk menampilkan sweet alert selamat datang
+                        $_SESSION['show_welcome'] = true;
+                        $_SESSION['welcome_name'] = $user['nama'];
+                        $_SESSION['welcome_role'] = $user['role'];
                         
                         // Redirect ke dashboard
                         header('Location: index.php');
@@ -185,7 +195,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 error_log("Error recording login activity: " . $e->getMessage());
                             }
                             
-                            session_write_close();
+                            // Set session untuk menampilkan sweet alert selamat datang
+                            $_SESSION['show_welcome'] = true;
+                            $_SESSION['welcome_name'] = $user['nama'];
+                            $_SESSION['welcome_role'] = $user['role'];
+                            
                             header('Location: index.php');
                             exit();
                         } else {
@@ -218,6 +232,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - <?php echo APP_NAME; ?></title>
     
+    <!-- Favicon menggunakan logo sekolah -->
+    <?php if (!empty($logo_sekolah)): ?>
+        <link rel="icon" type="image/png" href="uploads/<?php echo htmlspecialchars($logo_sekolah); ?>">
+        <link rel="shortcut icon" type="image/png" href="uploads/<?php echo htmlspecialchars($logo_sekolah); ?>">
+        <link rel="apple-touch-icon" href="uploads/<?php echo htmlspecialchars($logo_sekolah); ?>">
+    <?php else: ?>
+        <link rel="icon" type="image/png" href="uploads/logo.png">
+        <link rel="shortcut icon" type="image/png" href="uploads/logo.png">
+    <?php endif; ?>
+    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -238,6 +262,46 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 18px;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        body > .container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        body > .container > .row {
+            margin: 0;
+            width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .login-container {
+                max-width: 100%;
+            }
+        }
+        
+        /* Perbesar font untuk keterbacaan yang lebih baik */
+        h1, h2, h3, h4, h5, h6 {
+            font-size: inherit;
+        }
+        
+        h2 { font-size: 2rem; }
+        p { font-size: 18px; }
+        label { font-size: 18px; font-weight: 500; }
+        input, select, textarea, button {
+            font-size: 18px !important;
         }
         
         .login-container {
@@ -247,6 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             overflow: hidden;
             max-width: 1000px;
             width: 100%;
+            margin: 0 auto;
         }
         
         .login-image {
@@ -276,6 +341,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             margin-bottom: 30px;
         }
         
+        .login-logo .logo-sekolah {
+            height: 100px;
+            margin-bottom: 15px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
         .login-logo img {
             height: 80px;
             margin-bottom: 15px;
@@ -285,17 +358,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: var(--hijau-kemenag);
             font-weight: bold;
             margin: 0;
+            font-size: 2rem;
         }
         
         .login-logo p {
             color: #666;
             margin: 5px 0 0 0;
+            font-size: 18px;
+        }
+        
+        .login-logo .school-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .login-logo .school-name {
+            color: var(--hijau-kemenag);
+            font-size: 20px;
+            font-weight: 600;
+            margin: 8px 0;
+        }
+        
+        .login-logo .academic-info {
+            color: #666;
+            font-size: 18px;
+            margin: 5px 0;
+            font-weight: 500;
         }
         
         .form-control {
             border-radius: 8px;
             padding: 12px 15px;
             border: 1px solid #ddd;
+            font-size: 18px;
         }
         
         .form-control:focus {
@@ -307,9 +403,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%);
             border: none;
             border-radius: 8px;
-            padding: 12px;
+            padding: 14px;
             color: white;
             font-weight: 600;
+            font-size: 18px;
             width: 100%;
             transition: transform 0.2s;
         }
@@ -338,22 +435,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
                 <div class="col-md-6 login-form">
                     <div class="login-logo">
-                        <?php
-                        $logo = 'logo.png';
-                        try {
-                            $query_logo = "SELECT logo FROM profil_madrasah LIMIT 1";
-                            $result_logo = $conn->query($query_logo);
-                            if ($result_logo && $result_logo->num_rows > 0) {
-                                $logo_data = $result_logo->fetch_assoc();
-                                $logo = $logo_data['logo'] ?? 'logo.png';
-                            }
-                        } catch (Exception $e) {
-                            // Tabel belum ada, gunakan default
-                        }
-                        ?>
-                        <img src="uploads/<?php echo htmlspecialchars($logo); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
+                        <img src="uploads/<?php echo htmlspecialchars($logo_sekolah); ?>" alt="Logo Sekolah" class="logo-sekolah" onerror="this.onerror=null; this.style.display='none';">
                         <h2><?php echo APP_SHORT; ?></h2>
                         <p><?php echo APP_NAME; ?></p>
+                        <div class="school-info">
+                            <div class="school-name"><?php echo htmlspecialchars($nama_sekolah); ?></div>
+                            <?php if (!empty($tahun_ajaran) || !empty($semester)): ?>
+                                <div class="academic-info">
+                                    <?php echo htmlspecialchars($tahun_ajaran); ?><?php echo !empty($tahun_ajaran) && !empty($semester) ? ' / ' : ''; ?><?php echo !empty($semester) ? 'Semester ' . htmlspecialchars($semester) : ''; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     
                     <?php if ($error): ?>

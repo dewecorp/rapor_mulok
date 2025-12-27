@@ -9,9 +9,117 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     
+    <!-- Script untuk Welcome Alert - dieksekusi setelah semua library dimuat -->
+    <?php if (isset($_SESSION['show_welcome']) && $_SESSION['show_welcome']): ?>
+        <?php
+        $welcome_name = $_SESSION['welcome_name'] ?? 'Pengguna';
+        $welcome_role = $_SESSION['welcome_role'] ?? '';
+        $role_text = '';
+        switch($welcome_role) {
+            case 'proktor':
+                $role_text = 'Administrator';
+                break;
+            case 'wali_kelas':
+                $role_text = 'Wali Kelas';
+                break;
+            case 'guru':
+                $role_text = 'Guru';
+                break;
+            default:
+                $role_text = ucfirst($welcome_role);
+        }
+        // Hapus session variable setelah digunakan
+        unset($_SESSION['show_welcome']);
+        unset($_SESSION['welcome_name']);
+        unset($_SESSION['welcome_role']);
+        ?>
+        <script>
+            // Simpan data ke variabel JavaScript sebelum session dihapus
+            var welcomeName = '<?php echo htmlspecialchars($welcome_name, ENT_QUOTES); ?>';
+            var welcomeRole = '<?php echo htmlspecialchars($role_text, ENT_QUOTES); ?>';
+            
+            console.log('Welcome alert script loaded:', welcomeName, welcomeRole);
+            
+            // Tampilkan welcome alert setelah semua library dimuat
+            function showWelcomeAlert() {
+                console.log('showWelcomeAlert called, Swal available:', typeof Swal !== 'undefined');
+                if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                    console.log('Showing welcome alert');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Selamat Datang!',
+                        html: '<strong>' + welcomeName + '</strong><br><small>' + welcomeRole + '</small>',
+                        confirmButtonColor: '#2d5016',
+                        confirmButtonText: 'Mulai',
+                        timer: 4000,
+                        timerProgressBar: true,
+                        showConfirmButton: true,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: function() {
+                            if (document.body) {
+                                document.body.style.overflow = 'hidden';
+                            }
+                        },
+                        willClose: function() {
+                            if (document.body) {
+                                document.body.style.overflow = '';
+                            }
+                        }
+                    });
+                } else {
+                    // Jika SweetAlert belum tersedia, coba lagi setelah 50ms
+                    setTimeout(showWelcomeAlert, 50);
+                }
+            }
+            
+            // Tunggu jQuery dan SweetAlert2 dimuat
+            if (typeof jQuery !== 'undefined') {
+                $(document).ready(function() {
+                    setTimeout(showWelcomeAlert, 50);
+                });
+            } else {
+                // Jika jQuery belum tersedia, tunggu window load
+                window.addEventListener('load', function() {
+                    setTimeout(showWelcomeAlert, 50);
+                });
+            }
+        </script>
+    <?php endif; ?>
+    
     <script>
+        // Fungsi untuk update datetime realtime dengan format Indonesia
+        function updateDateTime() {
+            var now = new Date();
+            var hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            var bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            
+            var hariNama = hari[now.getDay()];
+            var tanggal = now.getDate();
+            var bulanNama = bulan[now.getMonth()];
+            var tahun = now.getFullYear();
+            
+            // Format waktu dengan leading zero
+            var jam = String(now.getHours()).padStart(2, '0');
+            var menit = String(now.getMinutes()).padStart(2, '0');
+            var detik = String(now.getSeconds()).padStart(2, '0');
+            
+            var datetimeString = hariNama + ', ' + tanggal + ' ' + bulanNama + ' ' + tahun + ' | ' + jam + ':' + menit + ':' + detik;
+            
+            var datetimeElement = document.getElementById('datetime');
+            if (datetimeElement) {
+                datetimeElement.textContent = datetimeString;
+            }
+        }
+        
+        // Update datetime saat halaman dimuat
+        updateDateTime();
+        
+        // Update datetime setiap detik (realtime)
+        setInterval(updateDateTime, 1000);
+        
         if (typeof toastr !== 'undefined') {
-            toastr.options = {"closeButton":true,"debug":false,"newestOnTop":true,"progressBar":true,"positionClass":"toast-top-right","preventDuplicates":false,"onclick":null,"showDuration":"300","hideDuration":"1000","timeOut":"5000","extendedTimeOut":"1000","showEasing":"swing","hideEasing":"linear","showMethod":"fadeIn","hideMethod":"fadeOut"};
+            toastr.options = {"closeButton":true,"debug":false,"newestOnTop":true,"progressBar":true,"positionClass":"toast-top-right","preventDuplicates":false,"onclick":null,"showDuration":"300","hideDuration":"1000","timeOut":"5005","extendedTimeOut":"1000","showEasing":"swing","hideEasing":"linear","showMethod":"fadeIn","hideMethod":"fadeOut"};
         }
         if (typeof jQuery !== 'undefined') {
             jQuery(document).ready(function($) {
@@ -44,24 +152,98 @@
                         }
                     });
                 } else {
+                    // Normalisasi path untuk perbandingan
+                    var normalizedPath = path.replace(/\/$/, ''); // Hapus trailing slash
+                    var normalizedUrl = url.split('?')[0].replace(/\/$/, ''); // Hapus query string dan trailing slash
+                    
                     // Set active berdasarkan halaman saat ini
-                    $('.nav-link').each(function() {
-                        var href = $(this).attr('href');
+                    $('.sidebar .nav-link').each(function() {
+                        var $link = $(this);
+                        var href = $link.attr('href');
+                        
                         if (href && href !== '#' && href !== 'javascript:void(0);') {
-                            // Check if current path matches href
-                            if (path.indexOf(href) !== -1 || url.indexOf(href) !== -1) {
-                                $(this).addClass('active');
+                            // Normalisasi href
+                            var normalizedHref = href.split('?')[0].replace(/\/$/, '');
+                            
+                            // Cek apakah path saat ini cocok dengan href
+                            var isMatch = false;
+                            
+                            // Metode 1: Exact match setelah normalisasi
+                            if (normalizedPath === normalizedHref || normalizedUrl === normalizedHref) {
+                                isMatch = true;
+                            }
+                            
+                            // Metode 2: Path contains href (untuk subdirectory)
+                            if (!isMatch && (normalizedPath.indexOf(normalizedHref) !== -1 || normalizedUrl.indexOf(normalizedHref) !== -1)) {
+                                // Pastikan bukan partial match yang salah
+                                var hrefParts = normalizedHref.split('/');
+                                var pathParts = normalizedPath.split('/');
+                                var urlParts = normalizedUrl.split('/');
+                                
+                                // Cek apakah semua bagian href ada di path
+                                var allPartsMatch = true;
+                                for (var i = 0; i < hrefParts.length; i++) {
+                                    if (hrefParts[i] && (pathParts.indexOf(hrefParts[i]) === -1 && urlParts.indexOf(hrefParts[i]) === -1)) {
+                                        allPartsMatch = false;
+                                        break;
+                                    }
+                                }
+                                
+                                if (allPartsMatch) {
+                                    isMatch = true;
+                                }
+                            }
+                            
+                            // Metode 3: Cek filename saja (untuk file di direktori berbeda)
+                            if (!isMatch) {
+                                var hrefFile = normalizedHref.split('/').pop();
+                                var pathFile = normalizedPath.split('/').pop();
+                                var urlFile = normalizedUrl.split('/').pop();
+                                
+                                if (hrefFile && (hrefFile === pathFile || hrefFile === urlFile)) {
+                                    isMatch = true;
+                                }
+                            }
+                            
+                            if (isMatch) {
+                                $link.addClass('active');
+                                console.log('Menu aktif:', href);
+                                
                                 // Buka parent collapse jika ada
-                                var parentCollapse = $(this).closest('.collapse');
+                                var parentCollapse = $link.closest('.collapse');
                                 if (parentCollapse.length) {
                                     parentCollapse.addClass('show');
+                                    
+                                    // Cari parent menu berdasarkan data-bs-target
+                                    var collapseId = parentCollapse.attr('id');
+                                    if (collapseId) {
+                                        var targetSelector = '[data-bs-target="#' + collapseId + '"]';
+                                        var parentMenu = $(targetSelector);
+                                        if (parentMenu.length) {
+                                            parentMenu.addClass('has-active-child');
+                                            console.log('Parent menu dengan child aktif:', collapseId);
+                                        }
+                                    }
                                 }
+                            }
+                        }
+                    });
+                    
+                    // Tambahkan style khusus untuk parent menu yang collapse terbuka dan memiliki child aktif
+                    $('.sidebar .collapse.show').each(function() {
+                        var collapseId = $(this).attr('id');
+                        if (collapseId) {
+                            var parentMenu = $('[data-bs-target="#' + collapseId + '"]');
+                            if (parentMenu.length && $(this).find('.nav-link.active').length > 0) {
+                                parentMenu.addClass('has-active-child');
+                                console.log('Parent menu dengan child aktif (dari collapse.show):', collapseId);
                             }
                         }
                     });
                 }
             });
         }
+        
     </script>
 </body>
 </html>

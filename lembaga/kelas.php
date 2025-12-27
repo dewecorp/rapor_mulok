@@ -267,10 +267,10 @@ try {
                             <td><?php echo intval($row['jumlah_siswa'] ?? 0); ?> Siswa</td>
                             <td><?php echo htmlspecialchars($row['nama_wali_kelas'] ?? '-'); ?></td>
                             <td>
-                                <button class="btn btn-sm btn-warning" onclick="editKelas(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-warning" onclick="editKelas(<?php echo $row['id']; ?>)" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteKelas(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-danger" onclick="deleteKelas(<?php echo $row['id']; ?>)" title="Hapus">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>

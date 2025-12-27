@@ -203,16 +203,16 @@ try {
                             <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo $row['tanggal_lahir'] ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
                             <td><?php echo htmlspecialchars($row['username']); ?></td>
                             <td>
-                                <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)">
-                                    <i class="fas fa-key"></i> Reset
+                                <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)" title="Reset Password">
+                                    <i class="fas fa-key"></i>
                                 </button>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-warning" onclick="editPengguna(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-warning" onclick="editPengguna(<?php echo $row['id']; ?>)" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <?php if (!$row['is_proktor_utama']): ?>
-                                <button class="btn btn-sm btn-danger" onclick="deletePengguna(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-danger" onclick="deletePengguna(<?php echo $row['id']; ?>)" title="Hapus">
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 <?php endif; ?>

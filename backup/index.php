@@ -407,11 +407,11 @@ try {
                                     <i class="fas fa-download"></i> Unduh
                                 </a>
                                 <?php endif; ?>
-                                <button class="btn btn-sm btn-warning" onclick="restoreBackup(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-warning" onclick="restoreBackup(<?php echo $row['id']; ?>)" title="Restore">
                                     <i class="fas fa-upload"></i> Restore
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteBackup(<?php echo $row['id']; ?>)">
-                                    <i class="fas fa-trash"></i> Hapus
+                                <button class="btn btn-sm btn-danger" onclick="deleteBackup(<?php echo $row['id']; ?>)" title="Hapus">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </td>
                         </tr>

@@ -102,5 +102,3 @@ function tglWaktuIndo($datetime) {
     $hariIndex = date('w', strtotime($pecah[0]));
     return $hari[$hariIndex] . ', ' . $tgl[2] . ' ' . $bulan[(int)$tgl[1]] . ' ' . $tgl[0] . ' ' . $waktu;
 }
-?>
-

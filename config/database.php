@@ -22,5 +22,3 @@ function getConnection() {
         throw new Exception("Koneksi gagal: " . $e->getMessage());
     }
 }
-?>
-

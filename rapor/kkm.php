@@ -149,10 +149,10 @@ try {
                             <td><?php echo $row['predikat_c_min']; ?> - <?php echo $row['predikat_c_max']; ?></td>
                             <td><?php echo $row['predikat_d_min']; ?> - <?php echo $row['predikat_d_max']; ?></td>
                             <td>
-                                <button class="btn btn-sm btn-warning" onclick="editKKM(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-warning" onclick="editKKM(<?php echo $row['id']; ?>)" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteKKM(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-danger" onclick="deleteKKM(<?php echo $row['id']; ?>)" title="Hapus">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>

@@ -362,14 +362,14 @@ try {
                                 </span>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)">
-                                    <i class="fas fa-key"></i> Reset
+                                <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)" title="Reset Password">
+                                    <i class="fas fa-key"></i>
                                 </button>
-                                <button class="btn btn-sm btn-warning" onclick="editGuru(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-warning" onclick="editGuru(<?php echo $row['id']; ?>)" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <?php if (!$row['is_proktor_utama']): ?>
-                                <button class="btn btn-sm btn-danger" onclick="deleteGuru(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-danger" onclick="deleteGuru(<?php echo $row['id']; ?>)" title="Hapus">
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 <?php endif; ?>
