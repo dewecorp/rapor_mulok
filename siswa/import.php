@@ -9,13 +9,11 @@ $error = '';
 
 // Ambil data kelas untuk mapping
 $kelas_list = [];
-$kelas_list_all = []; // Untuk dropdown
 try {
     $query_kelas = "SELECT id, nama_kelas FROM kelas ORDER BY nama_kelas";
     $result_kelas = $conn->query($query_kelas);
     while ($row = $result_kelas->fetch_assoc()) {
         $kelas_list[$row['nama_kelas']] = $row['id'];
-        $kelas_list_all[] = $row; // Untuk dropdown
     }
 } catch (Exception $e) {
     // Ignore
@@ -290,21 +288,9 @@ end:
                             </tbody>
                         </table>
                         
-                        <div class="alert alert-success mt-3">
-                            <i class="fas fa-check-circle"></i> <strong>Cara Menggunakan:</strong>
-                            <ol class="mb-0">
-                                <li>Klik tombol <strong>"Download Template Excel"</strong> di sebelah kanan</li>
-                                <li>Pilih kelas (opsional) jika ingin template untuk kelas tertentu</li>
-                                <li>Isi data siswa di template yang sudah didownload</li>
-                                <li>Upload file yang sudah diisi melalui form di sebelah kanan</li>
-                            </ol>
-                        </div>
-                        
                         <div class="alert alert-info mt-3">
                             <i class="fas fa-lightbulb"></i> <strong>Tips:</strong>
                             <ul class="mb-0">
-                                <li><strong>Download template terlebih dahulu</strong> untuk memastikan format benar</li>
-                                <li>Jika memilih kelas saat download, kolom kelas akan otomatis terisi</li>
                                 <li>Pastikan file Excel memiliki header di baris pertama</li>
                                 <li>Baris pertama adalah header (akan diabaikan)</li>
                                 <li>NISN harus unik, tidak boleh duplikat</li>
@@ -317,32 +303,6 @@ end:
             </div>
             
             <div class="col-md-4">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6 class="card-title"><i class="fas fa-download"></i> Download Template</h6>
-                        <p class="text-muted small">Download template Excel untuk memudahkan import data siswa.</p>
-                        <form method="GET" action="download_template.php" id="formDownloadTemplate" target="_blank">
-                            <div class="mb-3">
-                                <label class="form-label">Pilih Kelas (Opsional)</label>
-                                <select class="form-select" name="kelas_id" id="kelas_select">
-                                    <option value="0">Semua Kelas</option>
-                                    <?php foreach ($kelas_list_all as $kelas): ?>
-                                        <option value="<?php echo $kelas['id']; ?>">
-                                            <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <small class="text-muted">Jika dipilih, kolom kelas akan otomatis terisi</small>
-                            </div>
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-file-excel"></i> Download Template Excel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                
                 <div class="card">
                     <div class="card-body">
                         <h6 class="card-title"><i class="fas fa-upload"></i> Upload File</h6>
@@ -367,7 +327,6 @@ end:
         </div>
     </div>
 </div>
-
 
 <?php include '../includes/footer.php'; ?>
 
