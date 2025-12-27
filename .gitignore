@@ -1,0 +1,38 @@
+# PHP
+*.log
+*.cache
+*.tmp
+*.swp
+*.swo
+*~
+
+# Laragon / XAMPP / WAMP
+.htaccess.local
+.env.local
+
+# Uploads (jika tidak ingin di-commit)
+uploads/*
+!uploads/.gitkeep
+
+# Database
+*.sql
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+backup/*.sql
+backup/*.zip
+
+# Config files dengan sensitive data (jika ada)
+config/local.php
