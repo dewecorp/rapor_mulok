@@ -263,14 +263,39 @@ if ($role == 'proktor') {
                         <div class="timeline-container">
                             <div class="timeline">
                                 <?php foreach ($aktivitas_data as $index => $aktivitas): 
-                                    $waktu = strtotime($aktivitas['waktu_login']);
-                                    $selisih = time() - $waktu;
-                                    $menit = floor($selisih / 60);
-                                    $jam = floor($selisih / 3600);
-                                    $hari = floor($selisih / 86400);
+                                    // Set timezone ke Asia/Jakarta di awal
+                                    date_default_timezone_set('Asia/Jakarta');
                                     
-                                    // Format waktu relatif
-                                    if ($menit < 1) {
+                                    // Parse waktu dari database
+                                    // MySQL datetime disimpan dalam format 'Y-m-d H:i:s'
+                                    // Asumsikan waktu database sudah dalam timezone lokal (Asia/Jakarta)
+                                    $waktu_db = $aktivitas['waktu_login'];
+                                    
+                                    // Buat DateTime object dari waktu database dengan timezone Asia/Jakarta
+                                    $dt_waktu = DateTime::createFromFormat('Y-m-d H:i:s', $waktu_db, new DateTimeZone('Asia/Jakarta'));
+                                    if (!$dt_waktu) {
+                                        // Jika format tidak cocok, coba parse sebagai string biasa
+                                        $dt_waktu = new DateTime($waktu_db, new DateTimeZone('Asia/Jakarta'));
+                                    }
+                                    
+                                    // Waktu sekarang dengan timezone yang sama
+                                    $dt_sekarang = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
+                                    
+                                    // Hitung selisih dalam detik (timestamp sudah dalam UTC, jadi bisa langsung dikurang)
+                                    $selisih_detik = $dt_sekarang->getTimestamp() - $dt_waktu->getTimestamp();
+                                    
+                                    // Pastikan selisih tidak negatif (jika waktu di masa depan, anggap baru saja)
+                                    if ($selisih_detik < 0) {
+                                        $selisih_detik = 0;
+                                    }
+                                    
+                                    // Hitung menit, jam, hari
+                                    $menit = floor($selisih_detik / 60);
+                                    $jam = floor($selisih_detik / 3600);
+                                    $hari = floor($selisih_detik / 86400);
+                                    
+                                    // Format waktu relatif dengan perhitungan yang benar
+                                    if ($selisih_detik < 60) {
                                         $waktu_text = 'Baru saja';
                                     } elseif ($menit < 60) {
                                         $waktu_text = $menit . ' menit yang lalu';
@@ -281,6 +306,9 @@ if ($role == 'proktor') {
                                     } else {
                                         $waktu_text = $hari . ' hari yang lalu';
                                     }
+                                    
+                                    // Untuk format tanggal lengkap, gunakan timestamp dari DateTime object
+                                    $waktu = $dt_waktu->getTimestamp();
                                     
                                     // Format tanggal dan waktu lengkap
                                     $tanggal_waktu = date('d/m/Y H:i:s', $waktu);

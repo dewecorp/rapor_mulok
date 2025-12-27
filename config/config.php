@@ -1,4 +1,7 @@
 <?php
+// Set timezone ke Asia/Jakarta di awal aplikasi
+date_default_timezone_set('Asia/Jakarta');
+
 // Start session hanya jika belum aktif
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
