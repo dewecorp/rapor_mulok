@@ -8,6 +8,16 @@ $conn = getConnection();
 $success = '';
 $error = '';
 
+// Ambil pesan dari session (setelah redirect)
+if (isset($_SESSION['success_message'])) {
+    $success = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    $error = $_SESSION['error_message'];
+    unset($_SESSION['error_message']);
+}
+
 // Handle CRUD
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['action'])) {
@@ -49,14 +59,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $conn->query("ALTER TABLE pengguna ADD COLUMN pendidikan VARCHAR(100) AFTER tanggal_lahir");
                     }
                     
-                    $stmt = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, nuptk, password, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    // Username untuk guru/wali_kelas/proktor diisi dengan NUPTK
+                    // Untuk guru: username = NUPTK (untuk login menggunakan NUPTK)
+                    $username = $nuptk; // Username sama dengan NUPTK
+                    
+                    $stmt = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $tempat_lahir_null = empty($tempat_lahir) ? null : $tempat_lahir;
                     $tanggal_lahir_null = empty($tanggal_lahir) ? null : $tanggal_lahir;
                     $pendidikan_null = empty($pendidikan) ? null : $pendidikan;
-                    $stmt->bind_param("sssssssss", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $nuptk, $password, $foto, $role);
+                    $stmt->bind_param("ssssssssss", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $foto, $role);
                     
                     if ($stmt->execute()) {
-                        $success = 'Data guru berhasil ditambahkan!';
+                        // Redirect untuk mencegah resubmit dan refresh data
+                        $_SESSION['success_message'] = 'Data guru berhasil ditambahkan!';
+                        header('Location: data.php');
+                        exit();
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -144,17 +161,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $tanggal_lahir_null = empty($tanggal_lahir) ? null : $tanggal_lahir;
                     $pendidikan_null = empty($pendidikan) ? null : $pendidikan;
                     
+                    // Update username dengan NUPTK (username selalu sama dengan NUPTK)
+                    // Untuk guru: username = NUPTK (untuk login menggunakan NUPTK)
+                    $username = $nuptk; // Username sama dengan NUPTK
+                    
                     if (!empty($_POST['password'])) {
                         $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-                        $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, nuptk=?, password=?, foto=?, role=? WHERE id=?");
-                        $stmt->bind_param("sssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $nuptk, $password, $foto, $role, $id);
+                        $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, password=?, foto=?, role=? WHERE id=?");
+                        $stmt->bind_param("ssssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $foto, $role, $id);
                     } else {
-                        $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, nuptk=?, foto=?, role=? WHERE id=?");
-                        $stmt->bind_param("ssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $nuptk, $foto, $role, $id);
+                        $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, foto=?, role=? WHERE id=?");
+                        $stmt->bind_param("sssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $foto, $role, $id);
                     }
                     
                     if ($stmt->execute()) {
-                        $success = 'Data guru berhasil diperbarui!';
+                        // Redirect untuk mencegah resubmit dan refresh data
+                        $_SESSION['success_message'] = 'Data guru berhasil diperbarui!';
+                        header('Location: data.php');
+                        exit();
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -196,9 +220,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->bind_param("i", $id);
             
             if ($stmt->execute()) {
-                $success = 'Data guru berhasil dihapus!';
+                // Redirect untuk mencegah resubmit dan refresh data
+                $_SESSION['success_message'] = 'Data guru berhasil dihapus!';
+                header('Location: data.php');
+                exit();
             } else {
-                $error = 'Gagal menghapus data guru!';
+                $_SESSION['error_message'] = 'Gagal menghapus data guru!';
+                header('Location: data.php');
+                exit();
             }
         }
     }
@@ -221,6 +250,7 @@ if (isset($_GET['edit'])) {
 
 // Ambil semua data guru
 $result = null;
+$guru_data = [];
 try {
     $query = "SELECT p.*, 
               (SELECT nama_kelas FROM kelas WHERE wali_kelas_id = p.id LIMIT 1) as wali_kelas_nama
@@ -231,10 +261,24 @@ try {
     if (!$result) {
         $error = 'Error query: ' . $conn->error;
         $result = null;
+        $guru_data = [];
+    } else {
+        // Simpan data ke array untuk digunakan di view
+        while ($row = $result->fetch_assoc()) {
+            // Sanitize data dari database sebelum ditampilkan
+            foreach ($row as $key => $value) {
+                if (is_string($value)) {
+                    // Hapus karakter kontrol dan karakter berbahaya
+                    $row[$key] = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
+                }
+            }
+            $guru_data[] = $row;
+        }
     }
 } catch (Exception $e) {
     $error = 'Error: ' . $e->getMessage();
     $result = null;
+    $guru_data = [];
 }
 ?>
 <?php include '../includes/header.php'; ?>
@@ -243,6 +287,9 @@ try {
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-chalkboard-teacher"></i> Data Guru</h5>
         <div>
+            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportGuru">
+                <i class="fas fa-file-upload"></i> Impor Excel
+            </button>
             <button type="button" class="btn btn-light btn-sm" onclick="exportExcel()">
                 <i class="fas fa-file-excel"></i> Excel
             </button>
@@ -287,9 +334,9 @@ try {
                 </thead>
                 <tbody>
                     <?php 
-                    if ($result && $result->num_rows > 0):
+                    if (count($guru_data) > 0):
                         $no = 1;
-                        while ($row = $result->fetch_assoc()): 
+                        foreach ($guru_data as $row): 
                     ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
@@ -298,24 +345,21 @@ try {
                                      alt="Foto" class="rounded-circle" width="50" height="50" 
                                      style="object-fit: cover;" onerror="this.onerror=null; this.style.display='none';">
                             </td>
-                            <td><?php echo htmlspecialchars($row['nama']); ?></td>
-                            <td><?php echo $row['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan'; ?></td>
-                            <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo $row['tanggal_lahir'] ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
-                            <td><?php echo htmlspecialchars($row['pendidikan'] ?? '-'); ?></td>
-                            <td><?php echo htmlspecialchars($row['nuptk'] ?? $row['username'] ?? '-'); ?></td>
-                            <td><?php echo htmlspecialchars($row['wali_kelas_nama'] ?? '-'); ?></td>
+                            <td><?php echo htmlspecialchars($row['nama'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($row['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?><?php echo ($row['tempat_lahir'] ?? '') && ($row['tanggal_lahir'] ?? '') ? ', ' : ''; ?><?php echo $row['tanggal_lahir'] ? htmlspecialchars(date('d/m/Y', strtotime($row['tanggal_lahir']))) : ''; ?></td>
+                            <td><?php echo htmlspecialchars($row['pendidikan'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($row['nuptk'] ?? $row['username'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($row['wali_kelas_nama'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td>
-                                <small class="text-muted" style="font-family: monospace; font-size: 0.75em; word-break: break-all;">
+                                <span style="font-family: monospace; font-size: 0.9em; color: #333;">
                                     <?php 
-                                    $password = $row['password'] ?? '';
-                                    if (!empty($password)) {
-                                        // Tampilkan 30 karakter pertama dari hash untuk pengecekan
-                                        echo htmlspecialchars(substr($password, 0, 30)) . '...';
-                                    } else {
-                                        echo '<span class="text-danger">-</span>';
-                                    }
+                                    // Tampilkan password default sebagai teks
+                                    // Password default adalah "123456" untuk semua user baru
+                                    // Untuk user yang sudah ada, tampilkan "123456" (default reset)
+                                    echo htmlspecialchars('123456');
                                     ?>
-                                </small>
+                                </span>
                             </td>
                             <td>
                                 <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)">
@@ -332,7 +376,7 @@ try {
                             </td>
                         </tr>
                     <?php 
-                        endwhile;
+                        endforeach;
                     else:
                     ?>
                         <tr>
@@ -414,15 +458,72 @@ try {
     </div>
 </div>
 
+<!-- Modal Import Guru -->
+<div class="modal fade" id="modalImportGuru" tabindex="-1" aria-labelledby="modalImportGuruLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #2d5016; color: white;">
+                <h5 class="modal-title" id="modalImportGuruLabel"><i class="fas fa-file-upload"></i> Upload Guru</h5>
+                <div>
+                    <button type="button" class="btn btn-success btn-sm" onclick="downloadTemplateGuru()">
+                        <i class="fas fa-download"></i> Template Excel
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <!-- Upload Area -->
+                <div class="upload-area" id="uploadAreaGuru" style="border: 2px dashed #ccc; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; background-color: #f8f9fa; transition: all 0.3s;">
+                    <input type="file" id="fileInputGuru" accept=".xls,.xlsx" style="display: none;" multiple>
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #6c757d; margin-bottom: 15px;"></i>
+                    <p class="mb-0" style="color: #6c757d; font-size: 16px;">
+                        Letakkan File atau Klik Disini untuk upload
+                    </p>
+                </div>
+                
+                <!-- File List Table -->
+                <div class="mt-4">
+                    <table class="table table-bordered table-sm" id="fileTableGuru" style="display: table;">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Size</th>
+                                <th>Progress</th>
+                                <th>Sukses</th>
+                                <th>Gagal</th>
+                                <th>Ganda</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fileTableBodyGuru">
+                            <tr id="noDataRowGuru">
+                                <td colspan="8" class="text-center text-muted py-3">
+                                    <i class="fas fa-info-circle"></i> Belum ada file yang dipilih
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php include '../includes/footer.php'; ?>
 
 <script>
     $(document).ready(function() {
+        <?php if (count($guru_data) > 0): ?>
         $('#tableGuru').DataTable({
             language: {
                 url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
             }
         });
+        <?php endif; ?>
     });
     
     function editGuru(id) {
@@ -436,7 +537,7 @@ try {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal'
         }).then((result) => {
@@ -468,14 +569,40 @@ try {
                     type: 'POST',
                     data: {id: id},
                     success: function(response) {
+                        var result = JSON.parse(response);
+                        if (result.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil',
+                                text: 'Password berhasil direset menjadi "123456"',
+                                confirmButtonColor: '#2d5016',
+                                timer: 3000,
+                                timerProgressBar: true,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: 'Gagal mereset password!',
+                                confirmButtonColor: '#2d5016',
+                                timer: 3000,
+                                timerProgressBar: true,
+                                showConfirmButton: true
+                            });
+                        }
+                    },
+                    error: function() {
                         Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil',
-                            text: 'Password berhasil direset menjadi "123456"',
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Terjadi kesalahan saat mereset password!',
                             confirmButtonColor: '#2d5016',
                             timer: 3000,
                             timerProgressBar: true,
-                            showConfirmButton: false
+                            showConfirmButton: true
                         });
                     }
                 });
@@ -499,6 +626,19 @@ try {
         $('#modalTitle').text('Tambah Data Guru');
         $('#passwordRequired').show();
         $('#passwordHint').hide();
+    });
+    
+    // Reset tabel import saat modal import ditutup
+    $('#modalImportGuru').on('hidden.bs.modal', function() {
+        const fileTableBodyGuru = document.getElementById('fileTableBodyGuru');
+        if (fileTableBodyGuru) {
+            fileTableBodyGuru.innerHTML = '<tr id="noDataRowGuru"><td colspan="8" class="text-center text-muted py-3"><i class="fas fa-info-circle"></i> Belum ada file yang dipilih</td></tr>';
+        }
+        const fileInputGuru = document.getElementById('fileInputGuru');
+        if (fileInputGuru) {
+            fileInputGuru.value = '';
+        }
+        window.uploadFilesGuru = null;
     });
     
     // Load data untuk edit
@@ -546,5 +686,398 @@ try {
         showConfirmButton: true
     });
     <?php endif; ?>
+    
+    // Import Guru Modal
+    const uploadAreaGuru = document.getElementById('uploadAreaGuru');
+    const fileInputGuru = document.getElementById('fileInputGuru');
+    const fileTableGuru = document.getElementById('fileTableGuru');
+    const fileTableBodyGuru = document.getElementById('fileTableBodyGuru');
+    
+    if (uploadAreaGuru && fileInputGuru) {
+        // Click to upload
+        uploadAreaGuru.addEventListener('click', () => {
+            fileInputGuru.click();
+        });
+        
+        // Drag and drop
+        uploadAreaGuru.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadAreaGuru.style.borderColor = '#2d5016';
+            uploadAreaGuru.style.backgroundColor = '#e8f5e9';
+        });
+        
+        uploadAreaGuru.addEventListener('dragleave', () => {
+            uploadAreaGuru.style.borderColor = '#ccc';
+            uploadAreaGuru.style.backgroundColor = '#f8f9fa';
+        });
+        
+        uploadAreaGuru.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadAreaGuru.style.borderColor = '#ccc';
+            uploadAreaGuru.style.backgroundColor = '#f8f9fa';
+            
+            const files = e.dataTransfer.files;
+            console.log('Files dropped:', files.length);
+            if (files.length > 0) {
+                // Simpan sebagai Array
+                const filesArray = Array.from(files);
+                handleFilesGuru(filesArray);
+            }
+        });
+        
+        fileInputGuru.addEventListener('change', (e) => {
+            console.log('File input changed, files:', e.target.files.length);
+            if (e.target.files.length > 0) {
+                // Simpan files SEBELUM reset input
+                const files = Array.from(e.target.files);
+                handleFilesGuru(files);
+                // Reset setelah handleFilesGuru selesai
+                setTimeout(() => {
+                    e.target.value = '';
+                }, 100);
+            }
+        });
+    }
+    
+    function handleFilesGuru(files) {
+        console.log('handleFilesGuru called with files:', files);
+        
+        if (!fileTableGuru || !fileTableBodyGuru) {
+            console.error('File table elements not found');
+            return;
+        }
+        
+        // Hapus baris "belum ada data" jika ada
+        const noDataRow = document.getElementById('noDataRowGuru');
+        if (noDataRow) {
+            noDataRow.remove();
+        }
+        
+        // Tampilkan tabel
+        fileTableGuru.style.display = 'table';
+        fileTableBodyGuru.innerHTML = '';
+        
+        // Simpan files sebagai Array ke window untuk akses di uploadFileGuru
+        // Ini penting karena FileList bisa menjadi invalid setelah file input direset
+        window.uploadFilesGuru = Array.from(files);
+        console.log('Files saved to window.uploadFilesGuru:', window.uploadFilesGuru.length, 'files');
+        
+        // Reset file input SETELAH menyimpan files
+        // Jangan reset sebelum menyimpan karena FileList akan menjadi invalid
+        
+        Array.from(files).forEach((file, index) => {
+            const row = document.createElement('tr');
+            row.id = 'fileRowGuru_' + index;
+            
+            // Format ukuran file
+            let fileSize = '';
+            if (file.size < 1024) {
+                fileSize = file.size + ' B';
+            } else if (file.size < 1024 * 1024) {
+                fileSize = (file.size / 1024).toFixed(2) + ' KB';
+            } else {
+                fileSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+            
+            row.innerHTML = `
+                <td>${file.name}</td>
+                <td>${fileSize}</td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progressGuru_${index}" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </td>
+                <td id="successGuru_${index}" style="text-align: center; font-weight: bold; color: #28a745;">0</td>
+                <td id="failedGuru_${index}" style="text-align: center; font-weight: bold; color: #dc3545;">0</td>
+                <td id="duplicateGuru_${index}" style="text-align: center; font-weight: bold; color: #ffc107;">0</td>
+                <td id="statusGuru_${index}">
+                    <span class="badge bg-secondary">Menunggu</span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="uploadFileGuru(${index})">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
+                </td>
+            `;
+            
+            fileTableBodyGuru.appendChild(row);
+        });
+    }
+    
+    function uploadFileGuru(index) {
+        console.log('=== uploadFileGuru START ===');
+        console.log('Index:', index);
+        console.log('window.uploadFilesGuru:', window.uploadFilesGuru);
+        console.log('window.uploadFilesGuru length:', window.uploadFilesGuru ? window.uploadFilesGuru.length : 0);
+        
+        // Gunakan files yang disimpan di window
+        let file = null;
+        if (window.uploadFilesGuru && Array.isArray(window.uploadFilesGuru) && window.uploadFilesGuru[index]) {
+            file = window.uploadFilesGuru[index];
+            console.log('File found in window.uploadFilesGuru:', file.name, 'Size:', file.size);
+        } else {
+            console.error('File not found in window.uploadFilesGuru');
+            console.error('Available files:', window.uploadFilesGuru);
+            
+            // Fallback ke fileInput (jika masih ada)
+            const fileInput = document.getElementById('fileInputGuru');
+            if (fileInput && fileInput.files && fileInput.files[index]) {
+                file = fileInput.files[index];
+                console.log('File found in fileInput (fallback):', file.name);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    html: `File tidak ditemukan!<br>Index: ${index}<br>Total files: ${window.uploadFilesGuru ? window.uploadFilesGuru.length : 0}`,
+                    confirmButtonColor: '#2d5016'
+                });
+                return;
+            }
+        }
+        
+        if (!file || !file.name) {
+            console.error('File is null or invalid:', file);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'File tidak valid!',
+                confirmButtonColor: '#2d5016'
+            });
+            return;
+        }
+        
+        console.log('File ready for upload:', file.name, file.size, 'bytes');
+        
+        const formData = new FormData();
+        formData.append('file_excel', file);
+        formData.append('action', 'import');
+        
+        const progressBar = document.getElementById('progressGuru_' + index);
+        const statusBadge = document.getElementById('statusGuru_' + index);
+        const successCell = document.getElementById('successGuru_' + index);
+        const failedCell = document.getElementById('failedGuru_' + index);
+        const duplicateCell = document.getElementById('duplicateGuru_' + index);
+        
+        if (!progressBar || !statusBadge || !successCell || !failedCell || !duplicateCell) {
+            console.error('Required elements not found:', {
+                progressBar: !!progressBar,
+                statusBadge: !!statusBadge,
+                successCell: !!successCell,
+                failedCell: !!failedCell,
+                duplicateCell: !!duplicateCell
+            });
+            return;
+        }
+        
+        // Reset progress bar ke 0%
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+        progressBar.setAttribute('aria-valuenow', '0');
+        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
+        
+        // Update status
+        statusBadge.innerHTML = '<span class="badge bg-info">Mengupload...</span>';
+        
+        // Disable upload button
+        const uploadBtn = document.querySelector(`#fileRowGuru_${index} button`);
+        if (uploadBtn) {
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        }
+        
+        console.log('Starting upload...');
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                const percentRounded = Math.round(percentComplete);
+                console.log('Upload progress:', percentRounded + '%');
+                
+                progressBar.style.width = percentComplete + '%';
+                progressBar.textContent = percentRounded + '%';
+                progressBar.setAttribute('aria-valuenow', percentRounded);
+                
+                // Update warna progress bar berdasarkan progress
+                if (percentComplete < 50) {
+                    progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
+                } else if (percentComplete < 100) {
+                    progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
+                } else {
+                    progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+                }
+            } else {
+                console.log('Progress not computable');
+            }
+        });
+        
+        xhr.addEventListener('load', () => {
+            // Set progress bar ke 100% saat selesai
+            progressBar.style.width = '100%';
+            progressBar.textContent = '100%';
+            progressBar.setAttribute('aria-valuenow', '100');
+            progressBar.className = 'progress-bar bg-success';
+            
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    
+                    if (response.success) {
+                        statusBadge.innerHTML = '<span class="badge bg-success">Selesai</span>';
+                        
+                        // Update semua data
+                        successCell.textContent = response.success_count || 0;
+                        successCell.style.color = '#28a745';
+                        successCell.style.fontWeight = 'bold';
+                        
+                        failedCell.textContent = response.error_count || 0;
+                        failedCell.style.color = '#dc3545';
+                        failedCell.style.fontWeight = 'bold';
+                        
+                        duplicateCell.textContent = response.duplicate_count || 0;
+                        duplicateCell.style.color = '#ffc107';
+                        duplicateCell.style.fontWeight = 'bold';
+                        
+                        // Disable upload button
+                        const uploadBtn = document.querySelector(`#fileRowGuru_${index} button`);
+                        if (uploadBtn) {
+                            uploadBtn.disabled = true;
+                            uploadBtn.innerHTML = '<i class="fas fa-check"></i> Selesai';
+                            uploadBtn.className = 'btn btn-sm btn-success';
+                        }
+                        
+                        if (response.success_count > 0) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                html: `Berhasil mengimpor ${response.success_count} data guru<br>
+                                       Gagal: ${response.error_count || 0}<br>
+                                       Duplikat: ${response.duplicate_count || 0}`,
+                                confirmButtonColor: '#2d5016',
+                                timer: 3000,
+                                timerProgressBar: true,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Perhatian!',
+                                html: `${response.message || 'Tidak ada data yang berhasil diimpor'}<br>
+                                       <br>
+                                       <strong>Detail:</strong><br>
+                                       Sukses: ${response.success_count || 0}<br>
+                                       Gagal: ${response.error_count || 0}<br>
+                                       Duplikat: ${response.duplicate_count || 0}<br>
+                                       <br>
+                                       <small>Pastikan file Excel memiliki format yang benar:<br>
+                                       Kolom 1: Nama<br>
+                                       Kolom 2: Jenis Kelamin (L/P)<br>
+                                       Kolom 3: Tempat Lahir<br>
+                                       Kolom 4: Tanggal Lahir<br>
+                                       Kolom 5: Pendidikan<br>
+                                       Kolom 6: NUPTK<br>
+                                       Kolom 7: Password (opsional)<br>
+                                       Kolom 8: Role (opsional)</small>`,
+                                confirmButtonColor: '#2d5016',
+                                timer: 6000,
+                                timerProgressBar: true,
+                                showConfirmButton: true,
+                                width: '600px'
+                            });
+                        }
+                    } else {
+                        statusBadge.innerHTML = '<span class="badge bg-danger">Gagal</span>';
+                        progressBar.className = 'progress-bar bg-danger';
+                        
+                        failedCell.textContent = response.error_count || 0;
+                        failedCell.style.color = '#dc3545';
+                        failedCell.style.fontWeight = 'bold';
+                        
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message || 'Gagal mengimpor data',
+                            confirmButtonColor: '#2d5016',
+                            timer: 4000,
+                            timerProgressBar: true,
+                            showConfirmButton: true
+                        });
+                    }
+                } catch (e) {
+                    statusBadge.innerHTML = '<span class="badge bg-danger">Error</span>';
+                    progressBar.className = 'progress-bar bg-danger';
+                    console.error('Error parsing response:', e);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Terjadi kesalahan saat memproses response',
+                        confirmButtonColor: '#2d5016'
+                    });
+                }
+            } else {
+                statusBadge.innerHTML = '<span class="badge bg-danger">Error</span>';
+                progressBar.className = 'progress-bar bg-danger';
+                
+                // Coba parse response sebagai JSON untuk mendapatkan pesan error yang lebih detail
+                let errorMessage = 'Gagal mengupload file';
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.message) {
+                        errorMessage = errorResponse.message;
+                    }
+                } catch (e) {
+                    // Jika bukan JSON, gunakan status text atau default message
+                    errorMessage = xhr.statusText || 'Gagal mengupload file (Status: ' + xhr.status + ')';
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    html: errorMessage + '<br><small>Status: ' + xhr.status + '</small>',
+                    confirmButtonColor: '#2d5016',
+                    timer: 5000,
+                    timerProgressBar: true,
+                    showConfirmButton: true
+                });
+            }
+        });
+        
+        xhr.addEventListener('error', () => {
+            console.error('XHR error occurred');
+            statusBadge.innerHTML = '<span class="badge bg-danger">Error</span>';
+            progressBar.className = 'progress-bar bg-danger';
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+            }
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'Terjadi kesalahan saat mengupload',
+                confirmButtonColor: '#2d5016'
+            });
+        });
+        
+        xhr.addEventListener('abort', () => {
+            console.log('XHR aborted');
+            statusBadge.innerHTML = '<span class="badge bg-warning">Dibatalkan</span>';
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+            }
+        });
+        
+        console.log('Opening XHR connection...');
+        xhr.open('POST', 'import_ajax.php', true);
+        
+        console.log('Sending formData...');
+        xhr.send(formData);
+    }
+    
+    function downloadTemplateGuru() {
+        window.location.href = 'template_guru.php';
+    }
 </script>
 

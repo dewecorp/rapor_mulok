@@ -323,7 +323,7 @@ try {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal'
         }).then((result) => {
@@ -355,14 +355,40 @@ try {
                     type: 'POST',
                     data: {id: id},
                     success: function(response) {
+                        var result = JSON.parse(response);
+                        if (result.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil',
+                                text: 'Password berhasil direset menjadi "123456"',
+                                confirmButtonColor: '#2d5016',
+                                timer: 3000,
+                                timerProgressBar: true,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: 'Gagal mereset password!',
+                                confirmButtonColor: '#2d5016',
+                                timer: 3000,
+                                timerProgressBar: true,
+                                showConfirmButton: true
+                            });
+                        }
+                    },
+                    error: function() {
                         Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil',
-                            text: 'Password berhasil direset menjadi "123456"',
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Terjadi kesalahan saat mereset password!',
                             confirmButtonColor: '#2d5016',
                             timer: 3000,
                             timerProgressBar: true,
-                            showConfirmButton: false
+                            showConfirmButton: true
                         });
                     }
                 });

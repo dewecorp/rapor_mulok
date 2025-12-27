@@ -291,6 +291,9 @@ $basePath = getBasePath();
                         <a class="nav-link" href="<?php echo $basePath; ?>pengguna/index.php">
                             <i class="fas fa-users"></i> Pengguna
                         </a>
+                        <a class="nav-link" href="<?php echo $basePath; ?>pengaturan/index.php">
+                            <i class="fas fa-cog"></i> Pengaturan
+                        </a>
                         <a class="nav-link" href="<?php echo $basePath; ?>backup/index.php">
                             <i class="fas fa-database"></i> Backup & Restore
                         </a>

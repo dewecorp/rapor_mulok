@@ -164,6 +164,178 @@ if ($role == 'proktor') {
                 </div>
             </div>
             
+            <?php
+            // Buat tabel dan ambil info aplikasi
+            $info_aplikasi = '';
+            try {
+                // Buat tabel jika belum ada
+                $conn->query("CREATE TABLE IF NOT EXISTS `pengaturan_aplikasi` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `info_aplikasi` text DEFAULT NULL,
+                    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    `updated_by` int(11) DEFAULT NULL,
+                    PRIMARY KEY (`id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                // Cek apakah ada data, jika tidak insert default
+                $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
+                $count = $check ? $check->fetch_assoc()['total'] : 0;
+                if ($count == 0) {
+                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                    $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
+                    $stmt->bind_param("s", $default_info);
+                    $stmt->execute();
+                }
+                
+                // Ambil info aplikasi
+                $result_info = $conn->query("SELECT info_aplikasi FROM pengaturan_aplikasi LIMIT 1");
+                if ($result_info && $result_info->num_rows > 0) {
+                    $info_data = $result_info->fetch_assoc();
+                    $info_aplikasi = $info_data['info_aplikasi'] ?? '';
+                }
+            } catch (Exception $e) {
+                // Error, tetap tampilkan default
+                $info_aplikasi = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+            }
+            
+            // Ambil aktivitas login (24 jam terakhir)
+            $aktivitas_data = [];
+            $total_aktivitas = 0;
+            try {
+                // Buat tabel jika belum ada
+                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_login` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `user_id` int(11) NOT NULL,
+                    `nama` varchar(255) NOT NULL,
+                    `role` varchar(50) NOT NULL,
+                    `ip_address` varchar(50) DEFAULT NULL,
+                    `user_agent` text DEFAULT NULL,
+                    `waktu_login` datetime DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    KEY `idx_user_id` (`user_id`),
+                    KEY `idx_waktu_login` (`waktu_login`),
+                    KEY `idx_role` (`role`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                // Hapus aktivitas yang lebih dari 24 jam
+                $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+                
+                // Ambil aktivitas 24 jam terakhir
+                $query_aktivitas = "SELECT * FROM aktivitas_login ORDER BY waktu_login DESC LIMIT 50";
+                $result_aktivitas = $conn->query($query_aktivitas);
+                if ($result_aktivitas) {
+                    while ($row = $result_aktivitas->fetch_assoc()) {
+                        $aktivitas_data[] = $row;
+                    }
+                    $total_aktivitas = $result_aktivitas->num_rows;
+                }
+            } catch (Exception $e) {
+                // Error
+            }
+            ?>
+            
+            <div class="card mt-3">
+                <div class="card-header" style="background-color: #2d5016; color: white;">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Info Aplikasi</h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-aplikasi">
+                        <?php 
+                        if (!empty($info_aplikasi)) {
+                            echo $info_aplikasi; 
+                        } else {
+                            echo 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header" style="background-color: #2d5016; color: white;">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history"></i> Aktivitas Login (24 Jam Terakhir)
+                        <span class="badge bg-light text-dark ms-2"><?php echo $total_aktivitas; ?></span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <?php if (count($aktivitas_data) > 0): ?>
+                        <div class="timeline-container">
+                            <div class="timeline">
+                                <?php foreach ($aktivitas_data as $index => $aktivitas): 
+                                    $waktu = strtotime($aktivitas['waktu_login']);
+                                    $selisih = time() - $waktu;
+                                    $menit = floor($selisih / 60);
+                                    $jam = floor($selisih / 3600);
+                                    $hari = floor($selisih / 86400);
+                                    
+                                    // Format waktu relatif
+                                    if ($menit < 1) {
+                                        $waktu_text = 'Baru saja';
+                                    } elseif ($menit < 60) {
+                                        $waktu_text = $menit . ' menit yang lalu';
+                                    } elseif ($jam < 24) {
+                                        $waktu_text = $jam . ' jam yang lalu';
+                                    } elseif ($hari == 1) {
+                                        $waktu_text = 'Kemarin';
+                                    } else {
+                                        $waktu_text = $hari . ' hari yang lalu';
+                                    }
+                                    
+                                    // Format tanggal dan waktu lengkap
+                                    $tanggal_waktu = date('d/m/Y H:i:s', $waktu);
+                                    $hari_nama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                                    $bulan_nama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                                    $hari_indonesia = $hari_nama[date('w', $waktu)];
+                                    $tanggal_lengkap = $hari_indonesia . ', ' . date('d', $waktu) . ' ' . $bulan_nama[date('n', $waktu) - 1] . ' ' . date('Y', $waktu) . ' pukul ' . date('H:i:s', $waktu);
+                                    
+                                    $role_badge = [
+                                        'proktor' => 'danger',
+                                        'wali_kelas' => 'info',
+                                        'guru' => 'success'
+                                    ];
+                                    $badge_color = $role_badge[$aktivitas['role']] ?? 'secondary';
+                                ?>
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker">
+                                            <i class="fas fa-user-circle"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">
+                                                        <?php echo htmlspecialchars($aktivitas['nama']); ?>
+                                                        <span class="badge bg-<?php echo $badge_color; ?> ms-2">
+                                                            <?php echo ucfirst(str_replace('_', ' ', $aktivitas['role'])); ?>
+                                                        </span>
+                                                    </h6>
+                                                    <p class="text-muted mb-1">
+                                                        <i class="fas fa-clock"></i> <strong><?php echo $waktu_text; ?></strong>
+                                                        <span class="ms-2 text-muted" style="font-size: 0.9em;">
+                                                            (<?php echo $tanggal_lengkap; ?>)
+                                                        </span>
+                                                    </p>
+                                                    <p class="text-muted mb-0" style="font-size: 0.85em;">
+                                                        <i class="fas fa-globe"></i> IP: <?php echo htmlspecialchars($aktivitas['ip_address'] ?? 'unknown'); ?>
+                                                        <span class="ms-3">
+                                                            <i class="fas fa-calendar-alt"></i> <?php echo $tanggal_waktu; ?>
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-muted text-center py-3">
+                            <i class="fas fa-inbox"></i> Belum ada aktivitas login dalam 24 jam terakhir.
+                        </p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
         <?php elseif ($role == 'wali_kelas'): ?>
             <div class="row mb-4">
                 <div class="col-md-4">
@@ -258,6 +430,58 @@ if ($role == 'proktor') {
                 </div>
             </div>
             
+            <?php
+            // Buat tabel dan ambil info aplikasi untuk wali kelas
+            $info_aplikasi_wk = '';
+            try {
+                // Buat tabel jika belum ada
+                $conn->query("CREATE TABLE IF NOT EXISTS `pengaturan_aplikasi` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `info_aplikasi` text DEFAULT NULL,
+                    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    `updated_by` int(11) DEFAULT NULL,
+                    PRIMARY KEY (`id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                // Cek apakah ada data, jika tidak insert default
+                $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
+                $count = $check ? $check->fetch_assoc()['total'] : 0;
+                if ($count == 0) {
+                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                    $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
+                    $stmt->bind_param("s", $default_info);
+                    $stmt->execute();
+                }
+                
+                // Ambil info aplikasi
+                $result_info = $conn->query("SELECT info_aplikasi FROM pengaturan_aplikasi LIMIT 1");
+                if ($result_info && $result_info->num_rows > 0) {
+                    $info_data = $result_info->fetch_assoc();
+                    $info_aplikasi_wk = $info_data['info_aplikasi'] ?? '';
+                }
+            } catch (Exception $e) {
+                // Error, tetap tampilkan default
+                $info_aplikasi_wk = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+            }
+            ?>
+            
+            <div class="card mt-3">
+                <div class="card-header" style="background-color: #2d5016; color: white;">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Info Aplikasi</h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-aplikasi">
+                        <?php 
+                        if (!empty($info_aplikasi_wk)) {
+                            echo $info_aplikasi_wk; 
+                        } else {
+                            echo 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
+            
         <?php elseif ($role == 'guru'): ?>
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -326,9 +550,205 @@ if ($role == 'proktor') {
                     <?php endif; ?>
                 </div>
             </div>
+            
+            <?php
+            // Buat tabel dan ambil info aplikasi untuk guru
+            $info_aplikasi_guru = '';
+            try {
+                // Buat tabel jika belum ada
+                $conn->query("CREATE TABLE IF NOT EXISTS `pengaturan_aplikasi` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `info_aplikasi` text DEFAULT NULL,
+                    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    `updated_by` int(11) DEFAULT NULL,
+                    PRIMARY KEY (`id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                // Cek apakah ada data, jika tidak insert default
+                $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
+                $count = $check ? $check->fetch_assoc()['total'] : 0;
+                if ($count == 0) {
+                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                    $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
+                    $stmt->bind_param("s", $default_info);
+                    $stmt->execute();
+                }
+                
+                // Ambil info aplikasi
+                $result_info = $conn->query("SELECT info_aplikasi FROM pengaturan_aplikasi LIMIT 1");
+                if ($result_info && $result_info->num_rows > 0) {
+                    $info_data = $result_info->fetch_assoc();
+                    $info_aplikasi_guru = $info_data['info_aplikasi'] ?? '';
+                }
+            } catch (Exception $e) {
+                // Error, tetap tampilkan default
+                $info_aplikasi_guru = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+            }
+            ?>
+            
+            <div class="card mt-3">
+                <div class="card-header" style="background-color: #2d5016; color: white;">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Info Aplikasi</h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-aplikasi">
+                        <?php 
+                        if (!empty($info_aplikasi_guru)) {
+                            echo $info_aplikasi_guru; 
+                        } else {
+                            echo 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
         <?php endif; ?>
     </div>
 </div>
+
+<style>
+.timeline-container {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #2d5016, #4a7c2a);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 25px;
+    padding-left: 40px;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -15px;
+    top: 0;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #2d5016, #4a7c2a);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
+    z-index: 1;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border-left: 3px solid #2d5016;
+    padding: 15px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.timeline-content:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.info-aplikasi {
+    line-height: 1.8;
+    color: #333;
+    font-size: 1.25rem;
+}
+
+.info-aplikasi p {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.info-aplikasi h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #2d5016;
+}
+
+.info-aplikasi h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    color: #2d5016;
+}
+
+.info-aplikasi h3 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #2d5016;
+}
+
+.info-aplikasi h4 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #2d5016;
+}
+
+.info-aplikasi h5, .info-aplikasi h6 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.info-aplikasi ul, .info-aplikasi ol {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+}
+
+.info-aplikasi li {
+    margin-bottom: 0.5rem;
+}
+
+.info-aplikasi strong, .info-aplikasi b {
+    font-weight: 600;
+    color: #2d5016;
+}
+
+.info-aplikasi a {
+    color: #2d5016;
+    text-decoration: underline;
+}
+
+.info-aplikasi a:hover {
+    color: #4a7c2a;
+}
+</style>
 
 <?php include 'includes/footer.php'; ?>
 

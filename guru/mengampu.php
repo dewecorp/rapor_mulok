@@ -8,6 +8,16 @@ $conn = getConnection();
 $success = '';
 $error = '';
 
+// Ambil pesan dari session (setelah redirect)
+if (isset($_SESSION['success_message'])) {
+    $success = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    $error = $_SESSION['error_message'];
+    unset($_SESSION['error_message']);
+}
+
 // Filter kelas
 $kelas_filter = $_GET['kelas'] ?? '';
 
@@ -24,21 +34,59 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $stmt->bind_param("iii", $materi_mulok_id, $guru_id, $kelas_id);
                 
                 if ($stmt->execute()) {
-                    $success = 'Data mengampu berhasil ditambahkan!';
+                    // Redirect untuk mencegah resubmit dan refresh data
+                    // Gunakan kelas_id dari form untuk redirect
+                    $_SESSION['success_message'] = 'Data mengampu berhasil ditambahkan!';
+                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    exit();
                 } else {
-                    $error = 'Gagal menambahkan data mengampu!';
+                    $_SESSION['error_message'] = 'Gagal menambahkan data mengampu!';
+                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    exit();
                 }
             }
         } elseif ($_POST['action'] == 'delete') {
             $id = $_POST['id'] ?? 0;
             
+            // Ambil kelas_id dari data yang akan dihapus untuk redirect
+            $kelas_id_for_redirect = '';
+            try {
+                $stmt_get = $conn->prepare("SELECT kelas_id FROM mengampu_materi WHERE id = ?");
+                $stmt_get->bind_param("i", $id);
+                $stmt_get->execute();
+                $result_get = $stmt_get->get_result();
+                if ($result_get && $result_get->num_rows > 0) {
+                    $row_get = $result_get->fetch_assoc();
+                    $kelas_id_for_redirect = $row_get['kelas_id'];
+                }
+            } catch (Exception $e) {
+                // Ignore error
+            }
+            
             $stmt = $conn->prepare("DELETE FROM mengampu_materi WHERE id=?");
             $stmt->bind_param("i", $id);
             
             if ($stmt->execute()) {
-                $success = 'Data mengampu berhasil dihapus!';
+                // Redirect untuk mencegah resubmit dan refresh data
+                $_SESSION['success_message'] = 'Data mengampu berhasil dihapus!';
+                $redirect_url = 'mengampu.php';
+                if ($kelas_id_for_redirect) {
+                    $redirect_url .= '?kelas=' . $kelas_id_for_redirect;
+                } elseif ($kelas_filter) {
+                    $redirect_url .= '?kelas=' . $kelas_filter;
+                }
+                header('Location: ' . $redirect_url);
+                exit();
             } else {
-                $error = 'Gagal menghapus data mengampu!';
+                $_SESSION['error_message'] = 'Gagal menghapus data mengampu!';
+                $redirect_url = 'mengampu.php';
+                if ($kelas_id_for_redirect) {
+                    $redirect_url .= '?kelas=' . $kelas_id_for_redirect;
+                } elseif ($kelas_filter) {
+                    $redirect_url .= '?kelas=' . $kelas_filter;
+                }
+                header('Location: ' . $redirect_url);
+                exit();
             }
         }
     }
@@ -56,22 +104,47 @@ $guru_list = $conn->query($query_guru);
 $query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
 $kelas_list = $conn->query($query_kelas);
 
-// Query data mengampu
+// Query data materi mulok dengan status mengampu
 $result = null;
+$mengampu_data = [];
 try {
     if ($kelas_filter) {
         $kelas_id = intval($kelas_filter);
-        $stmt = $conn->prepare("SELECT mm.*, m.nama_mulok, m.jumlah_jam, p.nama as nama_guru, k.nama_kelas
-              FROM mengampu_materi mm
-              INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-              INNER JOIN pengguna p ON mm.guru_id = p.id
-              INNER JOIN kelas k ON mm.kelas_id = k.id
-              WHERE mm.kelas_id = ?
-              ORDER BY k.nama_kelas, m.nama_mulok");
+        // Ambil nama kelas
+        $stmt_kelas = $conn->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
+        $stmt_kelas->bind_param("i", $kelas_id);
+        $stmt_kelas->execute();
+        $result_kelas = $stmt_kelas->get_result();
+        $kelas_info = $result_kelas->fetch_assoc();
+        $nama_kelas = $kelas_info ? $kelas_info['nama_kelas'] : '';
+        
+        // Tampilkan semua materi mulok dengan LEFT JOIN ke mengampu_materi untuk melihat status
+        $query = "SELECT m.*, 
+                  mm.id as mengampu_id,
+                  mm.guru_id,
+                  p.nama as nama_guru,
+                  k.nama_kelas
+                  FROM materi_mulok m
+                  LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                  LEFT JOIN pengguna p ON mm.guru_id = p.id
+                  LEFT JOIN kelas k ON mm.kelas_id = k.id
+                  ORDER BY m.nama_mulok";
+        $stmt = $conn->prepare($query);
         $stmt->bind_param("i", $kelas_id);
         $stmt->execute();
         $result = $stmt->get_result();
+        if ($result) {
+            // Simpan data ke array
+            while ($row = $result->fetch_assoc()) {
+                // Tambahkan nama_kelas dari filter jika belum ada
+                if (empty($row['nama_kelas']) && $nama_kelas) {
+                    $row['nama_kelas'] = $nama_kelas;
+                }
+                $mengampu_data[] = $row;
+            }
+        }
     } else {
+        // Jika tidak ada filter kelas, tampilkan semua data mengampu yang sudah ada
         $query = "SELECT mm.*, m.nama_mulok, m.jumlah_jam, p.nama as nama_guru, k.nama_kelas
               FROM mengampu_materi mm
               INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
@@ -79,14 +152,22 @@ try {
               INNER JOIN kelas k ON mm.kelas_id = k.id
               ORDER BY k.nama_kelas, m.nama_mulok";
         $result = $conn->query($query);
+        if ($result) {
+            // Simpan data ke array
+            while ($row = $result->fetch_assoc()) {
+                $mengampu_data[] = $row;
+            }
+        }
     }
     if (!$result) {
         $error = 'Error query: ' . $conn->error;
         $result = null;
+        $mengampu_data = [];
     }
 } catch (Exception $e) {
     $error = 'Error: ' . $e->getMessage();
     $result = null;
+    $mengampu_data = [];
 }
 ?>
 <?php include '../includes/header.php'; ?>
@@ -136,7 +217,6 @@ try {
             </select>
         </div>
         
-        <?php if ($result && ($kelas_filter || $result->num_rows > 0)): ?>
         <div class="table-responsive">
             <table class="table table-bordered table-striped" id="tableMengampu">
                 <thead>
@@ -145,48 +225,72 @@ try {
                         <th>Materi Mulok</th>
                         <th>Jumlah Jam</th>
                         <th>Guru</th>
-                        <th>Kelas</th>
                         <th width="100">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php 
-                    if ($result && $result->num_rows > 0):
+                    if (count($mengampu_data) > 0):
                         $no = 1;
-                        while ($row = $result->fetch_assoc()): 
+                        foreach ($mengampu_data as $row): 
                     ?>
+                        <?php 
+                            $mengampu_id = $row['mengampu_id'] ?? null;
+                            $guru_id = $row['guru_id'] ?? null;
+                            $nama_guru = $row['nama_guru'] ?? null;
+                            $nama_mulok = $row['nama_mulok'] ?? '';
+                            $jumlah_jam = $row['jumlah_jam'] ?? 0;
+                            $materi_id = $row['id'] ?? 0; // id dari materi_mulok (karena query menggunakan m.*)
+                            $nama_kelas = $row['nama_kelas'] ?? '';
+                        ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
-                            <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
-                            <td><?php echo htmlspecialchars($row['jumlah_jam']); ?> Jam</td>
-                            <td><?php echo htmlspecialchars($row['nama_guru']); ?></td>
-                            <td><?php echo htmlspecialchars($row['nama_kelas']); ?></td>
+                            <td><?php echo htmlspecialchars($nama_mulok); ?></td>
+                            <td><?php echo htmlspecialchars($jumlah_jam); ?> Jam</td>
                             <td>
-                                <button class="btn btn-sm btn-danger" onclick="deleteMengampu(<?php echo $row['id']; ?>)">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                                <?php if ($nama_guru): ?>
+                                    <span class="badge bg-success"><?php echo htmlspecialchars($nama_guru); ?></span>
+                                <?php else: ?>
+                                    <select class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="setGuru(<?php echo $materi_id; ?>, this.value, <?php echo $kelas_filter; ?>)">
+                                        <option value="">-- Pilih Guru --</option>
+                                        <?php 
+                                        $guru_list->data_seek(0);
+                                        while ($guru = $guru_list->fetch_assoc()): 
+                                        ?>
+                                            <option value="<?php echo $guru['id']; ?>">
+                                                <?php echo htmlspecialchars($guru['nama']); ?>
+                                            </option>
+                                        <?php endwhile; ?>
+                                    </select>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ($mengampu_id): ?>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteMengampu(<?php echo $mengampu_id; ?>)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php 
-                        endwhile;
+                        endforeach;
                     else:
                     ?>
                         <tr>
-                            <td colspan="6" class="text-center text-muted">Belum ada data mengampu materi</td>
+                            <td colspan="5" class="text-center text-muted">
+                                <?php if ($kelas_filter): ?>
+                                    Belum ada data materi mulok. Silakan tambah materi mulok terlebih dahulu.
+                                <?php else: ?>
+                                    Belum ada data mengampu materi. Pilih kelas untuk melihat data.
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
-        <?php elseif (!$kelas_filter): ?>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> Pilih kelas terlebih dahulu untuk melihat data mengampu.
-            </div>
-        <?php else: ?>
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i> Belum ada data mengampu untuk kelas yang dipilih.
-            </div>
-        <?php endif; ?>
     </div>
 </div>
 
@@ -270,12 +374,39 @@ try {
         }
     }
     
+    function setGuru(materiId, guruId, kelasId) {
+        if (!guruId || !kelasId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Peringatan',
+                text: 'Silakan pilih guru!',
+                confirmButtonColor: '#2d5016',
+                timer: 2000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+            return;
+        }
+        
+        // Submit form untuk menambahkan data mengampu
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = '<input type="hidden" name="action" value="add">' +
+                        '<input type="hidden" name="materi_mulok_id" value="' + materiId + '">' +
+                        '<input type="hidden" name="guru_id" value="' + guruId + '">' +
+                        '<input type="hidden" name="kelas_id" value="' + kelasId + '">';
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
     $(document).ready(function() {
+        <?php if (count($mengampu_data) > 0): ?>
         $('#tableMengampu').DataTable({
             language: {
                 url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
             }
         });
+        <?php endif; ?>
     });
     
     function deleteMengampu(id) {
@@ -285,7 +416,7 @@ try {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal'
         }).then((result) => {

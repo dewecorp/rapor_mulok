@@ -23,7 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['action'])) {
         if ($_POST['action'] == 'add') {
             $nama_kelas = trim($_POST['nama_kelas'] ?? '');
-            $jumlah_siswa = intval($_POST['jumlah_siswa'] ?? 0);
             $wali_kelas_id = !empty($_POST['wali_kelas_id']) ? intval($_POST['wali_kelas_id']) : null;
             
             // Validasi input
@@ -45,11 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (empty($error)) {
                     try {
                         if ($wali_kelas_id !== null && $wali_kelas_id > 0) {
-                            $stmt = $conn->prepare("INSERT INTO kelas (nama_kelas, jumlah_siswa, wali_kelas_id) VALUES (?, ?, ?)");
-                            $stmt->bind_param("sii", $nama_kelas, $jumlah_siswa, $wali_kelas_id);
+                            $stmt = $conn->prepare("INSERT INTO kelas (nama_kelas, wali_kelas_id) VALUES (?, ?)");
+                            $stmt->bind_param("si", $nama_kelas, $wali_kelas_id);
                         } else {
-                            $stmt = $conn->prepare("INSERT INTO kelas (nama_kelas, jumlah_siswa, wali_kelas_id) VALUES (?, ?, NULL)");
-                            $stmt->bind_param("si", $nama_kelas, $jumlah_siswa);
+                            $stmt = $conn->prepare("INSERT INTO kelas (nama_kelas, wali_kelas_id) VALUES (?, NULL)");
+                            $stmt->bind_param("s", $nama_kelas);
                         }
                         
                         if ($stmt->execute()) {
@@ -87,7 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif ($_POST['action'] == 'edit') {
             $id = intval($_POST['id'] ?? 0);
             $nama_kelas = trim($_POST['nama_kelas'] ?? '');
-            $jumlah_siswa = intval($_POST['jumlah_siswa'] ?? 0);
             $wali_kelas_id = !empty($_POST['wali_kelas_id']) ? intval($_POST['wali_kelas_id']) : null;
             
             // Validasi input
@@ -111,11 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (empty($error)) {
                     try {
                         if ($wali_kelas_id !== null && $wali_kelas_id > 0) {
-                            $stmt = $conn->prepare("UPDATE kelas SET nama_kelas=?, jumlah_siswa=?, wali_kelas_id=? WHERE id=?");
-                            $stmt->bind_param("siii", $nama_kelas, $jumlah_siswa, $wali_kelas_id, $id);
+                            $stmt = $conn->prepare("UPDATE kelas SET nama_kelas=?, wali_kelas_id=? WHERE id=?");
+                            $stmt->bind_param("sii", $nama_kelas, $wali_kelas_id, $id);
                         } else {
-                            $stmt = $conn->prepare("UPDATE kelas SET nama_kelas=?, jumlah_siswa=?, wali_kelas_id=NULL WHERE id=?");
-                            $stmt->bind_param("sii", $nama_kelas, $jumlah_siswa, $id);
+                            $stmt = $conn->prepare("UPDATE kelas SET nama_kelas=?, wali_kelas_id=NULL WHERE id=?");
+                            $stmt->bind_param("si", $nama_kelas, $id);
                         }
                         
                         if ($stmt->execute()) {
@@ -177,12 +175,13 @@ if (isset($_GET['edit'])) {
     }
 }
 
-// Ambil semua data kelas dengan nama wali kelas
+// Ambil semua data kelas dengan nama wali kelas dan jumlah siswa
 $result = null;
 $kelas_data = [];
 $guru_list = null;
 try {
-    $query = "SELECT k.*, p.nama as nama_wali_kelas 
+    $query = "SELECT k.*, p.nama as nama_wali_kelas,
+              (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id) as jumlah_siswa
               FROM kelas k 
               LEFT JOIN pengguna p ON k.wali_kelas_id = p.id 
               ORDER BY k.nama_kelas";
@@ -265,7 +264,7 @@ try {
                         <tr>
                             <td><?php echo $no++; ?></td>
                             <td><?php echo htmlspecialchars($row['nama_kelas']); ?></td>
-                            <td><?php echo htmlspecialchars($row['jumlah_siswa']); ?> Siswa</td>
+                            <td><?php echo intval($row['jumlah_siswa'] ?? 0); ?> Siswa</td>
                             <td><?php echo htmlspecialchars($row['nama_wali_kelas'] ?? '-'); ?></td>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick="editKelas(<?php echo $row['id']; ?>)">
@@ -309,11 +308,6 @@ try {
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Jumlah Siswa <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" name="jumlah_siswa" id="jumlahSiswa" min="0" required>
-                    </div>
-                    
-                    <div class="mb-3">
                         <label class="form-label">Wali Kelas</label>
                         <select class="form-select" name="wali_kelas_id" id="waliKelasId">
                             <option value="">-- Pilih Wali Kelas --</option>
@@ -324,6 +318,7 @@ try {
                                 endwhile;
                             endif; ?>
                         </select>
+                        <small class="text-muted">Jumlah siswa akan dihitung otomatis dari data siswa yang terdaftar di kelas ini.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -368,7 +363,7 @@ try {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal'
         }).then((result) => {
@@ -405,7 +400,6 @@ try {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
         $('#namaKelas').val('<?php echo addslashes($edit_data['nama_kelas']); ?>');
-        $('#jumlahSiswa').val(<?php echo $edit_data['jumlah_siswa']; ?>);
         $('#waliKelasId').val(<?php echo $edit_data['wali_kelas_id'] ?? 'null'; ?>);
         $('#modalTitle').text('Edit Kelas');
         $('#modalKelas').modal('show');
