@@ -49,18 +49,7 @@ function getBasePath() {
     
     return str_repeat('../', $depth - 1);
 }
-
-// Fungsi untuk mendapatkan base URL absolut
-function getBaseUrlPath() {
-    if (isset($_SERVER['HTTP_HOST'])) {
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-        return $protocol . '://' . $_SERVER['HTTP_HOST'] . '/';
-    }
-    return '/';
-}
-
 $basePath = getBasePath();
-$baseUrlPath = getBaseUrlPath();
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -71,12 +60,12 @@ $baseUrlPath = getBaseUrlPath();
     
     <!-- Favicon menggunakan logo sekolah -->
     <?php if (!empty($profil['logo'])): ?>
-        <link rel="icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
-        <link rel="shortcut icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
-        <link rel="apple-touch-icon" href="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="icon" type="image/png" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="apple-touch-icon" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
     <?php else: ?>
-        <link rel="icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/logo.png">
-        <link rel="shortcut icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/logo.png">
+        <link rel="icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
+        <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
     <?php endif; ?>
     
     <!-- Bootstrap CSS -->
@@ -101,7 +90,7 @@ $baseUrlPath = getBaseUrlPath();
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f5f5f5;
-            font-size: 13px;
+            font-size: 18px;
         }
         
         /* Perbesar semua font untuk keterbacaan yang lebih baik */
@@ -109,19 +98,19 @@ $baseUrlPath = getBaseUrlPath();
             font-size: inherit;
         }
         
-        h1 { font-size: 1.75rem; }
-        h2 { font-size: 1.5rem; }
-        h3 { font-size: 1.25rem; }
-        h4 { font-size: 1.1rem; }
-        h5 { font-size: 1rem; }
-        h6 { font-size: 0.95rem; }
+        h1 { font-size: 2.5rem; }
+        h2 { font-size: 2rem; }
+        h3 { font-size: 1.75rem; }
+        h4 { font-size: 1.5rem; }
+        h5 { font-size: 1.25rem; }
+        h6 { font-size: 1.1rem; }
         
         p, span, div, label {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         input, select, textarea, button {
-            font-size: 13px !important;
+            font-size: 18px !important;
         }
         
         .navbar {
@@ -140,8 +129,6 @@ $baseUrlPath = getBaseUrlPath();
         .navbar-brand img {
             height: 40px;
             margin-right: 10px;
-            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
-            -webkit-filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
         }
         
         .navbar-brand-content {
@@ -151,7 +138,7 @@ $baseUrlPath = getBaseUrlPath();
         }
         
         .navbar-brand-app-name {
-            font-size: 15px;
+            font-size: 20px;
             font-weight: bold;
             margin: 0;
             display: flex;
@@ -160,7 +147,7 @@ $baseUrlPath = getBaseUrlPath();
         }
         
         .navbar-brand-school-name {
-            font-size: 11px;
+            font-size: 14px;
             font-weight: normal;
             opacity: 0.9;
             margin: 0;
@@ -168,7 +155,17 @@ $baseUrlPath = getBaseUrlPath();
         }
         
         .navbar-brand-academic-info {
-            font-size: 10px;
+            font-size: 13px;
+            font-weight: normal;
+            opacity: 0.85;
+            padding: 2px 8px;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        
+        .navbar-brand-academic-info {
+            font-size: 13px;
             font-weight: normal;
             opacity: 0.85;
             padding: 2px 8px;
@@ -191,78 +188,6 @@ $baseUrlPath = getBaseUrlPath();
             border: 2px solid white;
         }
         
-        .madrasah-logo-navbar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid white;
-            margin-right: 10px;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .madrasah-logo-navbar:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
-        }
-        
-        .proktor-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        
-        .proktor-dropdown-menu {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 8px;
-            background-color: white;
-            min-width: 180px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            border-radius: 8px;
-            z-index: 1000;
-            overflow: hidden;
-        }
-        
-        .proktor-dropdown-menu.show {
-            display: block;
-        }
-        
-        .proktor-dropdown-menu .dropdown-item {
-            padding: 12px 16px;
-            color: #333;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: background-color 0.2s ease;
-            border: none;
-            background: none;
-            width: 100%;
-            text-align: left;
-            font-size: 13px;
-        }
-        
-        .proktor-dropdown-menu .dropdown-item:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .proktor-dropdown-menu .dropdown-item.logout {
-            color: #dc3545;
-            border-top: 1px solid #e9ecef;
-        }
-        
-        .proktor-dropdown-menu .dropdown-item.logout:hover {
-            background-color: #fff5f5;
-        }
-        
-        .proktor-dropdown-menu .dropdown-item i {
-            width: 18px;
-            text-align: center;
-        }
-        
         .user-details {
             color: white;
             text-align: right;
@@ -270,12 +195,12 @@ $baseUrlPath = getBaseUrlPath();
         
         .user-details .user-name {
             font-weight: 600;
-            font-size: 13px;
+            font-size: 18px;
             margin: 0;
         }
         
         .user-details .user-role {
-            font-size: 11px;
+            font-size: 16px;
             opacity: 0.9;
             margin: 0;
         }
@@ -283,7 +208,7 @@ $baseUrlPath = getBaseUrlPath();
         .datetime-info {
             color: white;
             text-align: center;
-            font-size: 12px;
+            font-size: 17px;
             margin: 0 auto;
             padding: 0;
             flex: 1;
@@ -322,98 +247,47 @@ $baseUrlPath = getBaseUrlPath();
             min-height: calc(100vh - 56px);
             background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%);
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
-            min-width: 200px;
-        }
-        
-        @media (min-width: 992px) {
-            .sidebar {
-                min-width: 210px;
-            }
         }
         
         .sidebar .nav-link {
             color: #2d5016;
-            padding: 10px 16px;
+            padding: 14px 20px;
             border-left: 4px solid transparent;
             transition: all 0.3s ease;
             font-weight: 500;
             margin: 2px 8px;
             border-radius: 8px;
-            font-size: 13px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            background: transparent;
+            font-size: 18px;
         }
         
-        .sidebar .nav-link:hover:not(.active) {
-            background-color: rgba(45, 80, 22, 0.1) !important;
-            border-left-color: var(--hijau-kemenag-light) !important;
-            color: var(--hijau-kemenag-dark) !important;
+        .sidebar .nav-link:hover {
+            background-color: rgba(45, 80, 22, 0.1);
+            border-left-color: var(--hijau-kemenag-light);
+            color: var(--hijau-kemenag-dark);
             transform: translateX(5px);
         }
         
-        /* Style aktif untuk semua menu - konsisten dan menarik - menggunakan warna langsung */
-        .sidebar .nav-link.active,
-        .sidebar a.nav-link.active,
-        .sidebar nav a.nav-link.active,
-        .sidebar .nav a.nav-link.active {
-            background: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-image: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-color: transparent !important;
-            border-left: 4px solid #ffffff !important;
-            border-left-color: #ffffff !important;
-            border-left-width: 4px !important;
-            color: #ffffff !important;
+        .sidebar .nav-link.active {
+            background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%) !important;
+            border-left-color: #fff !important;
+            color: white !important;
             font-weight: 600 !important;
-            box-shadow: 0 4px 12px rgba(45, 80, 22, 0.4) !important;
-            transform: translateX(5px) !important;
-            position: relative !important;
-            z-index: 1 !important;
+            box-shadow: 0 4px 8px rgba(45, 80, 22, 0.3) !important;
+            transform: translateX(5px);
         }
         
-        .sidebar .nav-link.active::before,
-        .sidebar a.nav-link.active::before,
-        .sidebar nav a.nav-link.active::before,
-        .sidebar .nav a.nav-link.active::before {
-            content: '' !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            width: 4px !important;
-            background: #ffffff !important;
-            border-radius: 0 4px 4px 0 !important;
-            z-index: 2 !important;
-        }
-        
-        .sidebar .nav-link.active i,
-        .sidebar a.nav-link.active i,
-        .sidebar nav a.nav-link.active i,
-        .sidebar .nav a.nav-link.active i {
-            color: #ffffff !important;
-            transform: scale(1.1) !important;
-            transition: transform 0.3s ease;
+        .sidebar .nav-link.active i {
+            color: white !important;
         }
         
         /* Pastikan style aktif tidak tertimpa oleh hover */
-        .sidebar .nav-link.active:hover,
-        .sidebar a.nav-link.active:hover,
-        .sidebar nav a.nav-link.active:hover,
-        .sidebar .nav a.nav-link.active:hover {
-            background: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-image: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-color: transparent !important;
-            color: #ffffff !important;
-            box-shadow: 0 6px 16px rgba(45, 80, 22, 0.5) !important;
-            transform: translateX(5px) scale(1.02) !important;
+        .sidebar .nav-link.active:hover {
+            background: linear-gradient(135deg, var(--hijau-kemenag-dark) 0%, var(--hijau-kemenag) 100%) !important;
+            color: white !important;
         }
         
-        .sidebar .nav-link.active:hover i,
-        .sidebar a.nav-link.active:hover i,
-        .sidebar nav a.nav-link.active:hover i,
-        .sidebar .nav a.nav-link.active:hover i {
-            color: #ffffff !important;
+        .sidebar .nav-link.active:hover i {
+            color: white !important;
         }
         
         .sidebar .nav-link i {
@@ -430,58 +304,27 @@ $baseUrlPath = getBaseUrlPath();
         /* Style untuk submenu */
         .sidebar .nav-link.ps-5 {
             padding-left: 3rem !important;
-            font-size: 12px;
+            font-size: 17px;
             margin-left: 20px;
         }
         
-        /* Style aktif untuk submenu - SAMA PERSIS dengan menu utama */
-        .sidebar .nav-link.ps-5.active,
-        .sidebar a.nav-link.ps-5.active {
-            background: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-image: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-color: transparent !important;
-            border-left: 4px solid #ffffff !important;
-            border-left-color: #ffffff !important;
-            border-left-width: 4px !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 12px rgba(45, 80, 22, 0.4) !important;
-            transform: translateX(5px) !important;
-            position: relative !important;
-            z-index: 1 !important;
-        }
-        
-        .sidebar .nav-link.ps-5.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: #fff;
-            border-radius: 0 4px 4px 0;
-            z-index: 2;
-        }
-        
-        .sidebar .nav-link.ps-5.active i,
-        .sidebar a.nav-link.ps-5.active i {
+        .sidebar .nav-link.ps-5.active {
+            background: linear-gradient(135deg, var(--hijau-kemenag-light) 0%, var(--hijau-kemenag) 100%) !important;
+            border-left-color: #fff !important;
             color: white !important;
-            transform: scale(1.1);
-            transition: transform 0.3s ease;
+            font-weight: 600 !important;
         }
         
-        .sidebar .nav-link.ps-5.active:hover,
-        .sidebar a.nav-link.ps-5.active:hover {
-            background: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-image: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-color: transparent !important;
-            color: #ffffff !important;
-            box-shadow: 0 6px 16px rgba(45, 80, 22, 0.5) !important;
-            transform: translateX(5px) scale(1.02) !important;
+        .sidebar .nav-link.ps-5.active i {
+            color: white !important;
         }
         
-        .sidebar .nav-link.ps-5.active:hover i,
-        .sidebar a.nav-link.ps-5.active:hover i {
+        .sidebar .nav-link.ps-5.active:hover {
+            background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-dark) 100%) !important;
+            color: white !important;
+        }
+        
+        .sidebar .nav-link.ps-5.active:hover i {
             color: white !important;
         }
         
@@ -493,58 +336,6 @@ $baseUrlPath = getBaseUrlPath();
         .sidebar .collapse .nav-link:hover {
             background-color: rgba(45, 80, 22, 0.15);
         }
-        
-        /* Pastikan menu aktif di collapse juga memiliki style yang SAMA PERSIS */
-        .sidebar .collapse .nav-link.active,
-        .sidebar .collapse a.nav-link.active {
-            background: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-image: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-color: transparent !important;
-            border-left: 4px solid #ffffff !important;
-            border-left-color: #ffffff !important;
-            border-left-width: 4px !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 12px rgba(45, 80, 22, 0.4) !important;
-            transform: translateX(5px) !important;
-            position: relative !important;
-            z-index: 1 !important;
-        }
-        
-        .sidebar .collapse .nav-link.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: #fff;
-            border-radius: 0 4px 4px 0;
-            z-index: 2;
-        }
-        
-        .sidebar .collapse .nav-link.active i,
-        .sidebar .collapse a.nav-link.active i {
-            color: white !important;
-            transform: scale(1.1);
-            transition: transform 0.3s ease;
-        }
-        
-        .sidebar .collapse .nav-link.active:hover,
-        .sidebar .collapse a.nav-link.active:hover {
-            background: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-image: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-color: transparent !important;
-            color: #ffffff !important;
-            box-shadow: 0 6px 16px rgba(45, 80, 22, 0.5) !important;
-            transform: translateX(5px) scale(1.02) !important;
-        }
-        
-        .sidebar .collapse .nav-link.active:hover i,
-        .sidebar .collapse a.nav-link.active:hover i {
-            color: white !important;
-        }
-        
         
         /* Style untuk parent menu yang memiliki child aktif */
         .sidebar .nav-link.has-active-child {
@@ -588,63 +379,6 @@ $baseUrlPath = getBaseUrlPath();
             color: white !important;
         }
         
-        /* FINAL OVERRIDE - Pastikan semua menu aktif memiliki style yang sama persis */
-        .sidebar nav.flex-column a.nav-link.active,
-        .sidebar .nav.flex-column .nav-link.active,
-        .sidebar .nav a.nav-link.active,
-        .sidebar .nav .nav-link.active {
-            background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%) !important;
-            border-left: 4px solid #fff !important;
-            border-left-color: #fff !important;
-            border-left-width: 4px !important;
-            color: white !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 12px rgba(45, 80, 22, 0.4) !important;
-            transform: translateX(5px) !important;
-            position: relative !important;
-            z-index: 10 !important;
-        }
-        
-        .sidebar nav.flex-column a.nav-link.active::before,
-        .sidebar .nav.flex-column .nav-link.active::before,
-        .sidebar .nav a.nav-link.active::before,
-        .sidebar .nav .nav-link.active::before {
-            content: '' !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            width: 4px !important;
-            background: #fff !important;
-            border-radius: 0 4px 4px 0 !important;
-            z-index: 11 !important;
-        }
-        
-        .sidebar nav.flex-column a.nav-link.active i,
-        .sidebar .nav.flex-column .nav-link.active i,
-        .sidebar .nav a.nav-link.active i,
-        .sidebar .nav .nav-link.active i {
-            color: white !important;
-            transform: scale(1.1) !important;
-        }
-        
-        .sidebar nav.flex-column a.nav-link.active:hover,
-        .sidebar .nav.flex-column .nav-link.active:hover,
-        .sidebar .nav a.nav-link.active:hover,
-        .sidebar .nav .nav-link.active:hover {
-            background: linear-gradient(135deg, var(--hijau-kemenag-dark) 0%, var(--hijau-kemenag) 100%) !important;
-            color: white !important;
-            box-shadow: 0 6px 16px rgba(45, 80, 22, 0.5) !important;
-            transform: translateX(5px) scale(1.02) !important;
-        }
-        
-        .sidebar nav.flex-column a.nav-link.active:hover i,
-        .sidebar .nav.flex-column .nav-link.active:hover i,
-        .sidebar .nav a.nav-link.active:hover i,
-        .sidebar .nav .nav-link.active:hover i {
-            color: white !important;
-        }
-        
         .content-wrapper {
             padding: 20px;
         }
@@ -660,9 +394,9 @@ $baseUrlPath = getBaseUrlPath();
             background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%);
             color: white;
             border-radius: 10px 10px 0 0 !important;
-            padding: 12px 18px;
+            padding: 15px 20px;
             font-weight: 600;
-            font-size: 15px;
+            font-size: 20px;
         }
         
         .btn-primary {
@@ -686,50 +420,50 @@ $baseUrlPath = getBaseUrlPath();
         }
         
         .table {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .table th {
-            font-size: 13px;
+            font-size: 18px;
             font-weight: 600;
         }
         
         .table td {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .badge {
-            padding: 4px 8px;
+            padding: 7px 14px;
             font-weight: 500;
-            font-size: 11px;
+            font-size: 16px;
         }
         
         .form-label {
-            font-size: 13px;
+            font-size: 18px;
             font-weight: 500;
         }
         
         .form-control, .form-select {
-            font-size: 13px;
-            padding: 6px 10px;
+            font-size: 18px;
+            padding: 10px 15px;
         }
         
         .btn {
-            font-size: 13px;
-            padding: 6px 14px;
+            font-size: 18px;
+            padding: 10px 20px;
         }
         
         /* Style untuk tombol icon-only */
         .btn i {
-            font-size: 12px;
+            font-size: 16px;
         }
         
         .btn-sm {
-            padding: 5px 8px;
+            padding: 8px 12px;
         }
         
         .btn-sm i {
-            font-size: 11px;
+            font-size: 16px;
         }
         
         /* Tooltip styling */
@@ -747,54 +481,54 @@ $baseUrlPath = getBaseUrlPath();
         }
         
         .navbar-brand {
-            font-size: 15px;
+            font-size: 22px;
         }
         
         /* Perbesar font untuk elemen lainnya */
         .alert {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .modal-title {
-            font-size: 16px;
+            font-size: 22px;
         }
         
         .modal-body {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .dropdown-menu {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .dropdown-item {
-            font-size: 13px;
-            padding: 8px 14px;
+            font-size: 18px;
+            padding: 10px 20px;
         }
         
         .pagination {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .page-link {
-            font-size: 13px;
-            padding: 6px 10px;
+            font-size: 18px;
+            padding: 10px 15px;
         }
         
         .list-group-item {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .card-body {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         .card-title {
-            font-size: 15px;
+            font-size: 20px;
         }
         
         .card-text {
-            font-size: 13px;
+            font-size: 18px;
         }
         
         small, .small {
@@ -804,133 +538,13 @@ $baseUrlPath = getBaseUrlPath();
         .text-muted {
             font-size: 17px;
         }
-        /* ULTIMATE OVERRIDE - Pastikan Dashboard dan semua menu aktif memiliki style yang sama persis */
-        .sidebar .nav.flex-column a.nav-link.active,
-        .sidebar .nav.flex-column .nav-link.active,
-        .sidebar nav a.nav-link.active,
-        .sidebar nav .nav-link.active,
-        .sidebar a.nav-link.active,
-        .sidebar .nav-link.active,
-        .sidebar .nav-link.ps-5.active,
-        .sidebar a.nav-link.ps-5.active,
-        .sidebar .collapse .nav-link.active,
-        .sidebar .collapse a.nav-link.active {
-            background: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-image: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-color: transparent !important;
-            border-left: 4px solid #ffffff !important;
-            border-left-color: #ffffff !important;
-            border-left-width: 4px !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 12px rgba(45, 80, 22, 0.4) !important;
-            transform: translateX(5px) !important;
-            position: relative !important;
-            z-index: 100 !important;
-        }
-        
-        .sidebar .nav.flex-column a.nav-link.active::before,
-        .sidebar .nav.flex-column .nav-link.active::before,
-        .sidebar nav a.nav-link.active::before,
-        .sidebar nav .nav-link.active::before,
-        .sidebar a.nav-link.active::before,
-        .sidebar .nav-link.active::before,
-        .sidebar .nav-link.ps-5.active::before,
-        .sidebar a.nav-link.ps-5.active::before,
-        .sidebar .collapse .nav-link.active::before,
-        .sidebar .collapse a.nav-link.active::before {
-            content: '' !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            width: 4px !important;
-            background: #ffffff !important;
-            border-radius: 0 4px 4px 0 !important;
-            z-index: 101 !important;
-        }
-        
-        .sidebar .nav.flex-column a.nav-link.active i,
-        .sidebar .nav.flex-column .nav-link.active i,
-        .sidebar nav a.nav-link.active i,
-        .sidebar nav .nav-link.active i,
-        .sidebar a.nav-link.active i,
-        .sidebar .nav-link.active i,
-        .sidebar .nav-link.ps-5.active i,
-        .sidebar a.nav-link.ps-5.active i,
-        .sidebar .collapse .nav-link.active i,
-        .sidebar .collapse a.nav-link.active i {
-            color: #ffffff !important;
-            transform: scale(1.1) !important;
-        }
-        
-        .sidebar .nav.flex-column a.nav-link.active:hover,
-        .sidebar .nav.flex-column .nav-link.active:hover,
-        .sidebar nav a.nav-link.active:hover,
-        .sidebar nav .nav-link.active:hover,
-        .sidebar a.nav-link.active:hover,
-        .sidebar .nav-link.active:hover,
-        .sidebar .nav-link.ps-5.active:hover,
-        .sidebar a.nav-link.ps-5.active:hover,
-        .sidebar .collapse .nav-link.active:hover,
-        .sidebar .collapse a.nav-link.active:hover {
-            background: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-image: linear-gradient(135deg, #1a3509 0%, #2d5016 100%) !important;
-            background-color: transparent !important;
-            color: #ffffff !important;
-            box-shadow: 0 6px 16px rgba(45, 80, 22, 0.5) !important;
-            transform: translateX(5px) scale(1.02) !important;
-        }
-        
-        .sidebar .nav.flex-column a.nav-link.active:hover i,
-        .sidebar .nav.flex-column .nav-link.active:hover i,
-        .sidebar nav a.nav-link.active:hover i,
-        .sidebar nav .nav-link.active:hover i,
-        .sidebar a.nav-link.active:hover i,
-        .sidebar .nav-link.active:hover i,
-        .sidebar .nav-link.ps-5.active:hover i,
-        .sidebar a.nav-link.ps-5.active:hover i,
-        .sidebar .collapse .nav-link.active:hover i,
-        .sidebar .collapse a.nav-link.active:hover i {
-            color: #ffffff !important;
-        }
-        /* ABSOLUTE FINAL - Force style untuk Dashboard dan semua menu aktif dengan body selector */
-        body .sidebar .nav.flex-column a.nav-link.active,
-        body .sidebar .nav.flex-column .nav-link.active,
-        body .sidebar nav a.nav-link.active,
-        body .sidebar nav .nav-link.active,
-        body .sidebar a.nav-link.active,
-        body .sidebar .nav-link.active {
-            background: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-image: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%) !important;
-            background-color: #2d5016 !important;
-            border-left: 4px solid #ffffff !important;
-            border-left-color: #ffffff !important;
-            border-left-width: 4px !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 12px rgba(45, 80, 22, 0.4) !important;
-            transform: translateX(5px) !important;
-            position: relative !important;
-            z-index: 1000 !important;
-        }
-        
-        body .sidebar .nav.flex-column a.nav-link.active i,
-        body .sidebar .nav.flex-column .nav-link.active i,
-        body .sidebar nav a.nav-link.active i,
-        body .sidebar nav .nav-link.active i,
-        body .sidebar a.nav-link.active i,
-        body .sidebar .nav-link.active i {
-            color: #ffffff !important;
-            transform: scale(1.1) !important;
-        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="<?php echo $baseUrlPath; ?>index.php">
-                <img src="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
+            <a class="navbar-brand" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+                <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
                 <div class="navbar-brand-content">
                     <div class="navbar-brand-app-name">
                         <?php echo APP_SHORT; ?>
@@ -952,22 +566,7 @@ $baseUrlPath = getBaseUrlPath();
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
                         <div class="user-role"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></div>
                     </div>
-                    <?php if ($user['role'] == 'proktor'): ?>
-                        <?php 
-                        // Gunakan logo dari profil madrasah, jika tidak ada gunakan logo default
-                        $logo_madrasah = !empty($profil['logo']) ? $profil['logo'] : 'logo.png';
-                        ?>
-                        <div class="proktor-dropdown">
-                            <img src="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($logo_madrasah); ?>" alt="Logo Madrasah" class="madrasah-logo-navbar" id="proktorLogoBtn" onerror="this.onerror=null; this.style.display='none';">
-                            <div class="proktor-dropdown-menu" id="proktorDropdownMenu">
-                                <a href="<?php echo $baseUrlPath; ?>logout.php" class="dropdown-item logout">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    <span>Logout</span>
-                                </a>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    <img src="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
+                    <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
                 </div>
             </div>
         </div>
@@ -978,26 +577,20 @@ $baseUrlPath = getBaseUrlPath();
             <div class="col-md-3 col-lg-2 sidebar p-0">
                 <nav class="nav flex-column mt-3">
                     <?php if ($user['role'] == 'proktor'): ?>
-                        <?php 
-                        // Tentukan apakah kita di halaman dashboard
-                        $current_page = basename($_SERVER['PHP_SELF']);
-                        $is_dashboard = ($current_page == 'index.php' && empty($_GET));
-                        $dashboard_active = $is_dashboard ? 'active' : '';
-                        ?>
-                        <a class="nav-link <?php echo $dashboard_active; ?>" href="<?php echo $baseUrlPath; ?>index.php">
+                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#lembagaMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-school"></i> Lembaga <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="lembagaMenu" data-bs-parent=".sidebar">
-                        <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>lembaga/profil.php">
+                        <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/profil.php">
                             <i class="fas fa-circle"></i> Profil Madrasah
                         </a>
-                        <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>lembaga/materi.php">
+                        <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/materi.php">
                             <i class="fas fa-circle"></i> Materi Mulok
                         </a>
-                        <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>lembaga/kelas.php">
+                        <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/kelas.php">
                             <i class="fas fa-circle"></i> Kelas
                         </a>
                         </div>
@@ -1005,78 +598,72 @@ $baseUrlPath = getBaseUrlPath();
                             <i class="fas fa-chalkboard-teacher"></i> Guru <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="guruMenu" data-bs-parent=".sidebar">
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>guru/data.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/data.php">
                                 <i class="fas fa-circle"></i> Data Guru
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>guru/mengampu.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/mengampu.php">
                                 <i class="fas fa-circle"></i> Mengampu Materi
                             </a>
                         </div>
-                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>siswa/index.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>siswa/index.php">
                             <i class="fas fa-user-graduate"></i> Siswa
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#raporMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-file-alt"></i> Rapor <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="raporMenu" data-bs-parent=".sidebar">
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/kkm.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/kkm.php">
                                 <i class="fas fa-circle"></i> Nilai KKM
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/pengaturan-cetak.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/pengaturan-cetak.php">
                                 <i class="fas fa-circle"></i> Pengaturan Cetak
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/status-nilai.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/status-nilai.php">
                                 <i class="fas fa-circle"></i> Status Nilai
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/cetak.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/cetak.php">
                                 <i class="fas fa-circle"></i> Cetak Rapor
                             </a>
                         </div>
-                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>pengguna/index.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>pengguna/index.php">
                             <i class="fas fa-users"></i> Pengguna
                         </a>
-                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>pengaturan/index.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>pengaturan/index.php">
                             <i class="fas fa-cog"></i> Pengaturan
                         </a>
-                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>backup/index.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>backup/index.php">
                             <i class="fas fa-database"></i> Backup & Restore
                         </a>
                     <?php elseif ($user['role'] == 'wali_kelas'): ?>
-                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>index.php">
+                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>wali-kelas/materi.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
                             <i class="fas fa-book"></i> Materi Mulok
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#waliMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-user-tie"></i> Wali Kelas <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="waliMenu" data-bs-parent=".sidebar">
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>wali-kelas/siswa.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/siswa.php">
                                 <i class="fas fa-circle"></i> Data Siswa
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>wali-kelas/status-nilai.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/status-nilai.php">
                                 <i class="fas fa-circle"></i> Status Nilai
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>wali-kelas/rapor.php">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/rapor.php">
                                 <i class="fas fa-circle"></i> Rapor
                             </a>
                         </div>
                     <?php elseif ($user['role'] == 'guru'): ?>
-                        <?php 
-                        // Tentukan apakah kita di halaman dashboard
-                        $current_page = basename($_SERVER['PHP_SELF']);
-                        $is_dashboard = ($current_page == 'index.php' && empty($_GET));
-                        $dashboard_active = $is_dashboard ? 'active' : '';
-                        ?>
-                        <a class="nav-link <?php echo $dashboard_active; ?>" href="<?php echo $baseUrlPath; ?>index.php">
+                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>guru/materi-diampu.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
                             <i class="fas fa-book"></i> Materi yang Diampu
                         </a>
                     <?php endif; ?>
-                    <a class="nav-link text-danger" href="<?php echo $baseUrlPath; ?>logout.php">
+                    <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </nav>
