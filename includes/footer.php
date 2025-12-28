@@ -118,6 +118,27 @@
         // Update datetime setiap detik (realtime)
         setInterval(updateDateTime, 1000);
         
+        // Dropdown untuk proktor logo
+        document.addEventListener('DOMContentLoaded', function() {
+            var proktorLogoBtn = document.getElementById('proktorLogoBtn');
+            var proktorDropdownMenu = document.getElementById('proktorDropdownMenu');
+            
+            if (proktorLogoBtn && proktorDropdownMenu) {
+                // Toggle dropdown saat logo diklik
+                proktorLogoBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    proktorDropdownMenu.classList.toggle('show');
+                });
+                
+                // Tutup dropdown saat klik di luar
+                document.addEventListener('click', function(e) {
+                    if (!proktorLogoBtn.contains(e.target) && !proktorDropdownMenu.contains(e.target)) {
+                        proktorDropdownMenu.classList.remove('show');
+                    }
+                });
+            }
+        });
+        
         if (typeof toastr !== 'undefined') {
             toastr.options = {"closeButton":true,"debug":false,"newestOnTop":true,"progressBar":true,"positionClass":"toast-top-right","preventDuplicates":false,"onclick":null,"showDuration":"300","hideDuration":"1000","timeOut":"5005","extendedTimeOut":"1000","showEasing":"swing","hideEasing":"linear","showMethod":"fadeIn","hideMethod":"fadeOut"};
         }
@@ -140,8 +161,9 @@
                 
                 if (isDashboard) {
                     // Aktifkan menu Dashboard saja, pastikan semua collapse tertutup
-                    $('.nav-link').each(function() {
-                        var href = $(this).attr('href');
+                    $('.sidebar .nav-link').each(function() {
+                        var $link = $(this);
+                        var href = $link.attr('href');
                         if (href) {
                             // Normalisasi href untuk perbandingan
                             var normalizedHref = href.split('?')[0].replace(/\/$/, '');
@@ -150,7 +172,17 @@
                             
                             // Jika href adalah index.php di root (tidak ada subdirectory sebelum index.php)
                             if (hrefFile === 'index.php' && hrefParts.length === 1) {
-                                $(this).addClass('active');
+                                $link.addClass('active');
+                                // Force apply style dengan inline style sebagai backup
+                                $link.css({
+                                    'background': 'linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%)',
+                                    'border-left': '4px solid #ffffff',
+                                    'color': '#ffffff',
+                                    'font-weight': '600',
+                                    'box-shadow': '0 4px 12px rgba(45, 80, 22, 0.4)',
+                                    'transform': 'translateX(5px)'
+                                });
+                                $link.find('i').css('color', '#ffffff');
                                 console.log('Dashboard menu aktif:', href);
                             }
                         }
@@ -249,5 +281,54 @@
         }
         
     </script>
+    
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3" style="background: linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%); color: white; margin-top: auto;">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <p class="mb-0" style="font-size: 12px; margin: 0;">
+                        &copy; <?php echo date('Y'); ?> <?php echo APP_NAME; ?> - 
+                        <?php 
+                        // Ambil nama madrasah dari profil jika ada
+                        $nama_madrasah = 'MI Sultan Fattah Sukosono';
+                        try {
+                            $conn = getConnection();
+                            $query_profil = "SELECT nama_madrasah FROM profil_madrasah LIMIT 1";
+                            $result_profil = $conn->query($query_profil);
+                            if ($result_profil && $result_profil->num_rows > 0) {
+                                $profil = $result_profil->fetch_assoc();
+                                $nama_madrasah = $profil['nama_madrasah'] ?? 'MI Sultan Fattah Sukosono';
+                            }
+                        } catch (Exception $e) {
+                            // Gunakan default
+                        }
+                        ?>
+                        <a href="https://misultanfattah.sch.id/" target="_blank" rel="noopener noreferrer" style="color: white; text-decoration: underline;"><?php echo htmlspecialchars($nama_madrasah); ?></a>
+                    </p>
+                    <p class="mb-0 mt-1" style="font-size: 11px; opacity: 0.9; margin: 0;">
+                        Dikembangkan oleh Tim IT MI Sultan Fattah Sukosono
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <style>
+        html, body {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .content-wrapper {
+            flex: 1;
+        }
+        
+        .footer {
+            width: 100%;
+            margin-top: auto;
+        }
+    </style>
 </body>
 </html>

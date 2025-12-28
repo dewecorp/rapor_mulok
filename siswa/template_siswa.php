@@ -40,8 +40,8 @@ try {
         $conn->close();
     }
     
-    // Set header (dengan kolom Kelas untuk informasi)
-    $headers = ['NISN', 'Nama', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Kelas'];
+    // Set header (tanpa kolom Kelas karena sudah dipilih di filter)
+    $headers = ['NISN', 'Nama', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Orangtua/Wali'];
     $sheet->fromArray($headers, NULL, 'A1');
     
     // Style header
@@ -66,10 +66,10 @@ try {
     ];
     $sheet->getStyle('A1:F1')->applyFromArray($headerStyle);
     
-    // Set contoh data (dengan kolom kelas untuk informasi)
+    // Set contoh data (tanpa kolom kelas)
     $exampleData = [
-        ['1234567890', 'Contoh Siswa 1', 'L', 'Jepara', '', $nama_kelas_template ?: 'Kelas yang dipilih'],
-        ['0987654321', 'Contoh Siswa 2', 'P', 'Jakarta', '', $nama_kelas_template ?: 'Kelas yang dipilih'],
+        ['1234567890', 'Contoh Siswa 1', 'L', 'Jepara', '', 'Nama Orangtua/Wali 1'],
+        ['0987654321', 'Contoh Siswa 2', 'P', 'Jakarta', '', 'Nama Orangtua/Wali 2'],
     ];
     $sheet->fromArray($exampleData, NULL, 'A2');
     
@@ -113,7 +113,7 @@ try {
     $sheet->getStyle('A2:F3')->applyFromArray($dataStyle);
     
     // Tambahkan catatan di bawah tabel
-    $sheet->setCellValue('A4', 'Catatan: Kolom "Kelas" hanya untuk informasi/referensi. Semua siswa yang diimpor akan otomatis masuk ke kelas yang dipilih di filter.');
+    $sheet->setCellValue('A4', 'Catatan: Semua siswa yang diimpor akan otomatis masuk ke kelas yang dipilih di filter.');
     $sheet->mergeCells('A4:F4');
     $sheet->getStyle('A4')->getFont()->setItalic(true);
     $sheet->getStyle('A4')->getFont()->getColor()->setRGB('808080');

@@ -295,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 13px;
             margin: 0;
             padding: 20px;
         }
@@ -325,16 +325,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
         
-        /* Perbesar font untuk keterbacaan yang lebih baik */
+        /* Font size untuk form login */
         h1, h2, h3, h4, h5, h6 {
             font-size: inherit;
         }
         
-        h2 { font-size: 2rem; }
-        p { font-size: 18px; }
-        label { font-size: 18px; font-weight: 500; }
+        h2 { font-size: 1.5rem; }
+        p { font-size: 13px; }
+        label { font-size: 13px; font-weight: 500; }
         input, select, textarea, button {
-            font-size: 18px !important;
+            font-size: 13px !important;
         }
         
         .login-container {
@@ -353,7 +353,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 500px;
+            min-height: 400px;
         }
         
         .login-image img {
@@ -363,7 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         .login-form {
-            padding: 50px;
+            padding: 30px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -371,60 +371,60 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .login-logo {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         
         .login-logo .logo-sekolah {
-            height: 100px;
-            margin-bottom: 15px;
+            height: 70px;
+            margin-bottom: 10px;
             display: block;
             margin-left: auto;
             margin-right: auto;
         }
         
         .login-logo img {
-            height: 80px;
-            margin-bottom: 15px;
+            height: 60px;
+            margin-bottom: 10px;
         }
         
         .login-logo h2 {
             color: var(--hijau-kemenag);
             font-weight: bold;
             margin: 0;
-            font-size: 2rem;
+            font-size: 1.5rem;
         }
         
         .login-logo p {
             color: #666;
             margin: 5px 0 0 0;
-            font-size: 18px;
+            font-size: 13px;
         }
         
         .login-logo .school-info {
-            margin-top: 15px;
-            padding-top: 15px;
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 1px solid #e0e0e0;
         }
         
         .login-logo .school-name {
             color: var(--hijau-kemenag);
-            font-size: 20px;
+            font-size: 15px;
             font-weight: 600;
-            margin: 8px 0;
+            margin: 5px 0;
         }
         
         .login-logo .academic-info {
             color: #666;
-            font-size: 18px;
-            margin: 5px 0;
+            font-size: 12px;
+            margin: 3px 0;
             font-weight: 500;
         }
         
         .form-control {
             border-radius: 8px;
-            padding: 12px 15px;
+            padding: 8px 12px;
             border: 1px solid #ddd;
-            font-size: 18px;
+            font-size: 13px;
         }
         
         .form-control:focus {
@@ -436,10 +436,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%);
             border: none;
             border-radius: 8px;
-            padding: 14px;
+            padding: 10px;
             color: white;
             font-weight: 600;
-            font-size: 18px;
+            font-size: 13px;
             width: 100%;
             transition: transform 0.2s;
         }

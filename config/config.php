@@ -10,8 +10,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Konfigurasi Aplikasi
-define('APP_NAME', 'Rapor Mulok Khusus');
-define('APP_SHORT', 'RMK');
+define('APP_NAME', 'Rapor Mulok Digital');
+define('APP_SHORT', 'RMD');
 define('APP_VERSION', '1.0.0');
 define('BASE_URL', 'http://localhost/rapor-mulok/');
 

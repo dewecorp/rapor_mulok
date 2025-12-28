@@ -21,7 +21,7 @@ try {
     // Insert default jika belum ada
     $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
     if ($check && $check->fetch_assoc()['total'] == 0) {
-        $conn->query("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES ('Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.')");
+        $conn->query("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES ('Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.')");
     }
 } catch (Exception $e) {
     $error = 'Error membuat tabel: ' . $e->getMessage();

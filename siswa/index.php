@@ -8,6 +8,16 @@ $conn = getConnection();
 $success = '';
 $error = '';
 
+// Pastikan kolom orangtua_wali ada di tabel siswa
+try {
+    $check_column = $conn->query("SHOW COLUMNS FROM siswa LIKE 'orangtua_wali'");
+    if ($check_column->num_rows == 0) {
+        $conn->query("ALTER TABLE siswa ADD COLUMN orangtua_wali VARCHAR(255) NULL AFTER tanggal_lahir");
+    }
+} catch (Exception $e) {
+    // Kolom mungkin sudah ada atau ada error lain, lanjutkan saja
+}
+
 // Filter kelas
 $kelas_filter = isset($_GET['kelas']) && $_GET['kelas'] !== '' ? $_GET['kelas'] : '';
 
@@ -20,11 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $jenis_kelamin = $_POST['jenis_kelamin'] ?? 'L';
             $tempat_lahir = $_POST['tempat_lahir'] ?? '';
             $tanggal_lahir = $_POST['tanggal_lahir'] ?? '';
+            $orangtua_wali = $_POST['orangtua_wali'] ?? '';
             // Gunakan kelas_id dari filter jika tidak ada di POST
             $kelas_id = $_POST['kelas_id'] ?? (!empty($kelas_filter) ? $kelas_filter : null);
             
-            $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("sssssi", $nisn, $nama, $jenis_kelamin, $tempat_lahir, $tanggal_lahir, $kelas_id);
+            $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, orangtua_wali, kelas_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("ssssssi", $nisn, $nama, $jenis_kelamin, $tempat_lahir, $tanggal_lahir, $orangtua_wali, $kelas_id);
             
             if ($stmt->execute()) {
                 // Update jumlah siswa di kelas
@@ -42,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $jenis_kelamin = $_POST['jenis_kelamin'] ?? 'L';
             $tempat_lahir = $_POST['tempat_lahir'] ?? '';
             $tanggal_lahir = $_POST['tanggal_lahir'] ?? '';
+            $orangtua_wali = $_POST['orangtua_wali'] ?? '';
             // Gunakan kelas_id dari filter jika tidak ada di POST
             $kelas_id = $_POST['kelas_id'] ?? (!empty($kelas_filter) ? $kelas_filter : null);
             
@@ -49,8 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $query_old = "SELECT kelas_id FROM siswa WHERE id = $id";
             $old_kelas = $conn->query($query_old)->fetch_assoc()['kelas_id'];
             
-            $stmt = $conn->prepare("UPDATE siswa SET nisn=?, nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, kelas_id=? WHERE id=?");
-            $stmt->bind_param("sssssii", $nisn, $nama, $jenis_kelamin, $tempat_lahir, $tanggal_lahir, $kelas_id, $id);
+            $stmt = $conn->prepare("UPDATE siswa SET nisn=?, nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, orangtua_wali=?, kelas_id=? WHERE id=?");
+            $stmt->bind_param("ssssssii", $nisn, $nama, $jenis_kelamin, $tempat_lahir, $tanggal_lahir, $orangtua_wali, $kelas_id, $id);
             
             if ($stmt->execute()) {
                 // Update jumlah siswa di kelas lama dan baru
@@ -95,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Ambil data untuk edit
+// Ambil data untuk edit (tanpa redirect, tetap di halaman yang sama)
 $edit_data = null;
 if (isset($_GET['edit'])) {
     $id = intval($_GET['edit']);
@@ -105,6 +117,10 @@ if (isset($_GET['edit'])) {
         $stmt->execute();
         $result = $stmt->get_result();
         $edit_data = $result->fetch_assoc();
+        // Pastikan kelas_id dari data edit sesuai dengan filter
+        if ($edit_data && !empty($kelas_filter)) {
+            $edit_data['kelas_id'] = $kelas_filter;
+        }
     } catch (Exception $e) {
         $error = 'Error: ' . $e->getMessage();
     }
@@ -227,7 +243,7 @@ try {
                         <th>Nama</th>
                         <th>Jenis Kelamin</th>
                         <th>Tempat, Tgl Lahir</th>
-                        <th>Kelas</th>
+                        <th>Orangtua/Wali</th>
                         <th width="150">Aksi</th>
                     </tr>
                 </thead>
@@ -245,7 +261,7 @@ try {
                                 <td><?php echo htmlspecialchars($row['nama'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars(($row['jenis_kelamin'] ?? 'L') == 'L' ? 'Laki-laki' : 'Perempuan', ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-', ENT_QUOTES, 'UTF-8'); ?><?php echo (!empty($row['tempat_lahir']) && !empty($row['tanggal_lahir'])) ? ', ' : ''; ?><?php echo !empty($row['tanggal_lahir']) ? htmlspecialchars(date('d/m/Y', strtotime($row['tanggal_lahir'])), ENT_QUOTES, 'UTF-8') : ''; ?></td>
-                                <td><?php echo htmlspecialchars($row['nama_kelas'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars($row['orangtua_wali'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td>
                                     <button class="btn btn-sm btn-warning" onclick="editSiswa(<?php echo $row['id']; ?>)" title="Edit">
                                         <i class="fas fa-edit"></i>
@@ -317,24 +333,12 @@ try {
                             <input type="date" class="form-control" name="tanggal_lahir" id="tanggalLahir">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Kelas</label>
-                            <?php if (!empty($kelas_filter)): ?>
-                                <?php 
-                                $kelas_list->data_seek(0);
-                                $kelas_selected = null;
-                                while ($kelas = $kelas_list->fetch_assoc()) {
-                                    if ($kelas['id'] == $kelas_filter) {
-                                        $kelas_selected = $kelas;
-                                        break;
-                                    }
-                                }
-                                ?>
-                                <input type="hidden" name="kelas_id" id="kelasId" value="<?php echo $kelas_filter; ?>">
-                                <input type="text" class="form-control" value="<?php echo htmlspecialchars($kelas_selected['nama_kelas'] ?? ''); ?>" readonly>
-                            <?php else: ?>
-                                <input type="text" class="form-control" value="Silakan pilih kelas terlebih dahulu" readonly>
-                            <?php endif; ?>
+                            <label class="form-label">Orangtua/Wali</label>
+                            <input type="text" class="form-control" name="orangtua_wali" id="orangtuaWali" placeholder="Nama orangtua/wali">
                         </div>
+                        <?php if (!empty($kelas_filter)): ?>
+                            <input type="hidden" name="kelas_id" id="kelasId" value="<?php echo $kelas_filter; ?>">
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -437,7 +441,13 @@ try {
     });
     
     function editSiswa(id) {
-        window.location.href = 'index.php?edit=' + id;
+        // Ambil kelas dari filter untuk tetap di halaman yang sama
+        var kelasFilter = $('#filterKelas').val();
+        var url = 'index.php?edit=' + id;
+        if (kelasFilter) {
+            url += '&kelas=' + kelasFilter;
+        }
+        window.location.href = url;
     }
     
     function deleteSiswa(id) {
@@ -482,6 +492,12 @@ try {
         <?php if (!empty($kelas_filter)): ?>
         $('#kelasId').val('<?php echo $kelas_filter; ?>');
         <?php endif; ?>
+        // Hapus parameter edit dari URL saat modal ditutup
+        var url = window.location.pathname;
+        <?php if ($kelas_filter): ?>
+        url += '?kelas=<?php echo $kelas_filter; ?>';
+        <?php endif; ?>
+        window.history.replaceState({}, '', url);
     });
     
     // Set kelas_id dari filter saat modal dibuka untuk tambah
@@ -506,8 +522,8 @@ try {
         window.uploadFilesSiswa = null;
     });
     
-    // Load data untuk edit
-    <?php if ($edit_data): ?>
+    // Load data untuk edit (hanya jika tidak ada success message)
+    <?php if ($edit_data && !$success): ?>
     $(document).ready(function() {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
@@ -516,23 +532,41 @@ try {
         $('#jenisKelamin').val('<?php echo $edit_data['jenis_kelamin']; ?>');
         $('#tempatLahir').val('<?php echo addslashes($edit_data['tempat_lahir'] ?? ''); ?>');
         $('#tanggalLahir').val('<?php echo $edit_data['tanggal_lahir'] ?? ''; ?>');
+        $('#orangtuaWali').val('<?php echo addslashes($edit_data['orangtua_wali'] ?? ''); ?>');
+        <?php if (!empty($kelas_filter)): ?>
+        $('#kelasId').val(<?php echo $kelas_filter; ?>);
+        <?php else: ?>
         $('#kelasId').val(<?php echo $edit_data['kelas_id'] ?? 'null'; ?>);
+        <?php endif; ?>
         $('#modalTitle').text('Edit Data Siswa');
         $('#modalSiswa').modal('show');
     });
     <?php endif; ?>
     
     <?php if ($success): ?>
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: '<?php echo addslashes($success); ?>',
-        confirmButtonColor: '#2d5016',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false
-    }).then(() => {
-        window.location.href = 'index.php<?php echo $kelas_filter ? "?kelas=" . $kelas_filter : ""; ?>';
+    $(document).ready(function() {
+        // Tutup modal edit jika sedang terbuka
+        $('#modalSiswa').modal('hide');
+        
+        // Tunggu sebentar untuk memastikan modal tertutup
+        setTimeout(function() {
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                text: '<?php echo addslashes($success); ?>',
+                confirmButtonColor: '#2d5016',
+                timer: 2000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            }).then(() => {
+                // Hapus parameter edit dari URL tapi tetap pertahankan filter kelas
+                var url = 'index.php';
+                <?php if ($kelas_filter): ?>
+                url += '?kelas=<?php echo $kelas_filter; ?>';
+                <?php endif; ?>
+                window.location.href = url;
+            });
+        }, 300);
     });
     <?php endif; ?>
     

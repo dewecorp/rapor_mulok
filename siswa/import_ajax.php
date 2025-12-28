@@ -430,7 +430,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     // Pastikan row adalah array dan memiliki minimal 5 kolom
                     $row = array_values($row); // Reset array keys
                     
-                    // Validasi minimal kolom yang diperlukan (NISN dan Nama)
+                    // Validasi minimal kolom yang diperlukan (NISN, Nama, Jenis Kelamin, Tempat Lahir, Tanggal Lahir, Orangtua/Wali)
                     if (count($row) < 5) {
                         error_log("Row $rowNumber (index $rowIndex) skipped: less than 5 columns (found: " . count($row) . ")");
                         continue;
@@ -464,12 +464,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     // Debug: Log hasil normalisasi
                     error_log("Row $rowNumber (index $rowIndex) - Tanggal lahir normalized: " . ($tanggal_lahir ?? 'NULL'));
                     
+                    // Kolom index 5 adalah orangtua/wali (bukan kelas lagi)
+                    $orangtua_wali = trim($row[5] ?? '');
+                    
                     $data[] = [
                         'nisn' => $nisn,
                         'nama' => $nama,
                         'jenis_kelamin' => $jenis_kelamin,
                         'tempat_lahir' => trim($row[3] ?? ''),
                         'tanggal_lahir' => $tanggal_lahir,
+                        'orangtua_wali' => $orangtua_wali,
                         'row_number' => $rowNumber // Simpan nomor baris untuk tracking
                         // Kolom kelas tidak diperlukan lagi, menggunakan kelas_id dari filter
                     ];
@@ -505,6 +509,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                 // Prepare data
                 $tempat_lahir_null = empty($row_data['tempat_lahir']) ? null : $row_data['tempat_lahir'];
                 $tanggal_lahir_null = empty($row_data['tanggal_lahir']) ? null : $row_data['tanggal_lahir'];
+                $orangtua_wali_null = empty($row_data['orangtua_wali']) ? null : trim($row_data['orangtua_wali']);
                 
                 // Pastikan jenis_kelamin hanya 'L' atau 'P'
                 $jenis_kelamin = in_array($row_data['jenis_kelamin'], ['L', 'P']) ? $row_data['jenis_kelamin'] : 'L';
@@ -547,21 +552,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                         
                         // Handle kelas_id yang bisa null untuk UPDATE
                         if ($kelas_id === null) {
-                            $stmt = $conn->prepare("UPDATE siswa SET nama = ?, jenis_kelamin = ?, tempat_lahir = ?, tanggal_lahir = ?, kelas_id = NULL WHERE nisn = ?");
-                            $stmt->bind_param("sssss", 
+                            $stmt = $conn->prepare("UPDATE siswa SET nama = ?, jenis_kelamin = ?, tempat_lahir = ?, tanggal_lahir = ?, orangtua_wali = ?, kelas_id = NULL WHERE nisn = ?");
+                            $stmt->bind_param("ssssss", 
                                 $nama_clean,
                                 $jenis_kelamin,
                                 $tempat_lahir_null,
                                 $tanggal_lahir_null,
+                                $orangtua_wali_null,
                                 $nisn_clean
                             );
                         } else {
-                            $stmt = $conn->prepare("UPDATE siswa SET nama = ?, jenis_kelamin = ?, tempat_lahir = ?, tanggal_lahir = ?, kelas_id = ? WHERE nisn = ?");
-                            $stmt->bind_param("ssssis", 
+                            $stmt = $conn->prepare("UPDATE siswa SET nama = ?, jenis_kelamin = ?, tempat_lahir = ?, tanggal_lahir = ?, orangtua_wali = ?, kelas_id = ? WHERE nisn = ?");
+                            $stmt->bind_param("sssssis", 
                                 $nama_clean,
                                 $jenis_kelamin,
                                 $tempat_lahir_null,
                                 $tanggal_lahir_null,
+                                $orangtua_wali_null,
                                 $kelas_id,
                                 $nisn_clean
                             );
@@ -605,22 +612,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     error_log("Data siswa $index - NISN '$nisn_clean' is new, will INSERT");
                     // Handle kelas_id yang bisa null
                     if ($kelas_id === null) {
-                        $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES (?, ?, ?, ?, ?, NULL)");
-                        $stmt->bind_param("sssss", 
-                            $nisn_clean,
-                            $nama_clean,
-                            $jenis_kelamin,
-                            $tempat_lahir_null,
-                            $tanggal_lahir_null
-                        );
-                    } else {
-                        $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, kelas_id) VALUES (?, ?, ?, ?, ?, ?)");
-                        $stmt->bind_param("sssssi", 
+                        $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, orangtua_wali, kelas_id) VALUES (?, ?, ?, ?, ?, ?, NULL)");
+                        $stmt->bind_param("ssssss", 
                             $nisn_clean,
                             $nama_clean,
                             $jenis_kelamin,
                             $tempat_lahir_null,
                             $tanggal_lahir_null,
+                            $orangtua_wali_null
+                        );
+                    } else {
+                        $stmt = $conn->prepare("INSERT INTO siswa (nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, orangtua_wali, kelas_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("ssssssi", 
+                            $nisn_clean,
+                            $nama_clean,
+                            $jenis_kelamin,
+                            $tempat_lahir_null,
+                            $tanggal_lahir_null,
+                            $orangtua_wali_null,
                             $kelas_id
                         );
                     }

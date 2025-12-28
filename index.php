@@ -155,15 +155,6 @@ if ($role == 'proktor') {
                 </div>
             </div>
             
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">Selamat Datang, <?php echo htmlspecialchars($_SESSION['nama']); ?>!</h6>
-                </div>
-                <div class="card-body">
-                    <p>Anda login sebagai <strong>Proktor/Admin</strong>. Gunakan menu di sidebar untuk mengakses fitur-fitur aplikasi.</p>
-                </div>
-            </div>
-            
             <?php
             // Buat tabel dan ambil info aplikasi
             $info_aplikasi = '';
@@ -181,7 +172,7 @@ if ($role == 'proktor') {
                 $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
                 $count = $check ? $check->fetch_assoc()['total'] : 0;
                 if ($count == 0) {
-                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
                     $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
                     $stmt->bind_param("s", $default_info);
                     $stmt->execute();
@@ -195,7 +186,7 @@ if ($role == 'proktor') {
                 }
             } catch (Exception $e) {
                 // Error, tetap tampilkan default
-                $info_aplikasi = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                $info_aplikasi = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
             }
             
             // Ambil aktivitas login (24 jam terakhir)
@@ -244,7 +235,7 @@ if ($role == 'proktor') {
                         if (!empty($info_aplikasi)) {
                             echo $info_aplikasi; 
                         } else {
-                            echo 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                            echo 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
                         }
                         ?>
                     </div>
@@ -258,7 +249,7 @@ if ($role == 'proktor') {
                         <span class="badge bg-light text-dark ms-2"><?php echo $total_aktivitas; ?></span>
                     </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
                     <?php if (count($aktivitas_data) > 0): ?>
                         <div class="timeline-container">
                             <div class="timeline">
@@ -447,7 +438,7 @@ if ($role == 'proktor') {
                 $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
                 $count = $check ? $check->fetch_assoc()['total'] : 0;
                 if ($count == 0) {
-                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
                     $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
                     $stmt->bind_param("s", $default_info);
                     $stmt->execute();
@@ -461,7 +452,7 @@ if ($role == 'proktor') {
                 }
             } catch (Exception $e) {
                 // Error, tetap tampilkan default
-                $info_aplikasi_wk = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                $info_aplikasi_wk = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
             }
             ?>
             
@@ -475,7 +466,7 @@ if ($role == 'proktor') {
                         if (!empty($info_aplikasi_wk)) {
                             echo $info_aplikasi_wk; 
                         } else {
-                            echo 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                            echo 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
                         }
                         ?>
                     </div>
@@ -568,7 +559,7 @@ if ($role == 'proktor') {
                 $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
                 $count = $check ? $check->fetch_assoc()['total'] : 0;
                 if ($count == 0) {
-                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
                     $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
                     $stmt->bind_param("s", $default_info);
                     $stmt->execute();
@@ -582,7 +573,7 @@ if ($role == 'proktor') {
                 }
             } catch (Exception $e) {
                 // Error, tetap tampilkan default
-                $info_aplikasi_guru = 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                $info_aplikasi_guru = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
             }
             ?>
             
@@ -596,7 +587,7 @@ if ($role == 'proktor') {
                         if (!empty($info_aplikasi_guru)) {
                             echo $info_aplikasi_guru; 
                         } else {
-                            echo 'Selamat datang di aplikasi Rapor Mulok Khusus. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
+                            echo 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
                         }
                         ?>
                     </div>
@@ -607,6 +598,28 @@ if ($role == 'proktor') {
 </div>
 
 <style>
+/* Style untuk card statistik dashboard */
+.card.bg-primary .card-body h2,
+.card.bg-success .card-body h2,
+.card.bg-info .card-body h2,
+.card.bg-warning .card-body h2 {
+    font-size: 1.75rem;
+}
+
+.card.bg-primary .card-body h6,
+.card.bg-success .card-body h6,
+.card.bg-info .card-body h6,
+.card.bg-warning .card-body h6 {
+    font-size: 0.9rem;
+}
+
+.card.bg-primary .card-body i,
+.card.bg-success .card-body i,
+.card.bg-info .card-body i,
+.card.bg-warning .card-body i {
+    font-size: 2rem !important;
+}
+
 .timeline-container {
     position: relative;
     padding: 20px 0;
@@ -661,7 +674,7 @@ if ($role == 'proktor') {
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 16px;
+    font-size: 12px;
     box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
     z-index: 1;
 }
@@ -669,9 +682,19 @@ if ($role == 'proktor') {
 .timeline-content {
     background: #f8f9fa;
     border-left: 3px solid #2d5016;
-    padding: 15px;
+    padding: 12px;
     border-radius: 8px;
     transition: all 0.3s ease;
+    font-size: 13px;
+}
+
+.timeline-content h6 {
+    font-size: 0.95rem;
+}
+
+.timeline-content p {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
 }
 
 .timeline-content:hover {
@@ -681,54 +704,54 @@ if ($role == 'proktor') {
 }
 
 .info-aplikasi {
-    line-height: 1.8;
+    line-height: 1.6;
     color: #333;
-    font-size: 1.25rem;
+    font-size: 13px;
 }
 
 .info-aplikasi p {
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
+    font-size: 13px;
+    margin-bottom: 0.75rem;
 }
 
 .info-aplikasi h1 {
-    font-size: 2.5rem;
+    font-size: 1.5rem;
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     color: #2d5016;
 }
 
 .info-aplikasi h2 {
-    font-size: 2rem;
+    font-size: 1.25rem;
     font-weight: 600;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.875rem;
     color: #2d5016;
 }
 
 .info-aplikasi h3 {
-    font-size: 1.75rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     color: #2d5016;
 }
 
 .info-aplikasi h4 {
-    font-size: 1.5rem;
+    font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.625rem;
     color: #2d5016;
 }
 
 .info-aplikasi h5, .info-aplikasi h6 {
-    font-size: 1.25rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.625rem;
 }
 
 .info-aplikasi ul, .info-aplikasi ol {
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
-    padding-left: 2rem;
+    font-size: 13px;
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
 }
 
 .info-aplikasi li {
