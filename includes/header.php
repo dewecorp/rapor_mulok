@@ -24,30 +24,11 @@ try {
     $profil = null;
 }
 
-// Fungsi untuk mendapatkan path relatif ke root
+// Fungsi untuk mendapatkan path relatif ke root aplikasi secara konsisten
+// Menggunakan session untuk menyimpan base path agar konsisten
 function getBasePath() {
-    $scriptPath = $_SERVER['SCRIPT_NAME'];
-    $scriptDir = dirname($scriptPath);
-    
-    // Normalize path separators
-    $scriptDir = str_replace('\\', '/', $scriptDir);
-    
-    // Jika di root, return empty string
-    if ($scriptDir === '/' || $scriptDir === '.' || $scriptDir === '') {
-        return '';
-    }
-    
-    // Hitung kedalaman direktori
-    $parts = explode('/', trim($scriptDir, '/'));
-    $parts = array_filter($parts, function($p) { return $p !== '' && $p !== '.'; });
-    $depth = count($parts);
-    
-    // Jika depth = 0 atau 1, berarti di root atau satu level
-    if ($depth <= 1) {
-        return '';
-    }
-    
-    return str_repeat('../', $depth - 1);
+    // Gunakan fungsi getRelativePath() dari config.php untuk konsistensi
+    return getRelativePath();
 }
 $basePath = getBasePath();
 ?>
@@ -90,7 +71,7 @@ $basePath = getBasePath();
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f5f5f5;
-            font-size: 18px;
+            font-size: 14px;
         }
         
         /* Perbesar semua font untuk keterbacaan yang lebih baik */
@@ -98,19 +79,19 @@ $basePath = getBasePath();
             font-size: inherit;
         }
         
-        h1 { font-size: 2.5rem; }
-        h2 { font-size: 2rem; }
-        h3 { font-size: 1.75rem; }
-        h4 { font-size: 1.5rem; }
-        h5 { font-size: 1.25rem; }
-        h6 { font-size: 1.1rem; }
+        h1 { font-size: 2rem; }
+        h2 { font-size: 1.75rem; }
+        h3 { font-size: 1.5rem; }
+        h4 { font-size: 1.25rem; }
+        h5 { font-size: 1.1rem; }
+        h6 { font-size: 1rem; }
         
         p, span, div, label {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         input, select, textarea, button {
-            font-size: 18px !important;
+            font-size: 14px !important;
         }
         
         .navbar {
@@ -138,7 +119,7 @@ $basePath = getBasePath();
         }
         
         .navbar-brand-app-name {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             margin: 0;
             display: flex;
@@ -147,7 +128,7 @@ $basePath = getBasePath();
         }
         
         .navbar-brand-school-name {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: normal;
             opacity: 0.9;
             margin: 0;
@@ -155,17 +136,7 @@ $basePath = getBasePath();
         }
         
         .navbar-brand-academic-info {
-            font-size: 13px;
-            font-weight: normal;
-            opacity: 0.85;
-            padding: 2px 8px;
-            background-color: rgba(255, 255, 255, 0.15);
-            border-radius: 4px;
-            white-space: nowrap;
-        }
-        
-        .navbar-brand-academic-info {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: normal;
             opacity: 0.85;
             padding: 2px 8px;
@@ -195,12 +166,12 @@ $basePath = getBasePath();
         
         .user-details .user-name {
             font-weight: 600;
-            font-size: 18px;
+            font-size: 14px;
             margin: 0;
         }
         
         .user-details .user-role {
-            font-size: 16px;
+            font-size: 13px;
             opacity: 0.9;
             margin: 0;
         }
@@ -208,7 +179,7 @@ $basePath = getBasePath();
         .datetime-info {
             color: white;
             text-align: center;
-            font-size: 17px;
+            font-size: 14px;
             margin: 0 auto;
             padding: 0;
             flex: 1;
@@ -247,17 +218,20 @@ $basePath = getBasePath();
             min-height: calc(100vh - 56px);
             background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%);
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            overflow-x: hidden;
         }
         
         .sidebar .nav-link {
+            min-width: 0;
             color: #2d5016;
-            padding: 14px 20px;
+            padding: 10px 20px;
             border-left: 4px solid transparent;
             transition: all 0.3s ease;
             font-weight: 500;
-            margin: 2px 8px;
+            margin: 1px 8px;
             border-radius: 8px;
-            font-size: 18px;
+            font-size: 14px;
+            line-height: 1.4;
         }
         
         .sidebar .nav-link:hover {
@@ -303,9 +277,16 @@ $basePath = getBasePath();
         
         /* Style untuk submenu */
         .sidebar .nav-link.ps-5 {
-            padding-left: 3rem !important;
-            font-size: 17px;
-            margin-left: 20px;
+            padding: 8px 15px 8px 2.5rem !important;
+            font-size: 13px;
+            margin-left: 15px;
+            margin-top: 0;
+            margin-bottom: 0;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
         }
         
         .sidebar .nav-link.ps-5.active {
@@ -329,12 +310,27 @@ $basePath = getBasePath();
         }
         
         /* Style untuk menu collapse */
+        .sidebar .collapse {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+        
         .sidebar .collapse .nav-link {
             background-color: rgba(255, 255, 255, 0.5);
+            margin-top: 0;
+            margin-bottom: 0;
         }
         
         .sidebar .collapse .nav-link:hover {
             background-color: rgba(45, 80, 22, 0.15);
+        }
+        
+        /* Pastikan submenu tidak menumpuk */
+        .sidebar .collapse .nav-link.ps-5 {
+            padding-top: 6px !important;
+            padding-bottom: 6px !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
         }
         
         /* Style untuk parent menu yang memiliki child aktif */
@@ -396,7 +392,7 @@ $basePath = getBasePath();
             border-radius: 10px 10px 0 0 !important;
             padding: 15px 20px;
             font-weight: 600;
-            font-size: 20px;
+            font-size: 16px;
         }
         
         .btn-primary {
@@ -420,42 +416,42 @@ $basePath = getBasePath();
         }
         
         .table {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .table th {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
         }
         
         .table td {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .badge {
             padding: 7px 14px;
             font-weight: 500;
-            font-size: 16px;
+            font-size: 13px;
         }
         
         .form-label {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 500;
         }
         
         .form-control, .form-select {
-            font-size: 18px;
+            font-size: 14px;
             padding: 10px 15px;
         }
         
         .btn {
-            font-size: 18px;
+            font-size: 14px;
             padding: 10px 20px;
         }
         
         /* Style untuk tombol icon-only */
         .btn i {
-            font-size: 16px;
+            font-size: 13px;
         }
         
         .btn-sm {
@@ -463,7 +459,7 @@ $basePath = getBasePath();
         }
         
         .btn-sm i {
-            font-size: 16px;
+            font-size: 13px;
         }
         
         /* Tooltip styling */
@@ -481,69 +477,69 @@ $basePath = getBasePath();
         }
         
         .navbar-brand {
-            font-size: 22px;
+            font-size: 18px;
         }
         
         /* Perbesar font untuk elemen lainnya */
         .alert {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .modal-title {
-            font-size: 22px;
+            font-size: 18px;
         }
         
         .modal-body {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .dropdown-menu {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .dropdown-item {
-            font-size: 18px;
+            font-size: 14px;
             padding: 10px 20px;
         }
         
         .pagination {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .page-link {
-            font-size: 18px;
+            font-size: 14px;
             padding: 10px 15px;
         }
         
         .list-group-item {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .card-body {
-            font-size: 18px;
+            font-size: 14px;
         }
         
         .card-title {
-            font-size: 20px;
-        }
-        
-        .card-text {
-            font-size: 18px;
-        }
-        
-        small, .small {
             font-size: 16px;
         }
         
+        .card-text {
+            font-size: 14px;
+        }
+        
+        small, .small {
+            font-size: 13px;
+        }
+        
         .text-muted {
-            font-size: 17px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+            <a class="navbar-brand" href="<?php echo $basePath; ?>index.php">
                 <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
                 <div class="navbar-brand-content">
                     <div class="navbar-brand-app-name">
@@ -577,7 +573,7 @@ $basePath = getBasePath();
             <div class="col-md-3 col-lg-2 sidebar p-0">
                 <nav class="nav flex-column mt-3">
                     <?php if ($user['role'] == 'proktor'): ?>
-                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#lembagaMenu" onclick="event.stopPropagation();">
@@ -612,9 +608,6 @@ $basePath = getBasePath();
                             <i class="fas fa-file-alt"></i> Rapor <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="raporMenu" data-bs-parent=".sidebar">
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/kkm.php">
-                                <i class="fas fa-circle"></i> Nilai KKM
-                            </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/pengaturan-cetak.php">
                                 <i class="fas fa-circle"></i> Pengaturan Cetak
                             </a>
@@ -635,7 +628,7 @@ $basePath = getBasePath();
                             <i class="fas fa-database"></i> Backup & Restore
                         </a>
                     <?php elseif ($user['role'] == 'wali_kelas'): ?>
-                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                         <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
@@ -656,7 +649,7 @@ $basePath = getBasePath();
                             </a>
                         </div>
                     <?php elseif ($user['role'] == 'guru'): ?>
-                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+                        <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                         <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">

@@ -101,10 +101,11 @@ $query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
 $kelas_list = $conn->query($query_kelas);
 
 // Query data materi mulok dengan status mengampu
+// Logika: Jika kelas belum dipilih, tabel kosong. Jika kelas dipilih, tampilkan data materi mulok kelas tersebut.
 $result = null;
 $mengampu_data = [];
 try {
-    if ($kelas_filter) {
+    if (!empty($kelas_filter) && $kelas_filter !== '') {
         $kelas_id = intval($kelas_filter);
         // Ambil nama kelas
         $stmt_kelas = $conn->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
@@ -140,25 +141,14 @@ try {
             }
         }
     } else {
-        // Jika tidak ada filter kelas, tampilkan semua data mengampu yang sudah ada
-        $query = "SELECT mm.*, m.nama_mulok, m.jumlah_jam, p.nama as nama_guru, k.nama_kelas
-              FROM mengampu_materi mm
-              INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-              INNER JOIN pengguna p ON mm.guru_id = p.id
-              INNER JOIN kelas k ON mm.kelas_id = k.id
-              ORDER BY k.nama_kelas, m.nama_mulok";
-        $result = $conn->query($query);
-        if ($result) {
-            // Simpan data ke array
-            while ($row = $result->fetch_assoc()) {
-                $mengampu_data[] = $row;
-            }
-        }
-    }
-    if (!$result) {
-        $error = 'Error query: ' . $conn->error;
+        // Jika kelas belum dipilih, tidak tampilkan data (tabel kosong)
         $result = null;
         $mengampu_data = [];
+    }
+    
+    // Cek jika ada error pada prepared statement
+    if ($result === false && empty($error)) {
+        $error = 'Error query: ' . $conn->error;
     }
 } catch (Exception $e) {
     $error = 'Error: ' . $e->getMessage();
@@ -213,6 +203,11 @@ try {
             </select>
         </div>
         
+        <?php if (empty($kelas_filter)): ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Silakan pilih kelas terlebih dahulu untuk melihat data mengampu materi.
+            </div>
+        <?php else: ?>
         <div class="table-responsive">
             <table class="table table-bordered table-striped" id="tableMengampu">
                 <thead>
@@ -276,17 +271,14 @@ try {
                     ?>
                         <tr>
                             <td colspan="5" class="text-center text-muted">
-                                <?php if ($kelas_filter): ?>
-                                    Belum ada data materi mulok. Silakan tambah materi mulok terlebih dahulu.
-                                <?php else: ?>
-                                    Belum ada data mengampu materi. Pilih kelas untuk melihat data.
-                                <?php endif; ?>
+                                <i class="fas fa-info-circle"></i> Belum ada data materi mulok. Silakan tambah materi mulok terlebih dahulu.
                             </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -396,12 +388,16 @@ try {
     }
     
     $(document).ready(function() {
-        <?php if (count($mengampu_data) > 0): ?>
-        $('#tableMengampu').DataTable({
-            language: {
-                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
-            }
-        });
+        // Inisialisasi DataTables hanya jika kelas sudah dipilih DAN ada data
+        <?php if (!empty($kelas_filter) && count($mengampu_data) > 0): ?>
+        // Pastikan tabel ada sebelum inisialisasi DataTables
+        if ($('#tableMengampu').length > 0) {
+            $('#tableMengampu').DataTable({
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                }
+            });
+        }
         <?php endif; ?>
     });
     

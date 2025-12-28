@@ -207,15 +207,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     for ($colIndex = 1; $colIndex <= $maxColumns; $colIndex++) {
                         $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
                         
+                        // Kolom A (index 1) adalah NISN - JANGAN pernah dibaca sebagai tanggal
                         // Kolom E (index 5) adalah kolom tanggal lahir - perlu penanganan khusus
-                        $isTanggalLahirColumn = ($colIndex == 5);
+                        $isNisnColumn = ($colIndex == 1);  // Kolom A = NISN
+                        $isTanggalLahirColumn = ($colIndex == 5);  // Kolom E = Tanggal Lahir
                         
                         // Selalu baca cell untuk mendapatkan objek Cell yang lengkap
                         $cell = $worksheet->getCell($colLetter . $row);
                         
+                        // Untuk kolom NISN, selalu baca sebagai teks/angka (bukan tanggal)
                         // Untuk kolom tanggal, selalu gunakan getValue() dari cell
                         // Untuk kolom lain, coba ambil dari array terlebih dahulu untuk performa
-                        if ($isTanggalLahirColumn) {
+                        if ($isNisnColumn) {
+                            // Kolom NISN: selalu baca sebagai teks, jangan pernah sebagai tanggal
+                            $cellValue = $cell->getFormattedValue();  // Ambil nilai yang sudah diformat sebagai string
+                            if (empty($cellValue)) {
+                                $cellValue = $cell->getValue();  // Fallback ke getValue jika formatted kosong
+                            }
+                            // Pastikan tidak ada konversi tanggal
+                            $cellValue = trim((string)$cellValue);
+                            $rowData[] = $cellValue;
+                            continue;  // Langsung skip ke kolom berikutnya, tidak perlu pengecekan tanggal
+                        } else if ($isTanggalLahirColumn) {
                             $cellValue = $cell->getValue();
                         } else {
                             // Coba ambil dari array terlebih dahulu
@@ -227,8 +240,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                         }
                         
                         // Jika cell adalah tanggal Excel, konversi ke format string
+                        // HANYA untuk kolom tanggal lahir, bukan untuk kolom lain
                         if ($cellValue !== null && $cellValue !== '') {
                             // Cek apakah cell adalah tanggal dengan beberapa metode
+                            // HANYA untuk kolom tanggal lahir
                             $isDate = false;
                             $dateValue = null;
                             
@@ -236,8 +251,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             if ($isTanggalLahirColumn) {
                                 try {
                                     if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)) {
-                                    $isDate = true;
-                                    $dateValue = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($cellValue);
                                         $isDate = true;
                                         $dateValue = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($cellValue);
                                         error_log("Row $row, Col $colLetter: Detected as date using isDateTime()");
@@ -247,9 +260,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                                 }
                             }
                             
-                            // Metode 2: Cek jika nilai numerik dan dalam range tanggal Excel (1 = 1900-01-01)
-                            // Untuk kolom tanggal lahir, lebih agresif dalam mendeteksi tanggal
-                            if (!$isDate && is_numeric($cellValue)) {
+                            // Metode 2: Cek jika nilai numerik dan dalam range tanggal Excel - HANYA untuk kolom tanggal
+                            if (!$isDate && $isTanggalLahirColumn && is_numeric($cellValue)) {
                                 // Range tanggal Excel: 1 (1900-01-01) sampai ~73000 (2099-12-31)
                                 if ($cellValue >= 1 && $cellValue < 100000) {
                                     try {
@@ -267,8 +279,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                                 }
                             }
                             
-                            // Metode 3: Cek format cell (jika cell diformat sebagai tanggal)
-                            if (!$isDate) {
+                            // Metode 3: Cek format cell (jika cell diformat sebagai tanggal) - HANYA untuk kolom tanggal
+                            if (!$isDate && $isTanggalLahirColumn) {
                                 try {
                                     $formatCode = $cell->getStyle()->getNumberFormat()->getFormatCode();
                                     // Cek jika format mengandung karakter tanggal (d, m, y, h, s)

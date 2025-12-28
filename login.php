@@ -120,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_SESSION['role'] = $user['role'];
                         $_SESSION['foto'] = $user['foto'] ?? 'default.png';
                         
+                        
                         // Catat aktivitas login
                         try {
                             // Buat tabel aktivitas_login jika belum ada

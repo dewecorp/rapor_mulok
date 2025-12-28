@@ -26,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['action'])) {
         if ($_POST['action'] == 'add') {
             $nisn = $_POST['nisn'] ?? '';
+            // Bersihkan NISN: hapus semua karakter non-angka
+            $nisn = preg_replace('/[^0-9]/', '', $nisn);
             $nama = $_POST['nama'] ?? '';
             $jenis_kelamin = $_POST['jenis_kelamin'] ?? 'L';
             $tempat_lahir = $_POST['tempat_lahir'] ?? '';
@@ -49,6 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif ($_POST['action'] == 'edit') {
             $id = $_POST['id'] ?? 0;
             $nisn = $_POST['nisn'] ?? '';
+            // Bersihkan NISN: hapus semua karakter non-angka
+            $nisn = preg_replace('/[^0-9]/', '', $nisn);
             $nama = $_POST['nama'] ?? '';
             $jenis_kelamin = $_POST['jenis_kelamin'] ?? 'L';
             $tempat_lahir = $_POST['tempat_lahir'] ?? '';
@@ -311,7 +315,10 @@ try {
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">NISN <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="nisn" id="nisn" required>
+                            <input type="text" class="form-control" name="nisn" id="nisn" required 
+                                   pattern="[0-9]+" 
+                                   title="NISN harus berupa angka (tidak boleh format tanggal seperti YYYY-MM-DD)">
+                            <small class="text-muted">Format: angka saja (contoh: 1234567890)</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nama <span class="text-danger">*</span></label>
@@ -522,12 +529,45 @@ try {
         window.uploadFilesSiswa = null;
     });
     
+    // Validasi NISN tidak boleh format tanggal
+    $('#nisn').on('input', function() {
+        var nisn = $(this).val();
+        // Cek jika format seperti tanggal (YYYY-MM-DD atau YYYY/MM/DD)
+        if (/^\d{4}[-/]\d{2}[-/]\d{2}$/.test(nisn)) {
+            $(this).addClass('is-invalid');
+            $(this).next('.invalid-feedback').remove();
+            $(this).after('<div class="invalid-feedback">NISN tidak boleh menggunakan format tanggal. Gunakan format angka saja.</div>');
+        } else {
+            $(this).removeClass('is-invalid');
+            $(this).next('.invalid-feedback').remove();
+        }
+    });
+    
+    // Validasi sebelum submit
+    $('#formSiswa').on('submit', function(e) {
+        var nisn = $('#nisn').val();
+        if (/^\d{4}[-/]\d{2}[-/]\d{2}$/.test(nisn)) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Format NISN Salah',
+                text: 'NISN tidak boleh menggunakan format tanggal (YYYY-MM-DD). Gunakan format angka saja.',
+            });
+            return false;
+        }
+    });
+    
     // Load data untuk edit (hanya jika tidak ada success message)
     <?php if ($edit_data && !$success): ?>
     $(document).ready(function() {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
-        $('#nisn').val('<?php echo addslashes($edit_data['nisn']); ?>');
+        var nisnValue = '<?php echo addslashes($edit_data['nisn']); ?>';
+        // Jika NISN format tanggal, ubah ke format angka saja
+        if (/^\d{4}[-/]\d{2}[-/]\d{2}$/.test(nisnValue)) {
+            nisnValue = nisnValue.replace(/[^0-9]/g, '');
+        }
+        $('#nisn').val(nisnValue);
         $('#nama').val('<?php echo addslashes($edit_data['nama']); ?>');
         $('#jenisKelamin').val('<?php echo $edit_data['jenis_kelamin']; ?>');
         $('#tempatLahir').val('<?php echo addslashes($edit_data['tempat_lahir'] ?? ''); ?>');

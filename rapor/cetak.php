@@ -9,7 +9,8 @@ $conn = getConnection();
 // Filter kelas
 $kelas_filter = $_GET['kelas'] ?? '';
 
-// Ambil data kelas
+// Inisialisasi variabel
+$error = '';
 $kelas_list = null;
 $result = null;
 try {
@@ -22,32 +23,46 @@ try {
     $kelas_list = null;
 }
 
-// Query data siswa
+// Query data siswa - HANYA dari tabel siswa, TIDAK dari tabel pengguna
+// Menggunakan format yang sama dengan siswa/index.php yang sudah terbukti bekerja
+$result = null;
+$siswa_data = [];
 try {
-    if ($kelas_filter) {
+    if (!empty($kelas_filter) && $kelas_filter !== '') {
         $kelas_id = intval($kelas_filter);
-        $stmt = $conn->prepare("SELECT s.*, k.nama_kelas
-              FROM siswa s
-              LEFT JOIN kelas k ON s.kelas_id = k.id
-              WHERE s.kelas_id = ?
-              ORDER BY s.nama");
+        
+        $query = "SELECT s.*, k.nama_kelas
+                  FROM siswa s
+                  LEFT JOIN kelas k ON s.kelas_id = k.id
+                  WHERE s.kelas_id = ?
+                  ORDER BY s.nama";
+        
+        $stmt = $conn->prepare($query);
         $stmt->bind_param("i", $kelas_id);
         $stmt->execute();
         $result = $stmt->get_result();
+        
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $siswa_data[] = $row;
+            }
+        }
+        
+        $stmt->close();
     } else {
-        $query = "SELECT s.*, k.nama_kelas
-              FROM siswa s
-              LEFT JOIN kelas k ON s.kelas_id = k.id
-              ORDER BY s.nama";
-        $result = $conn->query($query);
-    }
-    if (!$result) {
-        $error = 'Error query: ' . $conn->error;
+        // Jika kelas belum dipilih, tidak tampilkan data (tabel kosong)
         $result = null;
+        $siswa_data = [];
+    }
+    
+    // Cek jika ada error pada prepared statement
+    if ($result === false && empty($error)) {
+        $error = 'Error query: ' . $conn->error;
     }
 } catch (Exception $e) {
     $error = 'Error: ' . $e->getMessage();
     $result = null;
+    $siswa_data = [];
 }
 ?>
 <?php include '../includes/header.php'; ?>
@@ -94,7 +109,13 @@ try {
             </select>
         </div>
         
-        <?php if ($kelas_filter && $result && $result->num_rows > 0): ?>
+        <?php if (isset($error) && $error): ?>
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($error); ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($kelas_filter): ?>
         <div class="table-responsive">
             <table class="table table-bordered table-striped" id="tableCetak">
                 <thead>
@@ -109,40 +130,52 @@ try {
                 </thead>
                 <tbody>
                     <?php 
-                    if ($result && $result->num_rows > 0):
+                    if (count($siswa_data) > 0): 
                         $no = 1;
-                        while ($row = $result->fetch_assoc()): 
+                        foreach ($siswa_data as $row): 
+                            // Pastikan id ada sebelum digunakan
+                            $siswa_id = isset($row['id']) ? intval($row['id']) : 0;
+                            $nama_siswa = trim($row['nama'] ?? '');
+                            
+                            // Skip hanya jika ID tidak valid atau nama kosong
+                            if ($siswa_id <= 0 || empty($nama_siswa)) {
+                                continue;
+                            }
+                            
+                            // Skip jika nama persis sama dengan Administrator, Admin, atau Proktor
+                            $nama_lower = strtolower($nama_siswa);
+                            if ($nama_lower === 'administrator' || $nama_lower === 'admin' || $nama_lower === 'proktor') {
+                                continue;
+                            }
                     ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
-                            <td><?php echo htmlspecialchars($row['nisn']); ?></td>
-                            <td><?php echo htmlspecialchars($row['nama']); ?></td>
-                            <td><?php echo $row['jenis_kelamin'] == 'L' ? 'L' : 'P'; ?></td>
-                            <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo $row['tanggal_lahir'] ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
+                            <td><?php echo htmlspecialchars($row['nisn'] ?? '-'); ?></td>
+                            <td><?php echo htmlspecialchars($nama_siswa); ?></td>
+                            <td><?php echo (($row['jenis_kelamin'] ?? '') == 'L') ? 'L' : 'P'; ?></td>
+                            <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo !empty($row['tanggal_lahir']) ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
                             <td>
-                                <button class="btn btn-sm btn-primary" onclick="cetakRaporSiswa(<?php echo $row['id']; ?>)">
+                                <button class="btn btn-sm btn-primary" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
                                     <i class="fas fa-print"></i> Cetak
                                 </button>
                             </td>
                         </tr>
                     <?php 
-                        endwhile;
+                        endforeach;
                     else:
                     ?>
                         <tr>
-                            <td colspan="6" class="text-center text-muted">Belum ada data siswa</td>
+                            <td colspan="6" class="text-center text-muted">
+                                <i class="fas fa-info-circle"></i> Belum ada siswa di kelas ini.
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
-        <?php elseif (!$kelas_filter): ?>
+        <?php else: ?>
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i> Pilih kelas terlebih dahulu untuk melihat data siswa.
-            </div>
-        <?php else: ?>
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i> Belum ada siswa di kelas yang dipilih.
             </div>
         <?php endif; ?>
     </div>
@@ -161,11 +194,16 @@ try {
     }
     
     $(document).ready(function() {
-        $('#tableCetak').DataTable({
-            language: {
-                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
-            }
-        });
+        // Inisialisasi DataTables hanya jika ada data
+        <?php if (!empty($kelas_filter) && count($siswa_data) > 0): ?>
+        if ($('#tableCetak').length > 0) {
+            $('#tableCetak').DataTable({
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                }
+            });
+        }
+        <?php endif; ?>
     });
     
     function cetakRaporSiswa(siswaId) {

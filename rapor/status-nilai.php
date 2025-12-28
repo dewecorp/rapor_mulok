@@ -38,29 +38,37 @@ try {
 // Query status nilai per kelas dan materi
 if ($kelas_filter) {
     // Ambil siswa di kelas
-    $query_siswa = "SELECT id FROM siswa WHERE kelas_id = $kelas_filter";
-    $siswa_list = $conn->query($query_siswa);
+    $stmt_siswa = $conn->prepare("SELECT id FROM siswa WHERE kelas_id = ?");
+    $stmt_siswa->bind_param("i", $kelas_filter);
+    $stmt_siswa->execute();
+    $siswa_list = $stmt_siswa->get_result();
     $siswa_ids = [];
-    while ($s = $siswa_list->fetch_assoc()) {
-        $siswa_ids[] = $s['id'];
+    if ($siswa_list) {
+        while ($s = $siswa_list->fetch_assoc()) {
+            $siswa_ids[] = $s['id'];
+        }
     }
     
-    // Ambil materi yang diampu di kelas ini
-    $query_materi = "SELECT DISTINCT mm.materi_mulok_id, m.nama_mulok 
-                     FROM mengampu_materi mm
-                     INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                     WHERE mm.kelas_id = $kelas_filter";
-    $materi_list = $conn->query($query_materi);
+    // Ambil semua materi mulok (tampilkan semua materi walaupun belum ada di mengampu_materi untuk kelas ini)
+    $stmt_materi = $conn->prepare("SELECT m.id as materi_mulok_id, m.nama_mulok,
+                     CASE WHEN mm.id IS NOT NULL THEN 1 ELSE 0 END as sudah_diampu
+                     FROM materi_mulok m
+                     LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                     ORDER BY m.nama_mulok");
+    $stmt_materi->bind_param("i", $kelas_filter);
+    $stmt_materi->execute();
+    $materi_list = $stmt_materi->get_result();
     
     // Hitung progres
     $status_data = [];
-    while ($materi = $materi_list->fetch_assoc()) {
-        $materi_id = $materi['materi_mulok_id'];
-        $total_siswa = count($siswa_ids);
-        $sudah_nilai = 0;
-        
-        if ($total_siswa > 0) {
-            if (count($siswa_ids) > 0) {
+    if ($materi_list) {
+        while ($materi = $materi_list->fetch_assoc()) {
+            $materi_id = $materi['materi_mulok_id'];
+            $total_siswa = count($siswa_ids);
+            $sudah_nilai = 0;
+            
+            // Hitung siswa yang sudah dinilai untuk materi ini
+            if ($total_siswa > 0 && count($siswa_ids) > 0) {
                 $placeholders = str_repeat('?,', count($siswa_ids) - 1) . '?';
                 $query_nilai = "SELECT COUNT(DISTINCT siswa_id) as total 
                                FROM nilai_siswa 
@@ -74,21 +82,24 @@ if ($kelas_filter) {
                 $stmt_nilai->bind_param($types, ...$params);
                 $stmt_nilai->execute();
                 $result_nilai = $stmt_nilai->get_result();
-                $sudah_nilai = $result_nilai->fetch_assoc()['total'];
-            } else {
-                $sudah_nilai = 0;
+                if ($result_nilai) {
+                    $row = $result_nilai->fetch_assoc();
+                    $sudah_nilai = $row['total'] ?? 0;
+                }
             }
+            
+            // Hitung persentase (jika tidak ada siswa, persentase = 0)
+            $persentase = $total_siswa > 0 ? round(($sudah_nilai / $total_siswa) * 100, 2) : 0;
+            
+            $status_data[] = [
+                'materi' => $materi['nama_mulok'],
+                'total_siswa' => $total_siswa,
+                'sudah_nilai' => $sudah_nilai,
+                'belum_nilai' => $total_siswa - $sudah_nilai,
+                'persentase' => $persentase,
+                'sudah_diampu' => $materi['sudah_diampu']
+            ];
         }
-        
-        $persentase = $total_siswa > 0 ? round(($sudah_nilai / $total_siswa) * 100, 2) : 0;
-        
-        $status_data[] = [
-            'materi' => $materi['nama_mulok'],
-            'total_siswa' => $total_siswa,
-            'sudah_nilai' => $sudah_nilai,
-            'belum_nilai' => $total_siswa - $sudah_nilai,
-            'persentase' => $persentase
-        ];
     }
 }
 ?>

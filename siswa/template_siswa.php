@@ -18,16 +18,18 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 try {
     // Buat spreadsheet baru
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
     
-    // Ambil nama kelas dari filter jika ada (untuk ditampilkan di template)
+    // Ambil nama kelas dari filter jika ada (untuk ditampilkan di template dan filename)
     $nama_kelas_template = '';
+    $conn = getConnection();
     if (isset($_GET['kelas']) && !empty($_GET['kelas'])) {
-        $conn = getConnection();
         $kelas_id = intval($_GET['kelas']);
         $query_kelas = $conn->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
         $query_kelas->bind_param("i", $kelas_id);
@@ -37,8 +39,8 @@ try {
             $nama_kelas_template = $result_kelas->fetch_assoc()['nama_kelas'];
         }
         $query_kelas->close();
-        $conn->close();
     }
+    $conn->close();
     
     // Set header (tanpa kolom Kelas karena sudah dipilih di filter)
     $headers = ['NISN', 'Nama', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Orangtua/Wali'];
@@ -72,6 +74,16 @@ try {
         ['0987654321', 'Contoh Siswa 2', 'P', 'Jakarta', '', 'Nama Orangtua/Wali 2'],
     ];
     $sheet->fromArray($exampleData, NULL, 'A2');
+    
+    // Set format TEKS untuk kolom A (NISN) - PENTING: mencegah Excel membaca sebagai tanggal
+    // Format sebagai teks untuk memastikan tidak dikonversi ke format tanggal atau angka
+    $sheet->getStyle('A2:A3')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+    // Set ulang nilai sebagai STRING eksplisit untuk memastikan Excel membaca sebagai teks
+    $sheet->setCellValueExplicit('A2', '1234567890', DataType::TYPE_STRING);
+    $sheet->setCellValueExplicit('A3', '0987654321', DataType::TYPE_STRING);
+    
+    // Set format TEKS untuk semua kolom NISN di template (A2 sampai A1000 untuk jaga-jaga)
+    $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
     
     // Set format tanggal untuk kolom E (Tanggal Lahir)
     $sheet->getStyle('E2:E3')->getNumberFormat()->setFormatCode('yyyy-mm-dd');
@@ -113,7 +125,11 @@ try {
     $sheet->getStyle('A2:F3')->applyFromArray($dataStyle);
     
     // Tambahkan catatan di bawah tabel
-    $sheet->setCellValue('A4', 'Catatan: Semua siswa yang diimpor akan otomatis masuk ke kelas yang dipilih di filter.');
+    $catatan = 'Catatan: Semua siswa yang diimpor akan otomatis masuk ke kelas yang dipilih di filter.';
+    if (!empty($nama_kelas_template)) {
+        $catatan = 'Catatan: Semua siswa yang diimpor akan otomatis masuk ke kelas ' . $nama_kelas_template . '.';
+    }
+    $sheet->setCellValue('A4', $catatan);
     $sheet->mergeCells('A4:F4');
     $sheet->getStyle('A4')->getFont()->setItalic(true);
     $sheet->getStyle('A4')->getFont()->getColor()->setRGB('808080');
@@ -124,9 +140,17 @@ try {
     // Set header row height
     $sheet->getRowDimension(1)->setRowHeight(25);
     
-    // Output file
+    // Output file dengan nama yang menyertakan kelas jika ada
+    $filename = 'template_import_siswa';
+    if (!empty($nama_kelas_template)) {
+        // Bersihkan nama kelas dari karakter yang tidak valid untuk filename
+        $nama_kelas_clean = preg_replace('/[^a-zA-Z0-9_-]/', '_', $nama_kelas_template);
+        $filename .= '_kelas_' . $nama_kelas_clean;
+    }
+    $filename .= '.xlsx';
+    
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment;filename="template_import_siswa.xlsx"');
+    header('Content-Disposition: attachment;filename="' . $filename . '"');
     header('Cache-Control: max-age=0');
     
     $writer = new Xlsx($spreadsheet);

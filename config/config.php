@@ -35,30 +35,62 @@ function hasRole($role) {
     return isset($_SESSION['role']) && $_SESSION['role'] == $role;
 }
 
-// Fungsi untuk mendapatkan path relatif ke root
+// Fungsi untuk mendapatkan path relatif ke root aplikasi secara konsisten
+// Sederhana dan konsisten - menggunakan BASE_URL untuk menentukan root aplikasi
 function getRelativePath() {
-    $scriptPath = $_SERVER['SCRIPT_NAME'];
-    $scriptDir = dirname($scriptPath);
+    // Gunakan SCRIPT_NAME untuk mendapatkan path script
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
     
     // Normalize path separators
-    $scriptDir = str_replace('\\', '/', $scriptDir);
+    $scriptName = str_replace('\\', '/', $scriptName);
     
-    // Jika di root, return empty string
-    if ($scriptDir === '/' || $scriptDir === '.' || $scriptDir === '') {
+    // Dapatkan direktori script (tanpa nama file)
+    $scriptDir = dirname($scriptName);
+    
+    // Normalize: hapus leading slash
+    $scriptDir = ltrim($scriptDir, '/');
+    
+    // Gunakan BASE_URL untuk menentukan root aplikasi
+    // BASE_URL format: http://localhost/rapor-mulok/
+    // Ekstrak path aplikasi dari BASE_URL
+    $baseUrl = defined('BASE_URL') ? BASE_URL : 'http://localhost/';
+    $baseUrlPath = parse_url($baseUrl, PHP_URL_PATH);
+    // Normalize: hapus leading dan trailing slash
+    $baseUrlPath = trim($baseUrlPath, '/');
+    
+    // Jika BASE_URL path kosong, berarti aplikasi di root web server
+    if ($baseUrlPath === '') {
+        // Jika script di root web server, return empty string
+        if ($scriptDir === '' || $scriptDir === '.') {
+            return '';
+        }
+        // Hitung depth dari root web server
+        $parts = explode('/', $scriptDir);
+        $parts = array_filter($parts, function($p) { return $p !== '' && $p !== '.'; });
+        $depth = count($parts);
+        return $depth > 0 ? str_repeat('../', $depth) : '';
+    }
+    
+    // Jika script di root aplikasi (sama dengan BASE_URL path), return empty string
+    if ($scriptDir === $baseUrlPath) {
         return '';
     }
     
-    // Hitung kedalaman direktori
-    $parts = explode('/', trim($scriptDir, '/'));
+    // Jika script di dalam direktori aplikasi, hitung depth relatif
+    if (strpos($scriptDir, $baseUrlPath . '/') === 0) {
+        // Hapus base path dari script dir
+        $relativePath = substr($scriptDir, strlen($baseUrlPath) + 1);
+        $parts = explode('/', $relativePath);
+        $parts = array_filter($parts, function($p) { return $p !== '' && $p !== '.'; });
+        $depth = count($parts);
+        return $depth > 0 ? str_repeat('../', $depth) : '';
+    }
+    
+    // Fallback: hitung depth biasa
+    $parts = explode('/', $scriptDir);
     $parts = array_filter($parts, function($p) { return $p !== '' && $p !== '.'; });
     $depth = count($parts);
-    
-    // Jika depth = 0 atau 1, berarti di root atau satu level
-    if ($depth <= 1) {
-        return '';
-    }
-    
-    return str_repeat('../', $depth - 1);
+    return $depth > 0 ? str_repeat('../', $depth) : '';
 }
 
 // Redirect jika belum login
@@ -98,37 +130,54 @@ function requireRole($role) {
     }
 }
 
-// Fungsi helper untuk mendapatkan base URL aplikasi
+// Fungsi helper untuk mendapatkan base URL aplikasi secara konsisten
 function getBaseUrl() {
+    // Gunakan konstanta BASE_URL jika tersedia
+    if (defined('BASE_URL')) {
+        return BASE_URL;
+    }
+    
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    
+    // Gunakan base path dari session jika tersedia untuk konsistensi
+    if (isset($_SESSION['app_base_path'])) {
+        $basePath = $_SESSION['app_base_path'];
+        // Konversi relative path ke absolute URL
+        if ($basePath === '') {
+            return $protocol . '://' . $host . '/';
+        } else {
+            // Hitung path aplikasi dari base path
+            $pathParts = explode('/', trim($basePath, '/'));
+            $appPath = '';
+            foreach ($pathParts as $part) {
+                if ($part === '..') {
+                    // Skip, akan dihitung dari root
+                }
+            }
+            // Untuk sekarang, gunakan konstanta BASE_URL atau hitung dari root
+            return $protocol . '://' . $host . '/';
+        }
+    }
+    
+    // Fallback: hitung dari script directory
     $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
     $scriptDir = dirname($scriptName);
-    
-    // Normalize path separators
     $scriptDir = str_replace('\\', '/', $scriptDir);
     
-    // Jika di root, return base URL saja
     if ($scriptDir === '/' || $scriptDir === '.' || $scriptDir === '') {
         return $protocol . '://' . $host . '/';
     }
     
-    // Hitung base path dari script directory
     $parts = explode('/', trim($scriptDir, '/'));
     $parts = array_filter($parts, function($p) { return $p !== '' && $p !== '.'; });
     $depth = count($parts);
     
-    // Jika depth = 0 atau 1, berarti di root
     if ($depth <= 1) {
         return $protocol . '://' . $host . '/';
     }
     
-    // Kembalikan base URL dengan path relatif ke root
-    $basePath = '';
-    for ($i = 0; $i < $depth - 1; $i++) {
-        $basePath .= '../';
-    }
-    return $protocol . '://' . $host . '/' . str_replace('../', '', $basePath);
+    return $protocol . '://' . $host . '/';
 }
 
 // Fungsi helper untuk redirect yang aman

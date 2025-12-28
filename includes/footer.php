@@ -304,7 +304,7 @@
                             // Gunakan default
                         }
                         ?>
-                        <a href="https://misultanfattah.sch.id/" target="_blank" rel="noopener noreferrer" style="color: white; text-decoration: underline;"><?php echo htmlspecialchars($nama_madrasah); ?></a>
+                        <a href="https://misultanfattah.sch.id/" target="_blank" rel="noopener noreferrer" style="color: white; text-decoration: none;"><?php echo htmlspecialchars($nama_madrasah); ?></a>
                     </p>
                     <p class="mb-0 mt-1" style="font-size: 11px; opacity: 0.9; margin: 0;">
                         Dikembangkan oleh Tim IT MI Sultan Fattah Sukosono
