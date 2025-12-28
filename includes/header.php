@@ -49,7 +49,18 @@ function getBasePath() {
     
     return str_repeat('../', $depth - 1);
 }
+
+// Fungsi untuk mendapatkan base URL absolut
+function getBaseUrlPath() {
+    if (isset($_SERVER['HTTP_HOST'])) {
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+        return $protocol . '://' . $_SERVER['HTTP_HOST'] . '/';
+    }
+    return '/';
+}
+
 $basePath = getBasePath();
+$baseUrlPath = getBaseUrlPath();
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -60,12 +71,12 @@ $basePath = getBasePath();
     
     <!-- Favicon menggunakan logo sekolah -->
     <?php if (!empty($profil['logo'])): ?>
-        <link rel="icon" type="image/png" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
-        <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
-        <link rel="apple-touch-icon" href="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="shortcut icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
+        <link rel="apple-touch-icon" href="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo']); ?>">
     <?php else: ?>
-        <link rel="icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
-        <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
+        <link rel="icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/logo.png">
+        <link rel="shortcut icon" type="image/png" href="<?php echo $baseUrlPath; ?>uploads/logo.png">
     <?php endif; ?>
     
     <!-- Bootstrap CSS -->
@@ -543,8 +554,8 @@ $basePath = getBasePath();
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
-                <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
+            <a class="navbar-brand" href="<?php echo $baseUrlPath; ?>index.php">
+                <img src="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
                 <div class="navbar-brand-content">
                     <div class="navbar-brand-app-name">
                         <?php echo APP_SHORT; ?>
@@ -566,7 +577,7 @@ $basePath = getBasePath();
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
                         <div class="user-role"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></div>
                     </div>
-                    <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
+                    <img src="<?php echo $baseUrlPath; ?>uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
                 </div>
             </div>
         </div>
@@ -577,20 +588,20 @@ $basePath = getBasePath();
             <div class="col-md-3 col-lg-2 sidebar p-0">
                 <nav class="nav flex-column mt-3">
                     <?php if ($user['role'] == 'proktor'): ?>
-                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#lembagaMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-school"></i> Lembaga <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="lembagaMenu" data-bs-parent=".sidebar">
-                        <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/profil.php">
+                        <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>lembaga/profil.php">
                             <i class="fas fa-circle"></i> Profil Madrasah
                         </a>
-                        <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/materi.php">
+                        <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>lembaga/materi.php">
                             <i class="fas fa-circle"></i> Materi Mulok
                         </a>
-                        <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/kelas.php">
+                        <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>lembaga/kelas.php">
                             <i class="fas fa-circle"></i> Kelas
                         </a>
                         </div>
@@ -598,72 +609,72 @@ $basePath = getBasePath();
                             <i class="fas fa-chalkboard-teacher"></i> Guru <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="guruMenu" data-bs-parent=".sidebar">
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/data.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>guru/data.php">
                                 <i class="fas fa-circle"></i> Data Guru
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/mengampu.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>guru/mengampu.php">
                                 <i class="fas fa-circle"></i> Mengampu Materi
                             </a>
                         </div>
-                        <a class="nav-link" href="<?php echo $basePath; ?>siswa/index.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>siswa/index.php">
                             <i class="fas fa-user-graduate"></i> Siswa
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#raporMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-file-alt"></i> Rapor <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="raporMenu" data-bs-parent=".sidebar">
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/kkm.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/kkm.php">
                                 <i class="fas fa-circle"></i> Nilai KKM
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/pengaturan-cetak.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/pengaturan-cetak.php">
                                 <i class="fas fa-circle"></i> Pengaturan Cetak
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/status-nilai.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/status-nilai.php">
                                 <i class="fas fa-circle"></i> Status Nilai
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/cetak.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>rapor/cetak.php">
                                 <i class="fas fa-circle"></i> Cetak Rapor
                             </a>
                         </div>
-                        <a class="nav-link" href="<?php echo $basePath; ?>pengguna/index.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>pengguna/index.php">
                             <i class="fas fa-users"></i> Pengguna
                         </a>
-                        <a class="nav-link" href="<?php echo $basePath; ?>pengaturan/index.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>pengaturan/index.php">
                             <i class="fas fa-cog"></i> Pengaturan
                         </a>
-                        <a class="nav-link" href="<?php echo $basePath; ?>backup/index.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>backup/index.php">
                             <i class="fas fa-database"></i> Backup & Restore
                         </a>
                     <?php elseif ($user['role'] == 'wali_kelas'): ?>
-                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>wali-kelas/materi.php">
                             <i class="fas fa-book"></i> Materi Mulok
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#waliMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-user-tie"></i> Wali Kelas <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="waliMenu" data-bs-parent=".sidebar">
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/siswa.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>wali-kelas/siswa.php">
                                 <i class="fas fa-circle"></i> Data Siswa
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/status-nilai.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>wali-kelas/status-nilai.php">
                                 <i class="fas fa-circle"></i> Status Nilai
                             </a>
-                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/rapor.php">
+                            <a class="nav-link ps-5" href="<?php echo $baseUrlPath; ?>wali-kelas/rapor.php">
                                 <i class="fas fa-circle"></i> Rapor
                             </a>
                         </div>
                     <?php elseif ($user['role'] == 'guru'): ?>
-                        <a class="nav-link" href="<?php echo $basePath ? $basePath : ''; ?>index.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
+                        <a class="nav-link" href="<?php echo $baseUrlPath; ?>guru/materi-diampu.php">
                             <i class="fas fa-book"></i> Materi yang Diampu
                         </a>
                     <?php endif; ?>
-                    <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
+                    <a class="nav-link text-danger" href="<?php echo $baseUrlPath; ?>logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </nav>

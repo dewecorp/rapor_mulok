@@ -30,6 +30,24 @@ Write-Host ""
 Write-Host "Status repository:" -ForegroundColor Cyan
 git status --short
 
+# Cek apakah ada perubahan
+$hasChanges = $false
+git diff --quiet --exit-code 2>$null
+if ($LASTEXITCODE -ne 0) {
+    $hasChanges = $true
+} else {
+    git diff --cached --quiet --exit-code 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        $hasChanges = $true
+    }
+}
+
+if (-not $hasChanges) {
+    Write-Host ""
+    Write-Host "Tidak ada perubahan untuk di-commit." -ForegroundColor Yellow
+    exit 0
+}
+
 # Tanyakan konfirmasi
 Write-Host ""
 $confirm = Read-Host "Lanjutkan commit dengan pesan '$Message'? (Y/N)"
@@ -61,13 +79,16 @@ if ($LASTEXITCODE -eq 0) {
         $remote = git remote get-url origin 2>$null
         if ($remote) {
             Write-Host "Remote ditemukan: $remote" -ForegroundColor Green
-            Write-Host "Push ke remote..." -ForegroundColor Yellow
-            git push -u origin main
+            # Cek branch yang aktif
+            $currentBranch = git branch --show-current
+            if ([string]::IsNullOrEmpty($currentBranch)) {
+                $currentBranch = "master"
+            }
+            Write-Host "Push ke branch $currentBranch..." -ForegroundColor Yellow
+            git push -u origin $currentBranch
             
             if ($LASTEXITCODE -ne 0) {
-                # Coba branch master jika main gagal
-                Write-Host "Mencoba push ke branch master..." -ForegroundColor Yellow
-                git push -u origin master
+                Write-Host "ERROR: Gagal push ke remote!" -ForegroundColor Red
             }
         } else {
             Write-Host "Remote repository belum dikonfigurasi." -ForegroundColor Yellow

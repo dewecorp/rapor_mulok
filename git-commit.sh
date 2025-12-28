@@ -29,6 +29,19 @@ echo "Status repository:"
 git status --short
 echo ""
 
+# Cek apakah ada perubahan
+has_changes=false
+if ! git diff --quiet --exit-code 2>/dev/null; then
+    has_changes=true
+elif ! git diff --cached --quiet --exit-code 2>/dev/null; then
+    has_changes=true
+fi
+
+if [ "$has_changes" = false ]; then
+    echo "Tidak ada perubahan untuk di-commit."
+    exit 0
+fi
+
 # Tanyakan konfirmasi
 read -p "Lanjutkan commit dengan pesan '$COMMIT_MSG'? (Y/N): " confirm
 if [[ ! $confirm =~ ^[Yy]$ ]]; then
@@ -59,13 +72,16 @@ if [ $? -eq 0 ]; then
         remote=$(git remote get-url origin 2>/dev/null)
         if [ -n "$remote" ]; then
             echo "Remote ditemukan: $remote"
-            echo "Push ke remote..."
-            git push -u origin main
+            # Cek branch yang aktif
+            current_branch=$(git branch --show-current)
+            if [ -z "$current_branch" ]; then
+                current_branch="master"
+            fi
+            echo "Push ke branch $current_branch..."
+            git push -u origin "$current_branch"
             
             if [ $? -ne 0 ]; then
-                # Coba branch master jika main gagal
-                echo "Mencoba push ke branch master..."
-                git push -u origin master
+                echo "ERROR: Gagal push ke remote!"
             fi
         else
             echo "Remote repository belum dikonfigurasi."

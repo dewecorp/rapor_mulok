@@ -13,7 +13,14 @@ if (isLoggedIn()) {
     if (ob_get_level() > 0) {
         ob_clean();
     }
-    header('Location: index.php');
+    // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+    $redirect_url = '/index.php';
+    if (isset($_SERVER['HTTP_HOST'])) {
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+        header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+    } else {
+        header('Location: ' . $redirect_url);
+    }
     exit();
 }
 
@@ -154,7 +161,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         if (ob_get_level() > 0) {
                             ob_clean();
                         }
-                        header('Location: index.php');
+                        // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+                        $redirect_url = '/index.php';
+                        if (isset($_SERVER['HTTP_HOST'])) {
+                            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                            header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+                        } else {
+                            header('Location: ' . $redirect_url);
+                        }
                         exit();
                     } else {
                         // Cek apakah password menggunakan hash lama (md5 atau plain)
@@ -212,7 +226,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             if (ob_get_level() > 0) {
                                 ob_clean();
                             }
-                            header('Location: index.php');
+                            // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+                            $redirect_url = '/index.php';
+                            if (isset($_SERVER['HTTP_HOST'])) {
+                                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                                header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+                            } else {
+                                header('Location: ' . $redirect_url);
+                            }
                             exit();
                         } else {
                             $error = 'Password salah! Silakan reset password di: <a href="reset_admin.php" style="color: #2d5016; text-decoration: underline;">reset_admin.php</a>';

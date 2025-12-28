@@ -95,7 +95,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (ob_get_level() > 0) {
                     ob_clean();
                 }
-                header('Location: index.php');
+                // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+                $redirect_url = '/pengaturan/index.php';
+                if (isset($_SERVER['HTTP_HOST'])) {
+                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                    header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+                } else {
+                    header('Location: ' . $redirect_url);
+                }
                 exit();
             } else {
                 $error = 'Gagal memperbarui pengaturan!';

@@ -82,27 +82,78 @@ function requireLogin() {
 function requireRole($role) {
     requireLogin();
     if (!hasRole($role)) {
-        $path = getRelativePath();
         // Pastikan tidak ada output sebelum redirect
         if (ob_get_level() > 0) {
             ob_clean();
         }
-        header('Location: ' . $path . 'index.php');
+        // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+        $redirect_url = '/index.php';
+        if (isset($_SERVER['HTTP_HOST'])) {
+            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+            header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+        } else {
+            header('Location: ' . $redirect_url);
+        }
         exit();
     }
 }
 
+// Fungsi helper untuk mendapatkan base URL aplikasi
+function getBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+    $scriptDir = dirname($scriptName);
+    
+    // Normalize path separators
+    $scriptDir = str_replace('\\', '/', $scriptDir);
+    
+    // Jika di root, return base URL saja
+    if ($scriptDir === '/' || $scriptDir === '.' || $scriptDir === '') {
+        return $protocol . '://' . $host . '/';
+    }
+    
+    // Hitung base path dari script directory
+    $parts = explode('/', trim($scriptDir, '/'));
+    $parts = array_filter($parts, function($p) { return $p !== '' && $p !== '.'; });
+    $depth = count($parts);
+    
+    // Jika depth = 0 atau 1, berarti di root
+    if ($depth <= 1) {
+        return $protocol . '://' . $host . '/';
+    }
+    
+    // Kembalikan base URL dengan path relatif ke root
+    $basePath = '';
+    for ($i = 0; $i < $depth - 1; $i++) {
+        $basePath .= '../';
+    }
+    return $protocol . '://' . $host . '/' . str_replace('../', '', $basePath);
+}
+
 // Fungsi helper untuk redirect yang aman
-function redirect($url, $useRelativePath = true) {
+function redirect($url, $useAbsoluteUrl = false) {
     // Pastikan tidak ada output sebelum redirect
     if (ob_get_level() > 0) {
         ob_clean();
     }
-    if ($useRelativePath) {
+    
+    if ($useAbsoluteUrl) {
+        // Gunakan absolute URL lengkap
+        if (isset($_SERVER['HTTP_HOST'])) {
+            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+            // Pastikan URL dimulai dengan /
+            if (strpos($url, '/') !== 0) {
+                $url = '/' . $url;
+            }
+            header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $url);
+        } else {
+            header('Location: ' . $url);
+        }
+    } else {
+        // Gunakan relative path
         $path = getRelativePath();
         header('Location: ' . $path . $url);
-    } else {
-        header('Location: ' . $url);
     }
     exit();
 }

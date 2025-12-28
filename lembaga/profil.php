@@ -40,12 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Logo berhasil diperbarui!';
-            // Pastikan tidak ada output sebelum redirect
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: ' . basename($_SERVER['PHP_SELF']));
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui logo!';
         }
@@ -64,12 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Info madrasah berhasil diperbarui!';
-            // Pastikan tidak ada output sebelum redirect
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: ' . basename($_SERVER['PHP_SELF']));
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui info madrasah!';
         }
@@ -83,12 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Data pimpinan berhasil diperbarui!';
-            // Pastikan tidak ada output sebelum redirect
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: ' . basename($_SERVER['PHP_SELF']));
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui data pimpinan!';
         }
@@ -102,12 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Pengaturan akademik berhasil diperbarui!';
-            // Pastikan tidak ada output sebelum redirect
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: ' . basename($_SERVER['PHP_SELF']));
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui pengaturan akademik!';
         }

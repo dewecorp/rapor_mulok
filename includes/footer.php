@@ -131,23 +131,27 @@
                 $('.collapse').removeClass('show');
                 
                 // Cek apakah di dashboard (root/index.php)
-                var pathParts = path.split('/').filter(function(p) { return p.length > 0; });
+                var pathParts = path.split('/').filter(function(p) { return p.length > 0 && p !== 'rapor-mulok'; });
+                // Dashboard adalah ketika path berakhir dengan index.php di root atau tidak ada path sama sekali
+                var lastPart = pathParts[pathParts.length - 1];
                 var isDashboard = pathParts.length === 0 || 
-                                 (pathParts.length === 1 && pathParts[0] === 'rapor-mulok') ||
-                                 (pathParts.length === 1 && pathParts[pathParts.length - 1] === 'index.php') ||
-                                 (pathParts.length === 2 && pathParts[pathParts.length - 1] === 'index.php' && pathParts[pathParts.length - 2] === 'rapor-mulok');
+                                 (pathParts.length === 1 && lastPart === 'index.php') ||
+                                 (pathParts.length === 1 && lastPart === 'rapor-mulok');
                 
                 if (isDashboard) {
                     // Aktifkan menu Dashboard saja, pastikan semua collapse tertutup
                     $('.nav-link').each(function() {
                         var href = $(this).attr('href');
                         if (href) {
-                            var hrefParts = href.split('/').filter(function(p) { return p.length > 0; });
+                            // Normalisasi href untuk perbandingan
+                            var normalizedHref = href.split('?')[0].replace(/\/$/, '');
+                            var hrefParts = normalizedHref.split('/').filter(function(p) { return p.length > 0 && p !== 'rapor-mulok'; });
                             var hrefFile = hrefParts[hrefParts.length - 1];
                             
-                            // Jika href adalah index.php dan tidak ada subdirectory
-                            if (hrefFile === 'index.php' && hrefParts.length <= 2) {
+                            // Jika href adalah index.php di root (tidak ada subdirectory sebelum index.php)
+                            if (hrefFile === 'index.php' && hrefParts.length === 1) {
                                 $(this).addClass('active');
+                                console.log('Dashboard menu aktif:', href);
                             }
                         }
                     });

@@ -29,6 +29,25 @@ echo.
 echo Status repository:
 git status --short
 
+REM Cek apakah ada perubahan
+git diff --quiet --exit-code
+if errorlevel 1 (
+    set HAS_CHANGES=1
+) else (
+    git diff --cached --quiet --exit-code
+    if errorlevel 1 (
+        set HAS_CHANGES=1
+    ) else (
+        set HAS_CHANGES=0
+    )
+)
+
+if "%HAS_CHANGES%"=="0" (
+    echo.
+    echo Tidak ada perubahan untuk di-commit.
+    exit /b 0
+)
+
 REM Tanyakan konfirmasi
 echo.
 set /p CONFIRM="Lanjutkan commit dengan pesan '%COMMIT_MSG%'? (Y/N): "
@@ -69,10 +88,14 @@ if /i "%PUSH_CONFIRM%"=="Y" (
     ) else (
         git remote get-url origin
         echo Push ke remote...
-        git push -u origin main
+        REM Cek branch yang aktif
+        for /f "tokens=2" %%b in ('git branch --show-current') do set CURRENT_BRANCH=%%b
+        if "%CURRENT_BRANCH%"=="" set CURRENT_BRANCH=master
+        
+        echo Push ke branch %CURRENT_BRANCH%...
+        git push -u origin %CURRENT_BRANCH%
         if errorlevel 1 (
-            echo Mencoba push ke branch master...
-            git push -u origin master
+            echo ERROR: Gagal push ke remote!
         )
     )
 )

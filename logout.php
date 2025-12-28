@@ -16,7 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' || isset($_GET['confirm'])) {
     if (ob_get_level() > 0) {
         ob_clean();
     }
-    header('Location: login.php');
+    // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+    $redirect_url = '/login.php';
+    if (isset($_SERVER['HTTP_HOST'])) {
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+        header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+    } else {
+        header('Location: ' . $redirect_url);
+    }
     exit();
 }
 ?>

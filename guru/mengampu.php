@@ -37,20 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // Redirect untuk mencegah resubmit dan refresh data
                     // Gunakan kelas_id dari form untuk redirect
                     $_SESSION['success_message'] = 'Data mengampu berhasil ditambahkan!';
-                    // Pastikan tidak ada output sebelum redirect
-                    if (ob_get_level() > 0) {
-                        ob_clean();
-                    }
-                    header('Location: ' . basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id);
-                    exit();
+                    redirect(basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id, false);
                 } else {
                     $_SESSION['error_message'] = 'Gagal menambahkan data mengampu!';
-                    // Pastikan tidak ada output sebelum redirect
-                    if (ob_get_level() > 0) {
-                        ob_clean();
-                    }
-                    header('Location: ' . basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id);
-                    exit();
+                    redirect(basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id, false);
                 }
             }
         } elseif ($_POST['action'] == 'delete') {
@@ -83,22 +73,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 } elseif ($kelas_filter) {
                     $redirect_url .= '?kelas=' . $kelas_filter;
                 }
-                // Pastikan tidak ada output sebelum redirect
-                if (ob_get_level() > 0) {
-                    ob_clean();
-                }
-                header('Location: ' . $redirect_url);
-                exit();
+                redirect($redirect_url, false);
             } else {
                 $_SESSION['error_message'] = 'Gagal menghapus data mengampu!';
-                $redirect_url = 'mengampu.php';
+                $redirect_url = basename($_SERVER['PHP_SELF']);
                 if ($kelas_id_for_redirect) {
                     $redirect_url .= '?kelas=' . $kelas_id_for_redirect;
                 } elseif ($kelas_filter) {
                     $redirect_url .= '?kelas=' . $kelas_filter;
                 }
-                header('Location: ' . $redirect_url);
-                exit();
+                redirect($redirect_url, false);
             }
         }
     }

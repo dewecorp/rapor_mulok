@@ -72,8 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if ($stmt->execute()) {
                         // Redirect untuk mencegah resubmit dan refresh data
                         $_SESSION['success_message'] = 'Data guru berhasil ditambahkan!';
-                        header('Location: data.php');
-                        exit();
+                        if (ob_get_level() > 0) {
+                            ob_clean();
+                        }
+                        redirect(basename($_SERVER['PHP_SELF']), false);
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -177,12 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if ($stmt->execute()) {
                         // Redirect untuk mencegah resubmit dan refresh data
                         $_SESSION['success_message'] = 'Data guru berhasil diperbarui!';
-                        // Pastikan tidak ada output sebelum redirect
-                        if (ob_get_level() > 0) {
-                            ob_clean();
-                        }
-                        header('Location: ' . basename($_SERVER['PHP_SELF']));
-                        exit();
+                        redirect(basename($_SERVER['PHP_SELF']), false);
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -226,20 +223,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt->execute()) {
                 // Redirect untuk mencegah resubmit dan refresh data
                 $_SESSION['success_message'] = 'Data guru berhasil dihapus!';
-                // Pastikan tidak ada output sebelum redirect
-                if (ob_get_level() > 0) {
-                    ob_clean();
-                }
-                header('Location: ' . basename($_SERVER['PHP_SELF']));
-                exit();
+                redirect(basename($_SERVER['PHP_SELF']), false);
             } else {
                 $_SESSION['error_message'] = 'Gagal menghapus data guru!';
-                // Pastikan tidak ada output sebelum redirect
-                if (ob_get_level() > 0) {
-                    ob_clean();
-                }
-                header('Location: ' . basename($_SERVER['PHP_SELF']));
-                exit();
+                redirect(basename($_SERVER['PHP_SELF']), false);
             }
         }
     }
