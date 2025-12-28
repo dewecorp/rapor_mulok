@@ -1,4 +1,9 @@
 <?php
+// Aktifkan output buffering untuk mencegah masalah redirect
+if (ob_get_level() == 0) {
+    ob_start();
+}
+
 // Start session hanya jika belum aktif
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -58,14 +63,18 @@ function getRelativePath() {
 
 // Redirect jika belum login
 function requireLogin() {
-    if (!isLoggedIn()) {
-        $path = getRelativePath();
-        header('Location: ' . $path . 'login.php');
-        exit();
-    }
     // Pastikan session aktif
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
+    }
+    if (!isLoggedIn()) {
+        $path = getRelativePath();
+        // Pastikan tidak ada output sebelum redirect
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
+        header('Location: ' . $path . 'login.php');
+        exit();
     }
 }
 
@@ -74,9 +83,28 @@ function requireRole($role) {
     requireLogin();
     if (!hasRole($role)) {
         $path = getRelativePath();
+        // Pastikan tidak ada output sebelum redirect
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
         header('Location: ' . $path . 'index.php');
         exit();
     }
+}
+
+// Fungsi helper untuk redirect yang aman
+function redirect($url, $useRelativePath = true) {
+    // Pastikan tidak ada output sebelum redirect
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
+    if ($useRelativePath) {
+        $path = getRelativePath();
+        header('Location: ' . $path . $url);
+    } else {
+        header('Location: ' . $url);
+    }
+    exit();
 }
 
 // Format tanggal Indonesia

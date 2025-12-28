@@ -37,11 +37,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // Redirect untuk mencegah resubmit dan refresh data
                     // Gunakan kelas_id dari form untuk redirect
                     $_SESSION['success_message'] = 'Data mengampu berhasil ditambahkan!';
-                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    // Pastikan tidak ada output sebelum redirect
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: ' . basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id);
                     exit();
                 } else {
                     $_SESSION['error_message'] = 'Gagal menambahkan data mengampu!';
-                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    // Pastikan tidak ada output sebelum redirect
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: ' . basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id);
                     exit();
                 }
             }
@@ -69,11 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt->execute()) {
                 // Redirect untuk mencegah resubmit dan refresh data
                 $_SESSION['success_message'] = 'Data mengampu berhasil dihapus!';
-                $redirect_url = 'mengampu.php';
+                $redirect_url = basename($_SERVER['PHP_SELF']);
                 if ($kelas_id_for_redirect) {
                     $redirect_url .= '?kelas=' . $kelas_id_for_redirect;
                 } elseif ($kelas_filter) {
                     $redirect_url .= '?kelas=' . $kelas_filter;
+                }
+                // Pastikan tidak ada output sebelum redirect
+                if (ob_get_level() > 0) {
+                    ob_clean();
                 }
                 header('Location: ' . $redirect_url);
                 exit();

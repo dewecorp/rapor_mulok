@@ -1,8 +1,21 @@
 <?php
+// Pastikan tidak ada output sebelum ini
+if (ob_get_level() > 0) {
+    ob_clean();
+}
+
 require_once 'config/config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' || isset($_GET['confirm'])) {
+    // Pastikan session aktif sebelum destroy
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     session_destroy();
+    // Pastikan tidak ada output sebelum redirect
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
     header('Location: login.php');
     exit();
 }

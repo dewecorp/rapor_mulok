@@ -91,6 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             if ($stmt->execute()) {
                 $_SESSION['success_message'] = 'Pengaturan berhasil diperbarui!';
+                // Pastikan tidak ada output sebelum redirect
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
                 header('Location: index.php');
                 exit();
             } else {

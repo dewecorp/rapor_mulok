@@ -40,7 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Logo berhasil diperbarui!';
-            header('Location: profil.php');
+            // Pastikan tidak ada output sebelum redirect
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']));
             exit();
         } else {
             $error = 'Gagal memperbarui logo!';
@@ -60,7 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Info madrasah berhasil diperbarui!';
-            header('Location: profil.php');
+            // Pastikan tidak ada output sebelum redirect
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']));
             exit();
         } else {
             $error = 'Gagal memperbarui info madrasah!';
@@ -75,7 +83,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Data pimpinan berhasil diperbarui!';
-            header('Location: profil.php');
+            // Pastikan tidak ada output sebelum redirect
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']));
             exit();
         } else {
             $error = 'Gagal memperbarui data pimpinan!';
@@ -90,7 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Pengaturan akademik berhasil diperbarui!';
-            header('Location: profil.php');
+            // Pastikan tidak ada output sebelum redirect
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']));
             exit();
         } else {
             $error = 'Gagal memperbarui pengaturan akademik!';

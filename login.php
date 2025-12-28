@@ -9,6 +9,10 @@ require_once 'config/database.php';
 
 // Jika sudah login, redirect ke dashboard
 if (isLoggedIn()) {
+    // Pastikan tidak ada output sebelum redirect
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
     header('Location: index.php');
     exit();
 }
@@ -146,6 +150,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_SESSION['welcome_role'] = $user['role'];
                         
                         // Redirect ke dashboard
+                        // Pastikan tidak ada output sebelum redirect
+                        if (ob_get_level() > 0) {
+                            ob_clean();
+                        }
                         header('Location: index.php');
                         exit();
                     } else {
@@ -200,6 +208,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $_SESSION['welcome_name'] = $user['nama'];
                             $_SESSION['welcome_role'] = $user['role'];
                             
+                            // Pastikan tidak ada output sebelum redirect
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
                             header('Location: index.php');
                             exit();
                         } else {

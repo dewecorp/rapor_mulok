@@ -105,11 +105,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $stmt->execute();
         
         // Redirect untuk mencegah resubmit
-        header('Location: index.php?success=backup_created');
+        // Pastikan tidak ada output sebelum redirect
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
+        header('Location: ' . basename($_SERVER['PHP_SELF']) . '?success=backup_created');
         exit();
     } else {
         // Redirect dengan error
-        header('Location: index.php?error=backup_failed');
+        // Pastikan tidak ada output sebelum redirect
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
+        header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=backup_failed');
         exit();
     }
 }
@@ -142,18 +150,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 }
                 
                 // Redirect untuk mencegah resubmit
-                header('Location: index.php?success=restore_done');
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: ' . basename($_SERVER['PHP_SELF']) . '?success=restore_done');
                 exit();
             } else {
-                header('Location: index.php?error=file_not_found');
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=file_not_found');
                 exit();
             }
         } else {
-            header('Location: index.php?error=backup_not_found');
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=backup_not_found');
             exit();
         }
     } catch (Exception $e) {
-        header('Location: index.php?error=restore_failed');
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
+        header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=restore_failed');
         exit();
     }
 }
@@ -165,7 +185,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $file_ext = pathinfo($file['name'], PATHINFO_EXTENSION);
         
         if (strtolower($file_ext) !== 'sql') {
-            header('Location: index.php?error=invalid_file_format');
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=invalid_file_format');
             exit();
         }
         
@@ -183,14 +206,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             }
             
             // Redirect untuk mencegah resubmit
-            header('Location: index.php?success=restore_done');
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']) . '?success=restore_done');
             exit();
         } catch (Exception $e) {
-            header('Location: index.php?error=restore_failed');
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=restore_failed');
             exit();
         }
     } else {
-        header('Location: index.php?error=no_file_uploaded');
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
+        header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=no_file_uploaded');
         exit();
     }
 }
@@ -220,18 +252,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             
             if ($stmt_delete->execute()) {
                 // Redirect untuk mencegah resubmit
-                header('Location: index.php?success=backup_deleted');
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: ' . basename($_SERVER['PHP_SELF']) . '?success=backup_deleted');
                 exit();
             } else {
-                header('Location: index.php?error=delete_failed');
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=delete_failed');
                 exit();
             }
         } else {
-            header('Location: index.php?error=backup_not_found');
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=backup_not_found');
             exit();
         }
     } catch (Exception $e) {
-        header('Location: index.php?error=delete_failed');
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
+        header('Location: ' . basename($_SERVER['PHP_SELF']) . '?error=delete_failed');
         exit();
     }
 }

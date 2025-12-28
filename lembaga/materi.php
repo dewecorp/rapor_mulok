@@ -164,16 +164,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if ($stmt->execute()) {
                     // Redirect untuk mencegah resubmit dan form edit muncul
                     $_SESSION['success_message'] = 'Materi mulok berhasil dihapus!';
-                    header('Location: materi.php');
+                    // Pastikan tidak ada output sebelum redirect
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: ' . basename($_SERVER['PHP_SELF']));
                     exit();
                 } else {
                     $_SESSION['error_message'] = 'Gagal menghapus materi mulok! Error: ' . $conn->error;
-                    header('Location: materi.php');
+                    // Pastikan tidak ada output sebelum redirect
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: ' . basename($_SERVER['PHP_SELF']));
                     exit();
                 }
             } catch (Exception $e) {
                 $_SESSION['error_message'] = 'Gagal menghapus materi mulok! Error: ' . $e->getMessage();
-                header('Location: materi.php');
+                // Pastikan tidak ada output sebelum redirect
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: ' . basename($_SERVER['PHP_SELF']));
                 exit();
             }
         }
