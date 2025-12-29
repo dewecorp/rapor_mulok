@@ -601,9 +601,20 @@ $basePath = getBasePath();
                                 <i class="fas fa-circle"></i> Mengampu Materi
                             </a>
                         </div>
-                        <a class="nav-link" href="<?php echo $basePath; ?>siswa/index.php">
-                            <i class="fas fa-user-graduate"></i> Siswa
+                        <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#siswaMenu" onclick="event.stopPropagation();">
+                            <i class="fas fa-user-graduate"></i> Siswa <i class="fas fa-chevron-down float-end"></i>
                         </a>
+                        <div class="collapse" id="siswaMenu" data-bs-parent=".sidebar">
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/index.php">
+                                <i class="fas fa-circle"></i> Data Siswa
+                            </a>
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/pindah-kelas.php">
+                                <i class="fas fa-circle"></i> Pindah Kelas
+                            </a>
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/naik-kelas.php">
+                                <i class="fas fa-circle"></i> Naik Kelas
+                            </a>
+                        </div>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#raporMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-file-alt"></i> Rapor <i class="fas fa-chevron-down float-end"></i>
                         </a>

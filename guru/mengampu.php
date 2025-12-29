@@ -162,6 +162,7 @@ try {
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-book-reader"></i> Mengampu Materi</h5>
         <div>
+            <?php if (!empty($kelas_filter)): ?>
             <button type="button" class="btn btn-light btn-sm" onclick="exportExcel()">
                 <i class="fas fa-file-excel"></i> Excel
             </button>
@@ -171,6 +172,7 @@ try {
             <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMengampu">
                 <i class="fas fa-plus"></i> Tambah
             </button>
+            <?php endif; ?>
         </div>
     </div>
     <div class="card-body">
