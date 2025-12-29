@@ -10,6 +10,76 @@ $conn = getConnection();
 $user_id = $_SESSION['user_id'];
 $role = $_SESSION['role'];
 
+// Handle update foto untuk wali kelas
+$success_message = '';
+$error_message = '';
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'update_foto' && $role == 'wali_kelas') {
+    if (isset($_FILES['foto']) && $_FILES['foto']['error'] == 0) {
+        // Validasi file
+        $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        $file_type = $_FILES['foto']['type'];
+        $file_size = $_FILES['foto']['size'];
+        $max_size = 5 * 1024 * 1024; // 5MB
+        
+        if (!in_array($file_type, $allowed_types)) {
+            $error_message = 'Format file tidak didukung! Gunakan format JPG, PNG, atau GIF.';
+        } elseif ($file_size > $max_size) {
+            $error_message = 'Ukuran file terlalu besar! Maksimal 5MB.';
+        } else {
+            $upload_dir = 'uploads/';
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            // Ambil foto lama
+            try {
+                $stmt_foto = $conn->prepare("SELECT foto FROM pengguna WHERE id = ?");
+                $stmt_foto->bind_param("i", $user_id);
+                $stmt_foto->execute();
+                $result_foto = $stmt_foto->get_result();
+                $foto_data = $result_foto->fetch_assoc();
+                $foto_lama = $foto_data ? $foto_data['foto'] : null;
+            } catch (Exception $e) {
+                $foto_lama = null;
+            }
+            
+            // Generate nama file baru
+            $file_ext = pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION);
+            $foto = 'wali_' . $user_id . '_' . time() . '.' . $file_ext;
+            
+            // Upload file baru
+            if (move_uploaded_file($_FILES['foto']['tmp_name'], $upload_dir . $foto)) {
+                try {
+                    $stmt_update = $conn->prepare("UPDATE pengguna SET foto = ? WHERE id = ?");
+                    $stmt_update->bind_param("si", $foto, $user_id);
+                    
+                    if ($stmt_update->execute()) {
+                        // Update session
+                        $_SESSION['foto'] = $foto;
+                        
+                        // Hapus foto lama jika ada dan bukan default
+                        if ($foto_lama && $foto_lama != 'default.png' && file_exists($upload_dir . $foto_lama)) {
+                            @unlink($upload_dir . $foto_lama);
+                        }
+                        
+                        $success_message = 'Foto berhasil diperbarui!';
+                        // Refresh halaman setelah 1 detik
+                        echo '<script>setTimeout(function(){ window.location.reload(); }, 1000);</script>';
+                    } else {
+                        $error_message = 'Gagal memperbarui foto.';
+                    }
+                } catch (Exception $e) {
+                    $error_message = 'Error: ' . $e->getMessage();
+                }
+            } else {
+                $error_message = 'Gagal mengupload foto.';
+            }
+        }
+    } else {
+        $error_message = 'Tidak ada file yang diupload.';
+    }
+}
+
 // Inisialisasi variabel
 $total_guru = 0;
 $total_siswa = 0;
@@ -51,38 +121,61 @@ if ($role == 'proktor') {
     }
 } elseif ($role == 'wali_kelas') {
     // Dashboard Wali Kelas
+    // Ambil data lengkap guru/wali kelas
+    $guru_data = null;
     try {
-        $query_kelas = "SELECT id FROM kelas WHERE wali_kelas_id = $user_id LIMIT 1";
-        $result = $conn->query($query_kelas);
-        $kelas_data = $result ? $result->fetch_assoc() : null;
+        $stmt_guru = $conn->prepare("SELECT * FROM pengguna WHERE id = ?");
+        $stmt_guru->bind_param("i", $user_id);
+        $stmt_guru->execute();
+        $result_guru = $stmt_guru->get_result();
+        $guru_data = $result_guru ? $result_guru->fetch_assoc() : null;
+    } catch (Exception $e) {
+        $guru_data = null;
+    }
+    
+    // Ambil data kelas yang diampu
+    $kelas_data = null;
+    $kelas_id = 0;
+    try {
+        $stmt_kelas = $conn->prepare("SELECT * FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
+        $stmt_kelas->bind_param("i", $user_id);
+        $stmt_kelas->execute();
+        $result_kelas = $stmt_kelas->get_result();
+        $kelas_data = $result_kelas ? $result_kelas->fetch_assoc() : null;
         $kelas_id = $kelas_data['id'] ?? 0;
     } catch (Exception $e) {
         $kelas_id = 0;
     }
     
+    // Hitung jumlah siswa
     try {
-        $result = $conn->query("SELECT COUNT(*) as total FROM siswa WHERE kelas_id = $kelas_id");
-        $total_siswa = $result ? $result->fetch_assoc()['total'] : 0;
+        $stmt_siswa = $conn->prepare("SELECT COUNT(*) as total FROM siswa WHERE kelas_id = ?");
+        $stmt_siswa->bind_param("i", $kelas_id);
+        $stmt_siswa->execute();
+        $result_siswa = $stmt_siswa->get_result();
+        $total_siswa = $result_siswa ? $result_siswa->fetch_assoc()['total'] : 0;
     } catch (Exception $e) {
         $total_siswa = 0;
     }
     
+    // Ambil materi yang diampu dengan JOIN yang benar
     try {
-        $query_materi = "SELECT mm.* FROM mengampu_materi mm 
-                         INNER JOIN pengguna p ON mm.guru_id = p.id 
-                         WHERE p.id = $user_id";
-        $materi_diampu = $conn->query($query_materi);
+        $query_materi = "SELECT mm.*, m.nama_mulok, k.nama_kelas 
+                         FROM mengampu_materi mm 
+                         INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id 
+                         INNER JOIN kelas k ON mm.kelas_id = k.id 
+                         WHERE mm.guru_id = ?
+                         ORDER BY k.nama_kelas, m.nama_mulok";
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("i", $user_id);
+        $stmt_materi->execute();
+        $materi_diampu = $stmt_materi->get_result();
     } catch (Exception $e) {
         $materi_diampu = null;
     }
     
     // Cek apakah user adalah wali kelas
-    try {
-        $result = $conn->query("SELECT COUNT(*) as total FROM kelas WHERE wali_kelas_id = $user_id");
-        $is_wali_kelas = $result ? ($result->fetch_assoc()['total'] > 0) : false;
-    } catch (Exception $e) {
-        $is_wali_kelas = false;
-    }
+    $is_wali_kelas = ($kelas_data !== null);
 } elseif ($role == 'guru') {
     // Dashboard Guru
     try {
@@ -373,62 +466,136 @@ if ($role == 'proktor') {
             </div>
             
         <?php elseif ($role == 'wali_kelas'): ?>
+            <?php if ($success_message): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($error_message): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+            
             <div class="row mb-4">
+                <!-- Box Foto Wali/Guru -->
                 <div class="col-md-4">
                     <div class="card">
                         <div class="card-body text-center">
-                            <img src="uploads/<?php echo htmlspecialchars($_SESSION['foto'] ?? 'default.png'); ?>" 
-                                 alt="Foto" class="rounded-circle mb-3" width="150" height="150" 
-                                 style="object-fit: cover;" onerror="this.onerror=null; this.style.display='none';">
-                            <h5><?php echo htmlspecialchars($_SESSION['nama']); ?></h5>
-                            <p class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $_SESSION['role'])); ?></p>
+                            <div class="position-relative d-inline-block mb-3">
+                                <img src="uploads/<?php echo htmlspecialchars($guru_data['foto'] ?? 'default.png'); ?>" 
+                                     alt="Foto" class="rounded-circle" width="200" height="200" 
+                                     style="object-fit: cover; border: 4px solid #2d5016;" 
+                                     id="previewFoto"
+                                     onerror="this.onerror=null; this.src='uploads/default.png';">
+                                <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
+                                        style="width: 40px; height: 40px; border: 2px solid white;" 
+                                        data-bs-toggle="modal" data-bs-target="#modalEditFoto">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
+                            <h4 class="mb-1"><?php echo htmlspecialchars($guru_data['nama'] ?? $_SESSION['nama']); ?></h4>
+                            <p class="text-muted mb-2"><?php echo ucfirst(str_replace('_', ' ', $role)); ?></p>
                             <?php if ($is_wali_kelas): ?>
-                                <span class="badge bg-success">Wali Kelas Aktif</span>
+                                <span class="badge bg-success fs-6">Wali Kelas Aktif</span>
                             <?php else: ?>
-                                <span class="badge bg-secondary">Bukan Wali Kelas</span>
+                                <span class="badge bg-secondary fs-6">Bukan Wali Kelas</span>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Box Identitas Guru -->
                 <div class="col-md-4">
-                    <div class="card bg-success text-white">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="fas fa-user"></i> Identitas Guru</h6>
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Jumlah Siswa</h6>
-                                    <h2 class="mb-0"><?php echo $total_siswa; ?></h2>
-                                </div>
-                                <i class="fas fa-user-graduate fa-3x opacity-50"></i>
-                            </div>
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td width="40%"><strong>Nama:</strong></td>
+                                    <td><?php echo htmlspecialchars($guru_data['nama'] ?? '-'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>NIP:</strong></td>
+                                    <td><?php echo htmlspecialchars($guru_data['nip'] ?? '-'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>NUPTK:</strong></td>
+                                    <td><?php echo htmlspecialchars($guru_data['nuptk'] ?? '-'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>TTL:</strong></td>
+                                    <td><?php 
+                                        $ttl = '';
+                                        if (!empty($guru_data['tempat_lahir'])) {
+                                            $ttl .= htmlspecialchars($guru_data['tempat_lahir']);
+                                        }
+                                        if (!empty($guru_data['tanggal_lahir'])) {
+                                            $ttl .= ($ttl ? ', ' : '') . date('d F Y', strtotime($guru_data['tanggal_lahir']));
+                                        }
+                                        echo $ttl ?: '-';
+                                    ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Pendidikan:</strong></td>
+                                    <td><?php echo htmlspecialchars($guru_data['pendidikan_terakhir'] ?? '-'); ?></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Email:</strong></td>
+                                    <td><?php echo htmlspecialchars($guru_data['email'] ?? '-'); ?></td>
+                                </tr>
+                            </table>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Box Tentang Kelas -->
                 <div class="col-md-4">
-                    <div class="card bg-info text-white">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="fas fa-school"></i> Tentang Kelas</h6>
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Materi yang Diampu</h6>
-                                    <h2 class="mb-0"><?php echo $materi_diampu ? $materi_diampu->num_rows : 0; ?></h2>
-                                </div>
-                                <i class="fas fa-book fa-3x opacity-50"></i>
-                            </div>
+                            <?php if ($kelas_data): ?>
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr>
+                                        <td width="40%"><strong>Kelas:</strong></td>
+                                        <td><?php echo htmlspecialchars($kelas_data['nama_kelas'] ?? '-'); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Jumlah Siswa:</strong></td>
+                                        <td><span class="badge bg-primary fs-6"><?php echo $total_siswa; ?> siswa</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Wali Kelas:</strong></td>
+                                        <td><?php echo htmlspecialchars($guru_data['nama'] ?? '-'); ?></td>
+                                    </tr>
+                                </table>
+                            <?php else: ?>
+                                <p class="text-muted mb-0">Belum ditugaskan sebagai wali kelas.</p>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- Box Tabel Materi yang Diampu -->
             <div class="card">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0">Materi yang Diampu</h6>
+                    <h6 class="mb-0"><i class="fas fa-book"></i> Materi yang Diampu</h6>
                 </div>
                 <div class="card-body">
                     <?php if ($materi_diampu && $materi_diampu->num_rows > 0): ?>
                         <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead>
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-light">
                                     <tr>
-                                        <th>No</th>
+                                        <th width="50">No</th>
                                         <th>Materi Mulok</th>
                                         <th>Kelas</th>
                                     </tr>
@@ -436,35 +603,73 @@ if ($role == 'proktor') {
                                 <tbody>
                                     <?php 
                                     $no = 1;
+                                    $materi_diampu->data_seek(0);
                                     while ($materi = $materi_diampu->fetch_assoc()): 
-                                        try {
-                                            $materi_result = $conn->query("SELECT nama_mulok FROM materi_mulok WHERE id = " . $materi['materi_mulok_id']);
-                                            $materi_mulok = $materi_result ? $materi_result->fetch_assoc() : ['nama_mulok' => '-'];
-                                        } catch (Exception $e) {
-                                            $materi_mulok = ['nama_mulok' => '-'];
-                                        }
-                                        
-                                        try {
-                                            $kelas_result = $conn->query("SELECT nama_kelas FROM kelas WHERE id = " . $materi['kelas_id']);
-                                            $kelas = $kelas_result ? $kelas_result->fetch_assoc() : ['nama_kelas' => '-'];
-                                        } catch (Exception $e) {
-                                            $kelas = ['nama_kelas' => '-'];
-                                        }
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
-                                            <td><?php echo htmlspecialchars($materi_mulok['nama_mulok'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($kelas['nama_kelas'] ?? '-'); ?></td>
+                                            <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
+                                            <td><?php echo htmlspecialchars($materi['nama_kelas'] ?? '-'); ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
                         </div>
                     <?php else: ?>
-                        <p class="text-muted">Belum ada materi yang diampu.</p>
+                        <p class="text-muted text-center py-3">
+                            <i class="fas fa-inbox"></i> Belum ada materi yang diampu.
+                        </p>
                     <?php endif; ?>
                 </div>
             </div>
+            
+            <!-- Modal Edit Foto -->
+            <div class="modal fade" id="modalEditFoto" tabindex="-1" aria-labelledby="modalEditFotoLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" enctype="multipart/form-data" id="formEditFoto">
+                            <input type="hidden" name="action" value="update_foto">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="modalEditFotoLabel">Edit Foto</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Pilih Foto Baru</label>
+                                    <input type="file" class="form-control" name="foto" accept="image/*" id="inputFoto" required>
+                                    <small class="text-muted">Format: JPG, PNG, GIF. Maksimal 5MB</small>
+                                </div>
+                                <div class="text-center">
+                                    <img src="uploads/<?php echo htmlspecialchars($guru_data['foto'] ?? 'default.png'); ?>" 
+                                         alt="Preview" id="previewFotoModal" 
+                                         class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;"
+                                         onerror="this.src='uploads/default.png';">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Simpan Foto
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                // Preview foto sebelum upload
+                document.getElementById('inputFoto').addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('previewFotoModal').src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            </script>
             
             <?php
             // Buat tabel dan ambil info aplikasi untuk wali kelas

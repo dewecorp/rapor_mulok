@@ -15,6 +15,51 @@ try {
     $user = null;
 }
 
+// Ambil materi mulok yang diampu oleh wali kelas (jika role adalah wali_kelas)
+$materi_diampu_wali = [];
+if ($user && $user['role'] == 'wali_kelas') {
+    try {
+        // Cek kolom kategori
+        $use_kategori = false;
+        $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+        $use_kategori = ($check_column && $check_column->num_rows > 0);
+        $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
+        
+        // Cek kolom kelas_id
+        $has_kelas_id = false;
+        $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
+        $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
+        
+        // Ambil semua kombinasi materi-kelas (tanpa DISTINCT agar setiap kombinasi muncul)
+        if ($has_kelas_id) {
+            $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                            FROM mengampu_materi mm
+                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                            INNER JOIN kelas k ON mm.kelas_id = k.id
+                            WHERE mm.guru_id = ?
+                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+        } else {
+            $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                            FROM mengampu_materi mm
+                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                            INNER JOIN kelas k ON mm.kelas_id = k.id
+                            WHERE mm.guru_id = ?
+                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+        }
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("i", $user_id);
+        $stmt_materi->execute();
+        $result_materi = $stmt_materi->get_result();
+        if ($result_materi) {
+            while ($row = $result_materi->fetch_assoc()) {
+                $materi_diampu_wali[] = $row;
+            }
+        }
+    } catch (Exception $e) {
+        $materi_diampu_wali = [];
+    }
+}
+
 // Ambil profil madrasah untuk logo
 try {
     $query_profil = "SELECT * FROM profil_madrasah LIMIT 1";
@@ -747,6 +792,11 @@ $basePath = getBasePath();
                 <div id="datetime"></div>
             </div>
             <div class="ms-auto d-flex align-items-center">
+                <?php if ($user && $user['role'] == 'wali_kelas'): ?>
+                    <a href="<?php echo $basePath; ?>wali-kelas/penilaian.php" class="btn btn-light btn-sm me-2" style="white-space: nowrap;">
+                        <i class="fas fa-clipboard-check"></i> Penilaian
+                    </a>
+                <?php endif; ?>
                 <div class="user-info">
                     <div class="user-details">
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
@@ -852,9 +902,42 @@ $basePath = getBasePath();
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
-                            <i class="fas fa-book"></i> Materi Mulok
-                        </a>
+                        <?php if (count($materi_diampu_wali) > 0): ?>
+                            <?php 
+                            // Group by kombinasi materi_id dan kelas_id untuk menghindari duplikasi
+                            $materi_grouped = [];
+                            foreach ($materi_diampu_wali as $materi) {
+                                $key = $materi['id'] . '_' . ($materi['kelas_id'] ?? '') . '_' . ($materi['nama_kelas'] ?? '');
+                                if (!isset($materi_grouped[$key])) {
+                                    $materi_grouped[$key] = $materi;
+                                }
+                            }
+                            // Sort by kelas, then by nama materi
+                            usort($materi_grouped, function($a, $b) {
+                                $kelas_a = $a['nama_kelas'] ?? '';
+                                $kelas_b = $b['nama_kelas'] ?? '';
+                                if ($kelas_a != $kelas_b) {
+                                    return strcmp($kelas_a, $kelas_b);
+                                }
+                                return strcmp($a['nama_mulok'] ?? '', $b['nama_mulok'] ?? '');
+                            });
+                            foreach ($materi_grouped as $materi): 
+                                $materi_id_safe = htmlspecialchars($materi['id']);
+                                $materi_nama_safe = htmlspecialchars($materi['nama_mulok']);
+                                $kelas_nama_safe = htmlspecialchars($materi['nama_kelas'] ?? '');
+                            ?>
+                                <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/penilaian.php?materi_id=<?php echo $materi_id_safe; ?>&kelas_nama=<?php echo urlencode($kelas_nama_safe); ?>">
+                                    <i class="fas fa-book"></i> <?php echo $materi_nama_safe; ?>
+                                    <?php if ($kelas_nama_safe): ?>
+                                        <span class="badge bg-secondary ms-1"><?php echo $kelas_nama_safe; ?></span>
+                                    <?php endif; ?>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
+                                <i class="fas fa-book"></i> Materi Mulok
+                            </a>
+                        <?php endif; ?>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#waliMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-user-tie"></i> Wali Kelas <i class="fas fa-chevron-down float-end"></i>
                         </a>
