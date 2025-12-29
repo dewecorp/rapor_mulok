@@ -88,8 +88,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Ambil data materi mulok
-$query_materi = "SELECT * FROM materi_mulok ORDER BY nama_mulok";
+// Cek kolom yang tersedia (kategori_mulok atau kode_mulok)
+$use_kategori = false;
+try {
+    $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+    $use_kategori = ($check_column && $check_column->num_rows > 0);
+} catch (Exception $e) {
+    $use_kategori = false;
+}
+$kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
+
+// Fungsi untuk mendapatkan warna badge berdasarkan kategori (case-insensitive)
+function getBadgeColor($kategori) {
+    if (empty($kategori)) {
+        return 'bg-secondary';
+    }
+    
+    // Normalisasi: trim dan lowercase untuk case-insensitive
+    $kategori_normalized = strtolower(trim($kategori));
+    
+    // Mapping warna badge untuk 3 kategori khusus (case-insensitive)
+    if ($kategori_normalized === 'hafalan') {
+        return 'bg-info';
+    } elseif ($kategori_normalized === 'membaca') {
+        return 'bg-primary';
+    } elseif ($kategori_normalized === 'praktik ibadah' || $kategori_normalized === 'praktikibadah') {
+        return 'bg-warning';
+    }
+    
+    // Default untuk kategori lain (jika ada)
+    return 'bg-secondary';
+}
+
+// Ambil data materi mulok (case-insensitive sorting)
+$query_materi = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
 $materi_list = $conn->query($query_materi);
 
 // Ambil data guru
@@ -125,7 +157,7 @@ try {
                   LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                   LEFT JOIN pengguna p ON mm.guru_id = p.id
                   LEFT JOIN kelas k ON mm.kelas_id = k.id
-                  ORDER BY m.nama_mulok";
+                  ORDER BY LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
         $stmt = $conn->prepare($query);
         $stmt->bind_param("i", $kelas_id);
         $stmt->execute();
@@ -232,13 +264,21 @@ try {
                             $guru_id = $row['guru_id'] ?? null;
                             $nama_guru = $row['nama_guru'] ?? null;
                             $nama_mulok = $row['nama_mulok'] ?? '';
+                            $kategori_value = $row[$kolom_kategori] ?? '';
                             $jumlah_jam = $row['jumlah_jam'] ?? 0;
                             $materi_id = $row['id'] ?? 0; // id dari materi_mulok (karena query menggunakan m.*)
                             $nama_kelas = $row['nama_kelas'] ?? '';
                         ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
-                            <td><?php echo htmlspecialchars($nama_mulok); ?></td>
+                            <td>
+                                <?php if (!empty($kategori_value)): 
+                                    $badge_color = getBadgeColor($kategori_value);
+                                ?>
+                                    <span class="badge <?php echo $badge_color; ?> me-2"><?php echo htmlspecialchars($kategori_value); ?></span>
+                                <?php endif; ?>
+                                <?php echo htmlspecialchars($nama_mulok); ?>
+                            </td>
                             <td><?php echo htmlspecialchars($jumlah_jam); ?> Jam</td>
                             <td>
                                 <?php if ($nama_guru): ?>
@@ -303,9 +343,11 @@ try {
                             <?php 
                             $materi_list->data_seek(0);
                             while ($materi = $materi_list->fetch_assoc()): 
+                                $kategori_value = $materi[$kolom_kategori] ?? '';
+                                $display_text = $kategori_value ? htmlspecialchars($kategori_value) . ' - ' . htmlspecialchars($materi['nama_mulok']) : htmlspecialchars($materi['nama_mulok']);
                             ?>
                                 <option value="<?php echo $materi['id']; ?>">
-                                    <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                    <?php echo $display_text; ?>
                                 </option>
                             <?php endwhile; ?>
                         </select>

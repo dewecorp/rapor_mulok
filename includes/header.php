@@ -148,8 +148,10 @@ $basePath = getBasePath();
         .user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             min-width: 200px;
+            position: relative;
+            z-index: 1000;
         }
         
         .user-avatar {
@@ -157,19 +159,174 @@ $basePath = getBasePath();
             height: 40px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid white;
+            border: none;
+            flex-shrink: 0;
+            pointer-events: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: block;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .user-avatar-dropdown button {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+        
+        #userDropdownBtn {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+        
+        .user-avatar-dropdown button:hover .user-avatar {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        
+        .user-avatar-dropdown button:hover {
+            cursor: pointer !important;
+        }
+        
+        .user-avatar-dropdown {
+            position: relative;
+        }
+        
+        .user-avatar-dropdown .btn,
+        .user-avatar-dropdown button,
+        #userDropdownBtn,
+        button#userDropdownBtn {
+            background: transparent !important;
+            border: 2px solid white !important;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            display: inline-block !important;
+            position: relative !important;
+            z-index: 1000 !important;
+            pointer-events: auto !important;
+            overflow: hidden !important;
+        }
+        
+        .user-avatar-dropdown .btn:hover,
+        .user-avatar-dropdown button:hover,
+        #userDropdownBtn:hover,
+        button#userDropdownBtn:hover {
+            background: transparent !important;
+            opacity: 0.9;
+            cursor: pointer !important;
+        }
+        
+        .user-avatar-dropdown .btn:focus,
+        .user-avatar-dropdown button:focus,
+        #userDropdownBtn:focus,
+        button#userDropdownBtn:focus {
+            box-shadow: none !important;
+            outline: 2px solid rgba(255, 255, 255, 0.5) !important;
+            outline-offset: 2px !important;
+            cursor: pointer !important;
+        }
+        
+        .user-avatar-dropdown .btn:active,
+        .user-avatar-dropdown button:active,
+        #userDropdownBtn:active,
+        button#userDropdownBtn:active {
+            background: transparent !important;
+            border: none !important;
+            opacity: 0.8;
+            cursor: pointer !important;
+        }
+        
+        #userDropdownBtn {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+        
+        /* Force cursor pointer untuk semua elemen di dalam dropdown */
+        .user-avatar-dropdown * {
+            cursor: pointer !important;
+        }
+        
+        .user-avatar-dropdown img {
+            cursor: pointer !important;
+            pointer-events: none !important;
+        }
+        
+        .dropdown-menu-user {
+            min-width: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 1px solid #dee2e6;
+            margin-top: 10px;
+            z-index: 1050;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+        }
+        
+        .dropdown-menu-user.show {
+            display: block !important;
+        }
+        
+        .dropdown-menu-user .dropdown-header {
+            padding: 10px 15px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .dropdown-menu-user .dropdown-header .fw-bold {
+            font-size: 14px;
+            color: #2d5016;
+        }
+        
+        .dropdown-menu-user .dropdown-header small {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .dropdown-menu-user .dropdown-item {
+            padding: 10px 15px;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .dropdown-menu-user .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .dropdown-menu-user .dropdown-item.logout-item {
+            color: #dc3545;
+        }
+        
+        .dropdown-menu-user .dropdown-item.logout-item:hover {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .dropdown-menu-user .dropdown-item i {
+            width: 20px;
+            margin-right: 8px;
         }
         
         .user-details {
             color: white;
             text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
+            align-items: flex-end;
         }
         
         .user-details .user-name {
             font-weight: 600;
             font-size: 14px;
             margin: 0;
-            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: right;
         }
         
         .user-details .user-role {
@@ -179,23 +336,16 @@ $basePath = getBasePath();
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            gap: 10px;
+            gap: 8px;
+            white-space: nowrap;
+            text-align: right;
         }
         
         .user-role-text {
             white-space: nowrap;
-        }
-        
-        .madrasah-logo-small {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid white;
-            background-color: white;
-            padding: 2px;
             flex-shrink: 0;
         }
+        
         
         .datetime-info {
             color: white;
@@ -555,7 +705,26 @@ $basePath = getBasePath();
         .text-muted {
             font-size: 14px;
         }
+        
+        /* Force cursor pointer - CSS paling akhir untuk override semua */
+        button#userDropdownBtn,
+        #userDropdownBtn.btn,
+        #userDropdownBtn.btn-link,
+        .user-avatar-dropdown > button,
+        .user-info .dropdown button,
+        .user-info button {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
     </style>
+    <script>
+        // Set cursor pointer secara langsung via JavaScript sebelum DOM ready
+        (function() {
+            var style = document.createElement('style');
+            style.textContent = '#userDropdownBtn { cursor: pointer !important; pointer-events: auto !important; }';
+            document.head.appendChild(style);
+        })();
+    </script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
@@ -583,10 +752,27 @@ $basePath = getBasePath();
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
                         <div class="user-role">
                             <span class="user-role-text"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></span>
-                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                     </div>
-                    <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
+                    <div class="dropdown user-avatar-dropdown">
+                        <button type="button" class="btn btn-link p-0 border-0" id="userDropdownBtn" onclick="toggleUserDropdown(event)" title="Klik untuk logout" style="background: transparent !important; border: 2px solid white !important; border-radius: 50% !important; padding: 0 !important; line-height: 1; cursor: pointer !important; display: inline-block !important; position: relative; z-index: 1000; width: 40px; height: 40px; min-width: 40px; min-height: 40px; overflow: hidden;">
+                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="user-avatar" onerror="this.onerror=null; this.src='<?php echo $basePath; ?>uploads/logo.png'; this.style.display='block';" style="pointer-events: none; width: 100%; height: 100%; object-fit: cover;">
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-user" id="userDropdownMenu" style="display: none;">
+                            <li>
+                                <h6 class="dropdown-header">
+                                    <div class="fw-bold"><?php echo htmlspecialchars($user['nama']); ?></div>
+                                    <small class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></small>
+                                </h6>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item logout-item" href="<?php echo $basePath; ?>logout.php">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -697,4 +883,35 @@ $basePath = getBasePath();
                 </nav>
             </div>
             <div class="col-md-9 col-lg-10 content-wrapper">
+    <script>
+        // Fungsi untuk toggle dropdown user avatar
+        function toggleUserDropdown(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            
+            var dropdownMenu = document.getElementById('userDropdownMenu');
+            if (dropdownMenu) {
+                if (dropdownMenu.style.display === 'none' || dropdownMenu.style.display === '') {
+                    dropdownMenu.style.display = 'block';
+                    dropdownMenu.classList.add('show');
+                } else {
+                    dropdownMenu.style.display = 'none';
+                    dropdownMenu.classList.remove('show');
+                }
+            }
+        }
+        
+        // Tutup dropdown saat klik di luar
+        document.addEventListener('click', function(e) {
+            var dropdownBtn = document.getElementById('userDropdownBtn');
+            var dropdownMenu = document.getElementById('userDropdownMenu');
+            
+            if (dropdownBtn && dropdownMenu) {
+                if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                    dropdownMenu.style.display = 'none';
+                    dropdownMenu.classList.remove('show');
+                }
+            }
+        });
+    </script>
 

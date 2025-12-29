@@ -118,6 +118,63 @@
         // Update datetime setiap detik (realtime)
         setInterval(updateDateTime, 1000);
         
+        // Dropdown untuk user avatar - Pastikan berjalan setelah semua library dimuat
+        function initUserDropdown() {
+            var userDropdownBtn = document.getElementById('userDropdownBtn');
+            var userDropdownMenu = document.getElementById('userDropdownMenu');
+            
+            console.log('Init dropdown:', userDropdownBtn, userDropdownMenu);
+            
+            if (userDropdownBtn && userDropdownMenu) {
+                // Toggle dropdown saat avatar diklik
+                userDropdownBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    console.log('Avatar clicked, current display:', userDropdownMenu.style.display);
+                    
+                    // Toggle show class
+                    if (userDropdownMenu.style.display === 'none' || userDropdownMenu.style.display === '') {
+                        userDropdownMenu.style.display = 'block';
+                        userDropdownMenu.classList.add('show');
+                        console.log('Dropdown shown');
+                    } else {
+                        userDropdownMenu.style.display = 'none';
+                        userDropdownMenu.classList.remove('show');
+                        console.log('Dropdown hidden');
+                    }
+                });
+                
+                // Tutup dropdown saat klik di luar
+                document.addEventListener('click', function(e) {
+                    if (userDropdownBtn && userDropdownMenu) {
+                        if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+                            userDropdownMenu.style.display = 'none';
+                            userDropdownMenu.classList.remove('show');
+                        }
+                    }
+                });
+                
+                console.log('Dropdown initialized successfully');
+            } else {
+                console.error('Dropdown elements not found!', userDropdownBtn, userDropdownMenu);
+            }
+        }
+        
+        // Jalankan setelah DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initUserDropdown);
+        } else {
+            initUserDropdown();
+        }
+        
+        // Juga jalankan setelah jQuery ready (jika jQuery tersedia)
+        if (typeof jQuery !== 'undefined') {
+            jQuery(document).ready(function() {
+                setTimeout(initUserDropdown, 100);
+            });
+        }
+        
         // Dropdown untuk proktor logo
         document.addEventListener('DOMContentLoaded', function() {
             var proktorLogoBtn = document.getElementById('proktorLogoBtn');

@@ -8,6 +8,17 @@ $conn = getConnection();
 $success = '';
 $error = '';
 
+// Cek kolom yang tersedia (kategori_mulok atau kode_mulok)
+$use_kategori = false;
+try {
+    $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+    $use_kategori = ($check_column && $check_column->num_rows > 0);
+} catch (Exception $e) {
+    $use_kategori = false;
+}
+$kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
+$label_kategori = $use_kategori ? 'Kategori Mulok' : 'Kode Mulok';
+
 // Ambil pesan dari session (setelah redirect)
 if (isset($_SESSION['success_message'])) {
     $success = $_SESSION['success_message'];
@@ -22,137 +33,41 @@ if (isset($_SESSION['error_message'])) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['action'])) {
         if ($_POST['action'] == 'add') {
-            $kode_mulok = trim($_POST['kode_mulok'] ?? '');
+            // Trim dan terima semua format (case-insensitive)
+            $kategori_mulok = trim($_POST[$kolom_kategori] ?? '');
             $nama_mulok = trim($_POST['nama_mulok'] ?? '');
             $jumlah_jam = intval($_POST['jumlah_jam'] ?? 0);
             
-            // Validasi input
-            if (empty($kode_mulok)) {
-                $error = 'Kode Mulok tidak boleh kosong!';
-            } elseif (empty($nama_mulok)) {
-                $error = 'Nama Mulok tidak boleh kosong!';
-            } else {
-                // Langsung insert, biarkan database yang menangkap error duplikasi
-                try {
-                    $stmt = $conn->prepare("INSERT INTO materi_mulok (kode_mulok, nama_mulok, jumlah_jam) VALUES (?, ?, ?)");
-                    $stmt->bind_param("ssi", $kode_mulok, $nama_mulok, $jumlah_jam);
-                    
-                    if ($stmt->execute()) {
-                        $success = 'Materi mulok berhasil ditambahkan!';
-                    } else {
-                        // Cek error dari statement
-                        $error_code = $stmt->errno;
-                        $error_msg = $stmt->error;
-                        
-                        // Hanya tampilkan error duplikasi jika benar-benar error code 1062
-                        if ($error_code == 1062) {
-                            // Cari data yang sudah ada untuk informasi debug
-                            $debug_stmt = $conn->prepare("SELECT id, kode_mulok, nama_mulok FROM materi_mulok WHERE kode_mulok = ?");
-                            $debug_stmt->bind_param("s", $kode_mulok);
-                            $debug_stmt->execute();
-                            $debug_result = $debug_stmt->get_result();
-                            
-                            if ($debug_result->num_rows > 0) {
-                                $existing = $debug_result->fetch_assoc();
-                                $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah ada! (ID: ' . $existing['id'] . ', Kode: "' . htmlspecialchars($existing['kode_mulok']) . '", Nama: ' . htmlspecialchars($existing['nama_mulok']) . ')';
-                            } else {
-                                $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah ada! Silakan gunakan kode yang berbeda.';
-                            }
-                        } else {
-                            $error = 'Gagal menambahkan materi mulok! Error: ' . $error_msg;
-                        }
-                    }
-                } catch (mysqli_sql_exception $e) {
-                    // Hanya tampilkan error duplikasi jika benar-benar error code 1062
-                    $error_code = $e->getCode();
-                    $error_msg = $e->getMessage();
-                    
-                    if ($error_code == 1062) {
-                        // Cari data yang sudah ada untuk informasi debug
-                        $debug_stmt = $conn->prepare("SELECT id, kode_mulok, nama_mulok FROM materi_mulok WHERE kode_mulok = ?");
-                        $debug_stmt->bind_param("s", $kode_mulok);
-                        $debug_stmt->execute();
-                        $debug_result = $debug_stmt->get_result();
-                        
-                        if ($debug_result->num_rows > 0) {
-                            $existing = $debug_result->fetch_assoc();
-                            $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah ada! (ID: ' . $existing['id'] . ', Kode: "' . htmlspecialchars($existing['kode_mulok']) . '", Nama: ' . htmlspecialchars($existing['nama_mulok']) . ')';
-                        } else {
-                            $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah ada! Silakan gunakan kode yang berbeda.';
-                        }
-                    } else {
-                        $error = 'Gagal menambahkan materi mulok! Error: ' . $error_msg;
-                    }
-                } catch (Exception $e) {
-                    // Hanya tampilkan error duplikasi jika benar-benar ada kata "Duplicate entry" dan "kode_mulok"
-                    $error_msg = $e->getMessage();
-                    
-                    if (strpos($error_msg, 'Duplicate entry') !== false && strpos($error_msg, 'kode_mulok') !== false) {
-                        // Cari data yang sudah ada untuk informasi debug
-                        $debug_stmt = $conn->prepare("SELECT id, kode_mulok, nama_mulok FROM materi_mulok WHERE kode_mulok = ?");
-                        $debug_stmt->bind_param("s", $kode_mulok);
-                        $debug_stmt->execute();
-                        $debug_result = $debug_stmt->get_result();
-                        
-                        if ($debug_result->num_rows > 0) {
-                            $existing = $debug_result->fetch_assoc();
-                            $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah ada! (ID: ' . $existing['id'] . ', Kode: "' . htmlspecialchars($existing['kode_mulok']) . '", Nama: ' . htmlspecialchars($existing['nama_mulok']) . ')';
-                        } else {
-                            $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah ada! Silakan gunakan kode yang berbeda.';
-                        }
-                    } else {
-                        $error = 'Gagal menambahkan materi mulok! Error: ' . $error_msg;
-                    }
+            try {
+                $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, jumlah_jam) VALUES (?, ?, ?)");
+                $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $jumlah_jam);
+                
+                if ($stmt->execute()) {
+                    $success = 'Materi mulok berhasil ditambahkan!';
+                } else {
+                    $error = 'Gagal menambahkan materi mulok! Error: ' . $stmt->error;
                 }
+            } catch (Exception $e) {
+                $error = 'Gagal menambahkan materi mulok! Error: ' . $e->getMessage();
             }
         } elseif ($_POST['action'] == 'edit') {
             $id = intval($_POST['id'] ?? 0);
-            $kode_mulok = trim($_POST['kode_mulok'] ?? '');
+            // Trim dan terima semua format (case-insensitive)
+            $kategori_mulok = trim($_POST[$kolom_kategori] ?? '');
             $nama_mulok = trim($_POST['nama_mulok'] ?? '');
             $jumlah_jam = intval($_POST['jumlah_jam'] ?? 0);
             
-            // Validasi input
-            if (empty($kode_mulok)) {
-                $error = 'Kode Mulok tidak boleh kosong!';
-            } elseif (empty($nama_mulok)) {
-                $error = 'Nama Mulok tidak boleh kosong!';
-            } elseif ($id <= 0) {
-                $error = 'ID tidak valid!';
-            } else {
-                try {
-                    $stmt = $conn->prepare("UPDATE materi_mulok SET kode_mulok=?, nama_mulok=?, jumlah_jam=? WHERE id=?");
-                    $stmt->bind_param("ssii", $kode_mulok, $nama_mulok, $jumlah_jam, $id);
-                    
-                    if ($stmt->execute()) {
-                        $success = 'Materi mulok berhasil diperbarui!';
-                    } else {
-                        // Cek error dari statement
-                        $error_code = $stmt->errno;
-                        $error_msg = $stmt->error;
-                        
-                        // Hanya tampilkan error duplikasi jika benar-benar error code 1062
-                        if ($error_code == 1062) {
-                            $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah digunakan oleh materi lain! Silakan gunakan kode yang berbeda.';
-                        } else {
-                            $error = 'Gagal memperbarui materi mulok! Error: ' . $error_msg;
-                        }
-                    }
-                } catch (mysqli_sql_exception $e) {
-                    // Hanya tampilkan error duplikasi jika benar-benar error code 1062
-                    if ($e->getCode() == 1062) {
-                        $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah digunakan oleh materi lain! Silakan gunakan kode yang berbeda.';
-                    } else {
-                        $error = 'Gagal memperbarui materi mulok! Error: ' . $e->getMessage();
-                    }
-                } catch (Exception $e) {
-                    // Hanya tampilkan error duplikasi jika benar-benar ada kata "Duplicate entry"
-                    $error_msg = $e->getMessage();
-                    if (strpos($error_msg, 'Duplicate entry') !== false && strpos($error_msg, 'kode_mulok') !== false) {
-                        $error = 'Kode Mulok "' . htmlspecialchars($kode_mulok) . '" sudah digunakan oleh materi lain! Silakan gunakan kode yang berbeda.';
-                    } else {
-                        $error = 'Gagal memperbarui materi mulok! Error: ' . $error_msg;
-                    }
+            try {
+                $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, jumlah_jam=? WHERE id=?");
+                $stmt->bind_param("ssii", $kategori_mulok, $nama_mulok, $jumlah_jam, $id);
+                
+                if ($stmt->execute()) {
+                    $success = 'Materi mulok berhasil diperbarui!';
+                } else {
+                    $error = 'Gagal memperbarui materi mulok! Error: ' . $stmt->error;
                 }
+            } catch (Exception $e) {
+                $error = 'Gagal memperbarui materi mulok! Error: ' . $e->getMessage();
             }
         } elseif ($_POST['action'] == 'delete') {
             $id = intval($_POST['id'] ?? 0);
@@ -197,12 +112,34 @@ if (isset($_GET['edit']) && empty($success) && empty($error)) {
     }
 }
 
+// Fungsi untuk mendapatkan warna badge berdasarkan kategori (case-insensitive)
+function getBadgeColor($kategori) {
+    if (empty($kategori)) {
+        return 'bg-secondary';
+    }
+    
+    // Normalisasi: trim dan lowercase untuk case-insensitive
+    $kategori_normalized = strtolower(trim($kategori));
+    
+    // Mapping warna badge untuk 3 kategori khusus (case-insensitive)
+    if ($kategori_normalized === 'hafalan') {
+        return 'bg-info';
+    } elseif ($kategori_normalized === 'membaca') {
+        return 'bg-primary';
+    } elseif ($kategori_normalized === 'praktik ibadah' || $kategori_normalized === 'praktikibadah') {
+        return 'bg-warning';
+    }
+    
+    // Default untuk kategori lain (jika ada)
+    return 'bg-secondary';
+}
+
 // Ambil semua data
 $result = null;
 $materi_data = [];
 try {
-    // Ambil semua data tanpa filter
-    $query = "SELECT * FROM materi_mulok ORDER BY kode_mulok ASC";
+    // Ambil semua data tanpa filter, urut berdasarkan kategori kemudian nama (case-insensitive)
+    $query = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
     $result = $conn->query($query);
     if (!$result) {
         $error = 'Error query: ' . $conn->error;
@@ -265,7 +202,7 @@ try {
             echo '<div class="alert alert-info">';
             echo '<h6>Debug Info - Semua Data di Database:</h6>';
             echo '<table class="table table-sm table-bordered">';
-            echo '<thead><tr><th>ID</th><th>Kode Mulok</th><th>Nama Mulok</th><th>Jumlah Jam</th></tr></thead>';
+            echo '<thead><tr><th>ID</th><th>' . $label_kategori . '</th><th>Nama Mulok</th><th>Jumlah Jam</th></tr></thead>';
             echo '<tbody>';
             $debug_query = "SELECT * FROM materi_mulok ORDER BY id";
             $debug_result = $conn->query($debug_query);
@@ -273,7 +210,7 @@ try {
                 while ($debug_row = $debug_result->fetch_assoc()) {
                     echo '<tr>';
                     echo '<td>' . $debug_row['id'] . '</td>';
-                    echo '<td>' . htmlspecialchars($debug_row['kode_mulok']) . '</td>';
+                    echo '<td>' . htmlspecialchars($debug_row[$kolom_kategori] ?? '') . '</td>';
                     echo '<td>' . htmlspecialchars($debug_row['nama_mulok']) . '</td>';
                     echo '<td>' . $debug_row['jumlah_jam'] . '</td>';
                     echo '</tr>';
@@ -291,7 +228,7 @@ try {
                 <thead>
                     <tr>
                         <th width="50">No</th>
-                        <th>Kode Mulok</th>
+                        <th><?php echo $label_kategori; ?></th>
                         <th>Nama Mulok</th>
                         <th>Jumlah Jam</th>
                         <th width="150">Aksi</th>
@@ -305,7 +242,17 @@ try {
                     ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
-                            <td><?php echo htmlspecialchars($row['kode_mulok']); ?></td>
+                            <td>
+                                <?php 
+                                $kategori_value = $row[$kolom_kategori] ?? '';
+                                if (!empty($kategori_value)): 
+                                    $badge_color = getBadgeColor($kategori_value);
+                                ?>
+                                    <span class="badge <?php echo $badge_color; ?>"><?php echo htmlspecialchars($kategori_value); ?></span>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
                             <td><?php echo htmlspecialchars($row['jumlah_jam']); ?> Jam</td>
                             <td>
@@ -345,18 +292,18 @@ try {
                     <input type="hidden" name="id" id="formId">
                     
                     <div class="mb-3">
-                        <label class="form-label">Kode Mulok <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="kode_mulok" id="kodeMulok" required>
+                        <label class="form-label"><?php echo $label_kategori; ?></label>
+                        <input type="text" class="form-control" name="<?php echo $kolom_kategori; ?>" id="kategoriMulok">
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Nama Mulok <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="nama_mulok" id="namaMulok" required>
+                        <label class="form-label">Nama Mulok</label>
+                        <input type="text" class="form-control" name="nama_mulok" id="namaMulok">
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Jumlah Jam <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" name="jumlah_jam" id="jumlahJam" min="0" required>
+                        <label class="form-label">Jumlah Jam</label>
+                        <input type="number" class="form-control" name="jumlah_jam" id="jumlahJam" min="0">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -377,7 +324,7 @@ try {
             language: {
                 url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
             },
-            order: [[1, 'asc']], // Sort by Kode Mulok ascending
+            order: [[1, 'asc'], [2, 'asc']], // Sort by Kategori Mulok then Nama Mulok ascending
             pageLength: 25,
             searching: true,
             paging: true,
@@ -433,7 +380,7 @@ try {
     $(document).ready(function() {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
-        $('#kodeMulok').val('<?php echo addslashes($edit_data['kode_mulok']); ?>');
+        $('#kategoriMulok').val('<?php echo addslashes($edit_data[$kolom_kategori] ?? ''); ?>');
         $('#namaMulok').val('<?php echo addslashes($edit_data['nama_mulok']); ?>');
         $('#jumlahJam').val(<?php echo $edit_data['jumlah_jam']; ?>);
         $('#modalTitle').text('Edit Materi Mulok');
