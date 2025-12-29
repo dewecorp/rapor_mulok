@@ -149,6 +149,7 @@ $basePath = getBasePath();
             display: flex;
             align-items: center;
             gap: 15px;
+            min-width: 200px;
         }
         
         .user-avatar {
@@ -168,12 +169,32 @@ $basePath = getBasePath();
             font-weight: 600;
             font-size: 14px;
             margin: 0;
+            margin-bottom: 5px;
         }
         
         .user-details .user-role {
             font-size: 13px;
             opacity: 0.9;
             margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .user-role-text {
+            white-space: nowrap;
+        }
+        
+        .madrasah-logo-small {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            background-color: white;
+            padding: 2px;
+            flex-shrink: 0;
         }
         
         .datetime-info {
@@ -560,7 +581,10 @@ $basePath = getBasePath();
                 <div class="user-info">
                     <div class="user-details">
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
-                        <div class="user-role"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></div>
+                        <div class="user-role">
+                            <span class="user-role-text"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></span>
+                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
+                        </div>
                     </div>
                     <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
                 </div>
