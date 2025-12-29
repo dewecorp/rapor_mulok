@@ -47,68 +47,144 @@ try {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $info_aplikasi = trim($_POST['info_aplikasi'] ?? '');
+    $action = $_POST['action'] ?? '';
     $user_id = $_SESSION['user_id'];
     
-    // Upload foto login
-    $foto_login = $profil['foto_login'] ?? 'login-bg.jpg';
-    if (isset($_FILES['foto_login']) && $_FILES['foto_login']['error'] == 0) {
-        $upload_dir = '../uploads/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-        $file_ext = pathinfo($_FILES['foto_login']['name'], PATHINFO_EXTENSION);
-        $foto_login = 'login_' . time() . '.' . $file_ext;
-        move_uploaded_file($_FILES['foto_login']['tmp_name'], $upload_dir . $foto_login);
+    if ($action == 'update_info') {
+        // Handle update info aplikasi
+        $info_aplikasi = trim($_POST['info_aplikasi'] ?? '');
         
-        // Update foto login di tabel profil_madrasah
-        try {
-            // Ambil ID profil terlebih dahulu
-            $result_id = $conn->query("SELECT id FROM profil_madrasah LIMIT 1");
-            if ($result_id && $result_id->num_rows > 0) {
-                $profil_id = $result_id->fetch_assoc()['id'];
-                $stmt_foto = $conn->prepare("UPDATE profil_madrasah SET foto_login=? WHERE id=?");
-                $stmt_foto->bind_param("si", $foto_login, $profil_id);
-                $stmt_foto->execute();
-            }
-        } catch (Exception $e) {
-            // Error update foto login, tapi lanjutkan update info aplikasi
-            error_log("Error updating foto_login: " . $e->getMessage());
-        }
-    }
-    
-    if (empty($info_aplikasi)) {
-        $error = 'Info aplikasi tidak boleh kosong!';
-    } else {
-        try {
-            if ($pengaturan && isset($pengaturan['id'])) {
-                $stmt = $conn->prepare("UPDATE pengaturan_aplikasi SET info_aplikasi=?, updated_by=? WHERE id=?");
-                $stmt->bind_param("sii", $info_aplikasi, $user_id, $pengaturan['id']);
-            } else {
-                $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi, updated_by) VALUES (?, ?)");
-                $stmt->bind_param("si", $info_aplikasi, $user_id);
-            }
-            
-            if ($stmt->execute()) {
-                $_SESSION['success_message'] = 'Pengaturan berhasil diperbarui!';
-                // Pastikan tidak ada output sebelum redirect
-                if (ob_get_level() > 0) {
-                    ob_clean();
-                }
-                // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
-                $redirect_url = '/pengaturan/index.php';
-                if (isset($_SERVER['HTTP_HOST'])) {
-                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-                    header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+        // Validasi: hapus tag HTML kosong dan whitespace
+        $info_aplikasi_clean = strip_tags($info_aplikasi);
+        $info_aplikasi_clean = trim($info_aplikasi_clean);
+        
+        if (empty($info_aplikasi_clean)) {
+            $error = 'Info aplikasi tidak boleh kosong!';
+        } else {
+            try {
+                if ($pengaturan && isset($pengaturan['id'])) {
+                    $stmt = $conn->prepare("UPDATE pengaturan_aplikasi SET info_aplikasi=?, updated_by=? WHERE id=?");
+                    $stmt->bind_param("sii", $info_aplikasi, $user_id, $pengaturan['id']);
                 } else {
-                    header('Location: ' . $redirect_url);
+                    $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi, updated_by) VALUES (?, ?)");
+                    $stmt->bind_param("si", $info_aplikasi, $user_id);
                 }
-                exit();
-            } else {
-                $error = 'Gagal memperbarui pengaturan!';
+                
+                if ($stmt->execute()) {
+                    $_SESSION['success_message'] = 'Info aplikasi berhasil diperbarui!';
+                    // Pastikan tidak ada output sebelum redirect
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+                    $redirect_url = '/pengaturan/index.php';
+                    if (isset($_SERVER['HTTP_HOST'])) {
+                        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                        header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+                    } else {
+                        header('Location: ' . $redirect_url);
+                    }
+                    exit();
+                } else {
+                    $error = 'Gagal memperbarui info aplikasi!';
+                }
+            } catch (Exception $e) {
+                $error = 'Error: ' . $e->getMessage();
             }
-        } catch (Exception $e) {
-            $error = 'Error: ' . $e->getMessage();
+        }
+    } elseif ($action == 'update_foto_login') {
+        // Handle update foto login
+        // Jika ada file baru yang diupload, update foto login
+        if (isset($_FILES['foto_login']) && $_FILES['foto_login']['error'] == 0) {
+            // Validasi file
+            $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            $file_type = $_FILES['foto_login']['type'];
+            $file_size = $_FILES['foto_login']['size'];
+            $max_size = 5 * 1024 * 1024; // 5MB
+            
+            if (!in_array($file_type, $allowed_types)) {
+                $error = 'Format file tidak didukung! Gunakan format JPG, PNG, atau GIF.';
+            } elseif ($file_size > $max_size) {
+                $error = 'Ukuran file terlalu besar! Maksimal 5MB.';
+            } else {
+                $upload_dir = '../uploads/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                // Ambil foto lama untuk dihapus jika ada
+                $foto_lama = $profil['foto_login'] ?? null;
+                
+                // Generate nama file baru
+                $file_ext = pathinfo($_FILES['foto_login']['name'], PATHINFO_EXTENSION);
+                $foto_login = 'login_' . time() . '.' . $file_ext;
+                
+                // Upload file baru
+                if (move_uploaded_file($_FILES['foto_login']['tmp_name'], $upload_dir . $foto_login)) {
+                    // Update foto login di tabel profil_madrasah
+                    try {
+                        // Ambil ID profil terlebih dahulu
+                        $result_id = $conn->query("SELECT id FROM profil_madrasah LIMIT 1");
+                        if ($result_id && $result_id->num_rows > 0) {
+                            $profil_id = $result_id->fetch_assoc()['id'];
+                            $stmt_foto = $conn->prepare("UPDATE profil_madrasah SET foto_login=? WHERE id=?");
+                            $stmt_foto->bind_param("si", $foto_login, $profil_id);
+                            
+                            if ($stmt_foto->execute()) {
+                                // Hapus foto lama jika ada dan bukan default
+                                if ($foto_lama && $foto_lama != 'login-bg.jpg' && file_exists($upload_dir . $foto_lama)) {
+                                    @unlink($upload_dir . $foto_lama);
+                                }
+                                
+                                $_SESSION['success_message'] = 'Foto login berhasil diperbarui!';
+                                // Pastikan tidak ada output sebelum redirect
+                                if (ob_get_level() > 0) {
+                                    ob_clean();
+                                }
+                                // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+                                $redirect_url = '/pengaturan/index.php';
+                                if (isset($_SERVER['HTTP_HOST'])) {
+                                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                                    header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+                                } else {
+                                    header('Location: ' . $redirect_url);
+                                }
+                                exit();
+                            } else {
+                                // Hapus file yang sudah diupload jika update gagal
+                                @unlink($upload_dir . $foto_login);
+                                $error = 'Gagal memperbarui foto login di database!';
+                            }
+                        } else {
+                            // Hapus file yang sudah diupload jika tidak ada profil
+                            @unlink($upload_dir . $foto_login);
+                            $error = 'Profil madrasah tidak ditemukan!';
+                        }
+                    } catch (Exception $e) {
+                        // Hapus file yang sudah diupload jika error
+                        @unlink($upload_dir . $foto_login);
+                        $error = 'Error: ' . $e->getMessage();
+                    }
+                } else {
+                    $error = 'Gagal mengupload foto login!';
+                }
+            }
+        } else {
+            // Tidak ada file yang diupload, tetap gunakan foto lama (tidak error)
+            $_SESSION['success_message'] = 'Tidak ada perubahan pada foto login.';
+            // Pastikan tidak ada output sebelum redirect
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+            $redirect_url = '/pengaturan/index.php';
+            if (isset($_SERVER['HTTP_HOST'])) {
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+            } else {
+                header('Location: ' . $redirect_url);
+            }
+            exit();
         }
     }
 }
@@ -142,12 +218,8 @@ try {
     </div>
     <div class="card-body">
         <?php if ($success): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <?php echo htmlspecialchars($success); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
             <script>
-                setTimeout(function() {
+                document.addEventListener('DOMContentLoaded', function() {
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil!',
@@ -157,17 +229,13 @@ try {
                         timerProgressBar: true,
                         showConfirmButton: false
                     });
-                }, 100);
+                });
             </script>
         <?php endif; ?>
         
         <?php if ($error): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <?php echo htmlspecialchars($error); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
             <script>
-                setTimeout(function() {
+                document.addEventListener('DOMContentLoaded', function() {
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
@@ -177,7 +245,7 @@ try {
                         timerProgressBar: true,
                         showConfirmButton: true
                     });
-                }, 100);
+                });
             </script>
         <?php endif; ?>
         
@@ -294,9 +362,26 @@ try {
         .then(editor => {
             window.editor = editor;
             
-            // Update form saat submit
+            // Update form saat submit dengan validasi
             document.getElementById('formInfoAplikasi').addEventListener('submit', function(e) {
                 const data = editor.getData();
+                // Validasi: hapus tag HTML dan cek apakah kosong
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = data;
+                const textContent = tempDiv.textContent || tempDiv.innerText || '';
+                const cleanText = textContent.trim();
+                
+                if (cleanText === '') {
+                    e.preventDefault();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Info aplikasi tidak boleh kosong!',
+                        confirmButtonColor: '#2d5016'
+                    });
+                    return false;
+                }
+                
                 document.getElementById('info_aplikasi').value = data;
             });
         })
@@ -308,6 +393,32 @@ try {
     document.getElementById('foto_login').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
+            // Validasi ukuran file (5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'Ukuran file terlalu besar! Maksimal 5MB.',
+                    confirmButtonColor: '#2d5016'
+                });
+                this.value = '';
+                return;
+            }
+            
+            // Validasi tipe file
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'Format file tidak didukung! Gunakan format JPG, PNG, atau GIF.',
+                    confirmButtonColor: '#2d5016'
+                });
+                this.value = '';
+                return;
+            }
+            
             const reader = new FileReader();
             reader.onload = function(e) {
                 const preview = document.getElementById('previewFotoLogin');
@@ -319,6 +430,7 @@ try {
             reader.readAsDataURL(file);
         }
     });
+    
 </script>
 
 <style>

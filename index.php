@@ -3,6 +3,9 @@ require_once 'config/config.php';
 require_once 'config/database.php';
 requireLogin();
 
+// Set timezone untuk perhitungan waktu yang akurat
+date_default_timezone_set('Asia/Jakarta');
+
 $conn = getConnection();
 $user_id = $_SESSION['user_id'];
 $role = $_SESSION['role'];
@@ -254,23 +257,65 @@ if ($role == 'proktor') {
                         <div class="timeline-container">
                             <div class="timeline">
                                 <?php foreach ($aktivitas_data as $index => $aktivitas): 
-                                    $waktu = strtotime($aktivitas['waktu_login']);
-                                    $selisih = time() - $waktu;
-                                    $menit = floor($selisih / 60);
-                                    $jam = floor($selisih / 3600);
-                                    $hari = floor($selisih / 86400);
-                                    
-                                    // Format waktu relatif
-                                    if ($menit < 1) {
-                                        $waktu_text = 'Baru saja';
-                                    } elseif ($menit < 60) {
-                                        $waktu_text = $menit . ' menit yang lalu';
-                                    } elseif ($jam < 24) {
-                                        $waktu_text = $jam . ' jam yang lalu';
-                                    } elseif ($hari == 1) {
-                                        $waktu_text = 'Kemarin';
-                                    } else {
-                                        $waktu_text = $hari . ' hari yang lalu';
+                                    // Gunakan DateTime untuk perhitungan yang lebih akurat
+                                    try {
+                                        $waktu_login_str = $aktivitas['waktu_login'];
+                                        
+                                        // Parse waktu login dari database dengan timezone
+                                        $datetime_login = new DateTime($waktu_login_str, new DateTimeZone('Asia/Jakarta'));
+                                        $datetime_sekarang = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
+                                        
+                                        // Hitung selisih (pastikan urutan benar: sekarang - login)
+                                        $interval = $datetime_sekarang->diff($datetime_login);
+                                        
+                                        // Format waktu relatif dengan lebih akurat
+                                        // Periksa apakah waktu login di masa lalu (invert = 1 berarti login di masa lalu)
+                                        if ($interval->invert == 0) {
+                                            // Waktu login di masa depan (tidak mungkin, tapi handle)
+                                            $waktu_text = 'Baru saja';
+                                        } elseif ($interval->days > 0) {
+                                            if ($interval->days == 1 && $interval->h == 0) {
+                                                $waktu_text = 'Kemarin';
+                                            } else {
+                                                $waktu_text = $interval->days . ' hari yang lalu';
+                                            }
+                                        } elseif ($interval->h > 0) {
+                                            // Hitung total menit untuk akurasi lebih baik
+                                            // Jika lebih dari setengah jam berikutnya, bulatkan ke atas
+                                            if ($interval->i >= 30) {
+                                                $waktu_text = ($interval->h + 1) . ' jam yang lalu';
+                                            } else {
+                                                $waktu_text = $interval->h . ' jam yang lalu';
+                                            }
+                                        } elseif ($interval->i > 0) {
+                                            $waktu_text = $interval->i . ' menit yang lalu';
+                                        } elseif ($interval->s > 30) {
+                                            $waktu_text = '1 menit yang lalu';
+                                        } else {
+                                            $waktu_text = 'Baru saja';
+                                        }
+                                        
+                                        // Untuk format tanggal lengkap, gunakan timestamp
+                                        $waktu = $datetime_login->getTimestamp();
+                                    } catch (Exception $e) {
+                                        // Fallback ke metode lama jika DateTime gagal
+                                        $waktu = strtotime($aktivitas['waktu_login']);
+                                        $selisih = time() - $waktu;
+                                        $menit = floor($selisih / 60);
+                                        $jam = floor($selisih / 3600);
+                                        $hari = floor($selisih / 86400);
+                                        
+                                        if ($menit < 1) {
+                                            $waktu_text = 'Baru saja';
+                                        } elseif ($menit < 60) {
+                                            $waktu_text = $menit . ' menit yang lalu';
+                                        } elseif ($jam < 24) {
+                                            $waktu_text = $jam . ' jam yang lalu';
+                                        } elseif ($hari == 1) {
+                                            $waktu_text = 'Kemarin';
+                                        } else {
+                                            $waktu_text = $hari . ' hari yang lalu';
+                                        }
                                     }
                                     
                                     // Format tanggal dan waktu lengkap
