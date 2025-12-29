@@ -9,25 +9,14 @@ $error = '';
 
 // Handle pindah kelas
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'pindah') {
-    $kelas_lama_id = intval($_POST['kelas_lama_id'] ?? 0);
-    $kelas_baru_id = intval($_POST['kelas_baru_id'] ?? 0);
+    $kelas_lama_id = $_POST['kelas_lama_id'] ?? 0;
+    $kelas_baru_id = $_POST['kelas_baru_id'] ?? 0;
     $siswa_ids = $_POST['siswa_ids'] ?? [];
     
-    // Debug logging
-    error_log("=== PINDAH KELAS DEBUG ===");
-    error_log("POST action: " . ($_POST['action'] ?? 'NOT SET'));
-    error_log("kelas_lama_id: " . $kelas_lama_id);
-    error_log("kelas_baru_id: " . $kelas_baru_id);
-    error_log("siswa_ids count: " . count($siswa_ids));
-    error_log("siswa_ids: " . print_r($siswa_ids, true));
-    error_log("All POST data: " . print_r($_POST, true));
-    
     if (!$kelas_lama_id || !$kelas_baru_id) {
-        $error = 'Pilih kelas asal dan kelas tujuan! Kelas lama: ' . $kelas_lama_id . ', Kelas baru: ' . $kelas_baru_id;
-        error_log("ERROR: " . $error);
+        $error = 'Pilih kelas asal dan kelas tujuan!';
     } elseif (empty($siswa_ids) || !is_array($siswa_ids)) {
         $error = 'Pilih siswa yang akan dipindah!';
-        error_log("ERROR: " . $error);
     } else {
         $pindah_count = 0;
         $conn->begin_transaction();
@@ -39,16 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ? WHERE id = ?");
                     $stmt->bind_param("ii", $kelas_baru_id, $siswa_id);
                     if ($stmt->execute()) {
-                        if ($stmt->affected_rows > 0) {
-                            $pindah_count++;
-                            error_log("Updated siswa ID: " . $siswa_id . " to kelas: " . $kelas_baru_id);
-                        } else {
-                            error_log("No rows affected for siswa ID: " . $siswa_id);
-                        }
-                    } else {
-                        error_log("Execute failed for siswa ID: " . $siswa_id . " - Error: " . $stmt->error);
+                        $pindah_count++;
                     }
-                    $stmt->close();
                 }
             }
             
@@ -60,11 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             
             $conn->commit();
             $success = "Berhasil memindahkan $pindah_count siswa!";
-            error_log("SUCCESS: " . $success);
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal memindahkan siswa: ' . $e->getMessage();
-            error_log("EXCEPTION: " . $error);
         }
     }
 }
@@ -278,22 +257,19 @@ if (!empty($kelas_tujuan_ids)) {
             </div>
         <?php endif; ?>
         
-        <form method="POST" id="formPindahKelas">
-            <input type="hidden" name="action" value="pindah">
-            <input type="hidden" name="kelas_lama_id" id="kelasLamaId" value="<?php echo $kelas_asal_filter; ?>">
-            <input type="hidden" name="kelas_baru_id" id="kelasBaruId" value="<?php echo $kelas_tujuan_filter; ?>">
-            <input type="hidden" name="kelas_asal" value="<?php echo $kelas_asal_filter; ?>">
-            <input type="hidden" name="kelas_tujuan" value="<?php echo $kelas_tujuan_filter; ?>">
-            <input type="hidden" name="status_tingkat" value="<?php echo $status_tingkat_filter; ?>">
-            
-            <div class="row">
-                <!-- Panel Kelas Asal -->
-                <div class="col-md-6">
-                    <div class="card border-primary">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0"><i class="fas fa-school"></i> Kelas Asal</h6>
-                        </div>
-                        <div class="card-body">
+        <div class="row">
+            <!-- Panel Kelas Asal -->
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-school"></i> Kelas Asal</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="formPindahKelas">
+                            <input type="hidden" name="action" value="pindah">
+                            <input type="hidden" name="kelas_lama_id" id="kelasLamaId" value="<?php echo $kelas_asal_filter; ?>">
+                            <input type="hidden" name="kelas_baru_id" id="kelasBaruId" value="<?php echo $kelas_tujuan_filter; ?>">
+                            
                             <div class="mb-3">
                                 <label class="form-label">Kelas</label>
                                 <select class="form-select" id="kelasAsal" onchange="updateKelasAsal()">
@@ -354,15 +330,19 @@ if (!empty($kelas_tujuan_ids)) {
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasAsal()">
                                     <i class="fas fa-redo"></i> Reset
                                 </button>
+                                <button type="button" class="btn btn-primary btn-sm ms-2" id="btnPindahKelas" onclick="pindahKelas()" style="display: none;">
+                                    <i class="fas fa-exchange-alt"></i> Pindah Kelas
+                                </button>
                             </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle"></i> Pilih kelas untuk melihat data siswa.
                                 </div>
                             <?php endif; ?>
-                        </div>
+                        </form>
                     </div>
                 </div>
+            </div>
                 
                 <!-- Panel Kelas Tujuan -->
                 <div class="col-md-6">
@@ -497,6 +477,9 @@ if (!empty($kelas_tujuan_ids)) {
                                     <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
                                         <i class="fas fa-redo"></i> Reset
                                     </button>
+                                    <button type="button" class="btn btn-warning btn-sm ms-2" id="btnBatalPindah" onclick="batalPindah()" style="display: none;">
+                                        <i class="fas fa-undo"></i> Batal Pindah
+                                    </button>
                                 </div>
                                 <?php else: ?>
                                     <div class="alert alert-info">
@@ -515,21 +498,6 @@ if (!empty($kelas_tujuan_ids)) {
                 <ul class="mb-0" id="warningList">
                 </ul>
             </div>
-            
-            <!-- Tombol Aksi -->
-            <div class="row mt-3">
-                <div class="col-md-6 text-center">
-                    <button type="button" class="btn btn-primary btn-lg" onclick="pindahKelas()">
-                        <i class="fas fa-exchange-alt"></i> Pindah Kelas
-                    </button>
-                </div>
-                <div class="col-md-6 text-center">
-                    <button type="button" class="btn btn-warning btn-lg" onclick="batalPindah()">
-                        <i class="fas fa-undo"></i> Batal Pindah
-                    </button>
-                </div>
-            </div>
-        </form>
     </div>
 </div>
 
@@ -607,6 +575,7 @@ if (!empty($kelas_tujuan_ids)) {
     function updateKelasAsal() {
         var kelasId = $('#kelasAsal').val();
         $('#kelasLamaId').val(kelasId);
+        $('#kelasBaruId').val($('#kelasTujuan').val());
         $('#kelasAsalIdBatal').val(kelasId);
         
         // Update URL tanpa reload
@@ -696,6 +665,7 @@ if (!empty($kelas_tujuan_ids)) {
         var kelasId = $('#kelasTujuan').val();
         var statusTingkat = $('#statusTingkat').val();
         $('#kelasBaruId').val(kelasId);
+        $('#kelasLamaId').val($('#kelasAsal').val());
         $('#kelasTujuanIdBatal').val(kelasId);
         
         // Update URL tanpa reload
@@ -732,6 +702,7 @@ if (!empty($kelas_tujuan_ids)) {
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = selectAll.checked;
         });
+        updateTombolPindah();
     }
     
     function toggleSelectAllTujuan() {
@@ -740,6 +711,33 @@ if (!empty($kelas_tujuan_ids)) {
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = selectAll.checked;
         });
+        updateTombolBatalPindah();
+    }
+    
+    // Fungsi untuk update visibility tombol Pindah Kelas
+    function updateTombolPindah() {
+        var checkedBoxes = document.querySelectorAll('.siswa-checkbox-asal:checked');
+        var btnPindah = document.getElementById('btnPindahKelas');
+        if (btnPindah) {
+            if (checkedBoxes.length > 0) {
+                btnPindah.style.display = 'inline-block';
+            } else {
+                btnPindah.style.display = 'none';
+            }
+        }
+    }
+    
+    // Fungsi untuk update visibility tombol Batal Pindah
+    function updateTombolBatalPindah() {
+        var checkedBoxes = document.querySelectorAll('.siswa-checkbox-tujuan:checked');
+        var btnBatal = document.getElementById('btnBatalPindah');
+        if (btnBatal) {
+            if (checkedBoxes.length > 0) {
+                btnBatal.style.display = 'inline-block';
+            } else {
+                btnBatal.style.display = 'none';
+            }
+        }
     }
     
     function batalPindah() {
@@ -791,10 +789,6 @@ if (!empty($kelas_tujuan_ids)) {
         var kelasTujuanId = $('#kelasTujuan').val();
         var checkedBoxes = document.querySelectorAll('.siswa-checkbox-asal:checked');
         
-        // Pastikan hidden field selalu terupdate dari dropdown
-        $('#kelasLamaId').val(kelasAsalId);
-        $('#kelasBaruId').val(kelasTujuanId);
-        
         var warnings = [];
         
         if (!kelasAsalId) {
@@ -829,36 +823,7 @@ if (!empty($kelas_tujuan_ids)) {
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Pastikan hidden field terupdate sekali lagi sebelum submit
-                $('#kelasLamaId').val(kelasAsalId);
-                $('#kelasBaruId').val(kelasTujuanId);
-                
-                // Debug: log sebelum submit
-                console.log('=== SUBMIT PINDAH KELAS ===');
-                console.log('Kelas Asal ID:', kelasAsalId);
-                console.log('Kelas Tujuan ID:', kelasTujuanId);
-                console.log('Hidden Kelas Lama ID:', $('#kelasLamaId').val());
-                console.log('Hidden Kelas Baru ID:', $('#kelasBaruId').val());
-                console.log('Jumlah siswa:', checkedBoxes.length);
-                
-                // Collect siswa IDs untuk debug
-                var siswaIds = [];
-                checkedBoxes.forEach(function(cb) {
-                    siswaIds.push(cb.value);
-                });
-                console.log('Siswa IDs:', siswaIds);
-                
-                // Submit form
-                var form = document.getElementById('formPindahKelas');
-                console.log('Form found:', form !== null);
-                if (form) {
-                    console.log('Form action:', form.action);
-                    console.log('Form method:', form.method);
-                    form.submit();
-                } else {
-                    console.error('Form tidak ditemukan!');
-                    alert('Error: Form tidak ditemukan!');
-                }
+                document.getElementById('formPindahKelas').submit();
             }
         });
     }
@@ -910,6 +875,20 @@ if (!empty($kelas_tujuan_ids)) {
             }
             // Jika statusTingkat === 'beda', pertahankan semua kelas (kelas asal sudah dihapus di atas)
         });
+        
+        // Event listener untuk checkbox siswa kelas asal
+        $(document).on('change', '.siswa-checkbox-asal', function() {
+            updateTombolPindah();
+        });
+        
+        // Event listener untuk checkbox siswa kelas tujuan
+        $(document).on('change', '.siswa-checkbox-tujuan', function() {
+            updateTombolBatalPindah();
+        });
+        
+        // Inisialisasi visibility tombol saat halaman dimuat
+        updateTombolPindah();
+        updateTombolBatalPindah();
         
         // Inisialisasi DataTables
         <?php if (!empty($kelas_asal_filter) && count($siswa_asal_data) > 0): ?>

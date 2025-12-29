@@ -98,6 +98,15 @@ try {
 }
 $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
 
+// Cek apakah kolom kelas_id sudah ada
+$has_kelas_id = false;
+try {
+    $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
+    $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
+} catch (Exception $e) {
+    $has_kelas_id = false;
+}
+
 // Fungsi untuk mendapatkan warna badge berdasarkan kategori (case-insensitive)
 function getBadgeColor($kategori) {
     if (empty($kategori)) {
@@ -120,16 +129,30 @@ function getBadgeColor($kategori) {
     return 'bg-secondary';
 }
 
-// Ambil data materi mulok (case-insensitive sorting)
-$query_materi = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
-$materi_list = $conn->query($query_materi);
+// Ambil data materi mulok untuk dropdown (filter berdasarkan kelas yang dipilih)
+// Jika kelas dipilih, hanya tampilkan materi yang kelas_id-nya sesuai atau NULL
+$materi_list = null;
+if (!empty($kelas_filter) && $kelas_filter !== '' && $has_kelas_id) {
+    $kelas_id_for_materi = intval($kelas_filter);
+    $query_materi = "SELECT * FROM materi_mulok 
+                     WHERE kelas_id = ? OR kelas_id IS NULL 
+                     ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+    $stmt_materi = $conn->prepare($query_materi);
+    $stmt_materi->bind_param("i", $kelas_id_for_materi);
+    $stmt_materi->execute();
+    $materi_list = $stmt_materi->get_result();
+} else {
+    // Jika kelas belum dipilih atau kelas_id belum ada, tampilkan semua materi
+    $query_materi = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+    $materi_list = $conn->query($query_materi);
+}
 
 // Ambil data guru
 $query_guru = "SELECT * FROM pengguna WHERE role IN ('guru', 'wali_kelas') ORDER BY nama";
 $guru_list = $conn->query($query_guru);
 
-// Ambil data kelas
-$query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
+// Ambil data kelas (exclude kelas Alumni)
+$query_kelas = "SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%Alumni%' AND nama_kelas NOT LIKE '%Lulus%' ORDER BY nama_kelas";
 $kelas_list = $conn->query($query_kelas);
 
 // Query data materi mulok dengan status mengampu
@@ -147,19 +170,44 @@ try {
         $kelas_info = $result_kelas->fetch_assoc();
         $nama_kelas = $kelas_info ? $kelas_info['nama_kelas'] : '';
         
-        // Tampilkan semua materi mulok dengan LEFT JOIN ke mengampu_materi untuk melihat status
-        $query = "SELECT m.*, 
-                  mm.id as mengampu_id,
-                  mm.guru_id,
-                  p.nama as nama_guru,
-                  k.nama_kelas
-                  FROM materi_mulok m
-                  LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
-                  LEFT JOIN pengguna p ON mm.guru_id = p.id
-                  LEFT JOIN kelas k ON mm.kelas_id = k.id
-                  ORDER BY LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $kelas_id);
+        // Tampilkan hanya materi mulok yang sesuai dengan kelas yang dipilih
+        // Materi yang ditampilkan: materi dengan kelas_id = kelas yang dipilih ATAU kelas_id = NULL (untuk semua kelas)
+        if ($has_kelas_id) {
+            $query = "SELECT m.*, 
+                      mm.id as mengampu_id,
+                      mm.guru_id,
+                      p.nama as nama_guru,
+                      k.nama_kelas,
+                      k_materi.nama_kelas as nama_kelas_materi
+                      FROM materi_mulok m
+                      LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                      LEFT JOIN pengguna p ON mm.guru_id = p.id
+                      LEFT JOIN kelas k ON mm.kelas_id = k.id
+                      LEFT JOIN kelas k_materi ON m.kelas_id = k_materi.id
+                      WHERE m.kelas_id = ? OR m.kelas_id IS NULL
+                      ORDER BY LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+        } else {
+            // Jika kelas_id belum ada di tabel, tampilkan semua materi (fallback)
+            $query = "SELECT m.*, 
+                      mm.id as mengampu_id,
+                      mm.guru_id,
+                      p.nama as nama_guru,
+                      k.nama_kelas,
+                      NULL as nama_kelas_materi
+                      FROM materi_mulok m
+                      LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                      LEFT JOIN pengguna p ON mm.guru_id = p.id
+                      LEFT JOIN kelas k ON mm.kelas_id = k.id
+                      ORDER BY LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+        }
+        
+        if ($has_kelas_id) {
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("ii", $kelas_id, $kelas_id);
+        } else {
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("i", $kelas_id);
+        }
         $stmt->execute();
         $result = $stmt->get_result();
         if ($result) {
@@ -229,6 +277,10 @@ try {
                 <?php 
                 $kelas_list->data_seek(0);
                 while ($kelas = $kelas_list->fetch_assoc()): 
+                    // Skip kelas Alumni (double check untuk keamanan)
+                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
+                        continue;
+                    }
                 ?>
                     <option value="<?php echo $kelas['id']; ?>" <?php echo $kelas_filter == $kelas['id'] ? 'selected' : ''; ?>>
                         <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
@@ -248,7 +300,7 @@ try {
                     <tr>
                         <th width="50">No</th>
                         <th>Materi Mulok</th>
-                        <th>Jumlah Jam</th>
+                        <th>Kelas</th>
                         <th>Guru</th>
                         <th width="100">Aksi</th>
                     </tr>
@@ -265,9 +317,9 @@ try {
                             $nama_guru = $row['nama_guru'] ?? null;
                             $nama_mulok = $row['nama_mulok'] ?? '';
                             $kategori_value = $row[$kolom_kategori] ?? '';
-                            $jumlah_jam = $row['jumlah_jam'] ?? 0;
                             $materi_id = $row['id'] ?? 0; // id dari materi_mulok (karena query menggunakan m.*)
                             $nama_kelas = $row['nama_kelas'] ?? '';
+                            $nama_kelas_materi = $row['nama_kelas_materi'] ?? '';
                         ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
@@ -279,7 +331,7 @@ try {
                                 <?php endif; ?>
                                 <?php echo htmlspecialchars($nama_mulok); ?>
                             </td>
-                            <td><?php echo htmlspecialchars($jumlah_jam); ?> Jam</td>
+                            <td><?php echo htmlspecialchars($nama_kelas_materi ?: '-'); ?></td>
                             <td>
                                 <?php if ($nama_guru): ?>
                                     <span class="badge bg-success"><?php echo htmlspecialchars($nama_guru); ?></span>
@@ -341,16 +393,33 @@ try {
                         <select class="form-select" name="materi_mulok_id" required>
                             <option value="">-- Pilih Materi Mulok --</option>
                             <?php 
-                            $materi_list->data_seek(0);
-                            while ($materi = $materi_list->fetch_assoc()): 
-                                $kategori_value = $materi[$kolom_kategori] ?? '';
-                                $display_text = $kategori_value ? htmlspecialchars($kategori_value) . ' - ' . htmlspecialchars($materi['nama_mulok']) : htmlspecialchars($materi['nama_mulok']);
+                            if ($materi_list):
+                                $materi_list->data_seek(0);
+                                while ($materi = $materi_list->fetch_assoc()): 
+                                    // Double check: hanya tampilkan materi yang sesuai dengan kelas yang dipilih
+                                    if (!empty($kelas_filter) && $has_kelas_id) {
+                                        $materi_kelas_id = $materi['kelas_id'] ?? null;
+                                        $kelas_id_for_check = intval($kelas_filter);
+                                        // Skip jika materi memiliki kelas_id yang berbeda dengan kelas yang dipilih
+                                        if ($materi_kelas_id !== null && $materi_kelas_id != $kelas_id_for_check) {
+                                            continue;
+                                        }
+                                    }
+                                    
+                                    $kategori_value = $materi[$kolom_kategori] ?? '';
+                                    $display_text = $kategori_value ? htmlspecialchars($kategori_value) . ' - ' . htmlspecialchars($materi['nama_mulok']) : htmlspecialchars($materi['nama_mulok']);
                             ?>
                                 <option value="<?php echo $materi['id']; ?>">
                                     <?php echo $display_text; ?>
                                 </option>
-                            <?php endwhile; ?>
+                            <?php 
+                                endwhile;
+                            endif; 
+                            ?>
                         </select>
+                        <?php if (empty($kelas_filter)): ?>
+                            <small class="text-muted d-block mt-1">Silakan pilih kelas terlebih dahulu untuk melihat materi yang tersedia.</small>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="mb-3">

@@ -19,6 +19,42 @@ try {
 $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
 $label_kategori = $use_kategori ? 'Kategori Mulok' : 'Kode Mulok';
 
+// Cek apakah kolom kelas_id sudah ada
+$has_kelas_id = false;
+try {
+    $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
+    $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
+} catch (Exception $e) {
+    $has_kelas_id = false;
+}
+
+// Cek apakah kolom jumlah_jam masih ada (untuk fallback)
+$has_jumlah_jam = false;
+try {
+    $check_jumlah_jam = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'jumlah_jam'");
+    $has_jumlah_jam = ($check_jumlah_jam && $check_jumlah_jam->num_rows > 0);
+} catch (Exception $e) {
+    $has_jumlah_jam = false;
+}
+
+// Jika kelas_id belum ada, tampilkan pesan error dan redirect ke migration
+if (!$has_kelas_id && !$has_jumlah_jam) {
+    $error = 'Kolom kelas_id belum ada di database. Silakan jalankan migrasi terlebih dahulu: <a href="migrate_jumlah_jam_to_kelas_id.php">Jalankan Migrasi</a>';
+} else if (!$has_kelas_id) {
+    // Fallback: masih menggunakan jumlah_jam jika kelas_id belum ada
+    $error = 'Kolom kelas_id belum ada. Silakan jalankan migrasi: <a href="migrate_jumlah_jam_to_kelas_id.php">Jalankan Migrasi</a>';
+}
+
+// Ambil data kelas untuk dropdown (exclude kelas Alumni)
+$kelas_list = null;
+try {
+    $kelas_list = $conn->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%Alumni%' AND nama_kelas NOT LIKE '%Lulus%' ORDER BY nama_kelas");
+} catch (Exception $e) {
+    if (empty($error)) {
+        $error = 'Error mengambil data kelas: ' . $e->getMessage();
+    }
+}
+
 // Ambil pesan dari session (setelah redirect)
 if (isset($_SESSION['success_message'])) {
     $success = $_SESSION['success_message'];
@@ -36,38 +72,58 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Trim dan terima semua format (case-insensitive)
             $kategori_mulok = trim($_POST[$kolom_kategori] ?? '');
             $nama_mulok = trim($_POST['nama_mulok'] ?? '');
-            $jumlah_jam = intval($_POST['jumlah_jam'] ?? 0);
             
-            try {
-                $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, jumlah_jam) VALUES (?, ?, ?)");
-                $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $jumlah_jam);
+            if (!$has_kelas_id) {
+                $error = 'Kolom kelas_id belum ada di database. Silakan jalankan migrasi terlebih dahulu!';
+            } else {
+                $kelas_id = !empty($_POST['kelas_id']) ? intval($_POST['kelas_id']) : null;
                 
-                if ($stmt->execute()) {
-                    $success = 'Materi mulok berhasil ditambahkan!';
-                } else {
-                    $error = 'Gagal menambahkan materi mulok! Error: ' . $stmt->error;
+                try {
+                    if ($kelas_id !== null && $kelas_id > 0) {
+                        $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id) VALUES (?, ?, ?)");
+                        $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $kelas_id);
+                    } else {
+                        $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id) VALUES (?, ?, NULL)");
+                        $stmt->bind_param("ss", $kategori_mulok, $nama_mulok);
+                    }
+                    
+                    if ($stmt->execute()) {
+                        $success = 'Materi mulok berhasil ditambahkan!';
+                    } else {
+                        $error = 'Gagal menambahkan materi mulok! Error: ' . $stmt->error;
+                    }
+                } catch (Exception $e) {
+                    $error = 'Gagal menambahkan materi mulok! Error: ' . $e->getMessage();
                 }
-            } catch (Exception $e) {
-                $error = 'Gagal menambahkan materi mulok! Error: ' . $e->getMessage();
             }
         } elseif ($_POST['action'] == 'edit') {
             $id = intval($_POST['id'] ?? 0);
             // Trim dan terima semua format (case-insensitive)
             $kategori_mulok = trim($_POST[$kolom_kategori] ?? '');
             $nama_mulok = trim($_POST['nama_mulok'] ?? '');
-            $jumlah_jam = intval($_POST['jumlah_jam'] ?? 0);
             
-            try {
-                $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, jumlah_jam=? WHERE id=?");
-                $stmt->bind_param("ssii", $kategori_mulok, $nama_mulok, $jumlah_jam, $id);
+            if (!$has_kelas_id) {
+                $error = 'Kolom kelas_id belum ada di database. Silakan jalankan migrasi terlebih dahulu!';
+            } else {
+                $kelas_id = !empty($_POST['kelas_id']) ? intval($_POST['kelas_id']) : null;
                 
-                if ($stmt->execute()) {
-                    $success = 'Materi mulok berhasil diperbarui!';
-                } else {
-                    $error = 'Gagal memperbarui materi mulok! Error: ' . $stmt->error;
+                try {
+                    if ($kelas_id !== null && $kelas_id > 0) {
+                        $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=? WHERE id=?");
+                        $stmt->bind_param("ssii", $kategori_mulok, $nama_mulok, $kelas_id, $id);
+                    } else {
+                        $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=NULL WHERE id=?");
+                        $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $id);
+                    }
+                    
+                    if ($stmt->execute()) {
+                        $success = 'Materi mulok berhasil diperbarui!';
+                    } else {
+                        $error = 'Gagal memperbarui materi mulok! Error: ' . $stmt->error;
+                    }
+                } catch (Exception $e) {
+                    $error = 'Gagal memperbarui materi mulok! Error: ' . $e->getMessage();
                 }
-            } catch (Exception $e) {
-                $error = 'Gagal memperbarui materi mulok! Error: ' . $e->getMessage();
             }
         } elseif ($_POST['action'] == 'delete') {
             $id = intval($_POST['id'] ?? 0);
@@ -102,7 +158,11 @@ $edit_data = null;
 if (isset($_GET['edit']) && empty($success) && empty($error)) {
     $id = intval($_GET['edit']);
     try {
-        $stmt = $conn->prepare("SELECT * FROM materi_mulok WHERE id = ?");
+        if ($has_kelas_id) {
+            $stmt = $conn->prepare("SELECT m.*, k.nama_kelas FROM materi_mulok m LEFT JOIN kelas k ON m.kelas_id = k.id WHERE m.id = ?");
+        } else {
+            $stmt = $conn->prepare("SELECT * FROM materi_mulok WHERE id = ?");
+        }
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -138,8 +198,16 @@ function getBadgeColor($kategori) {
 $result = null;
 $materi_data = [];
 try {
-    // Ambil semua data tanpa filter, urut berdasarkan kategori kemudian nama (case-insensitive)
-    $query = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+    if ($has_kelas_id) {
+        // Ambil semua data dengan JOIN ke tabel kelas, urut berdasarkan kategori kemudian nama (case-insensitive)
+        $query = "SELECT m.*, k.nama_kelas 
+                  FROM materi_mulok m 
+                  LEFT JOIN kelas k ON m.kelas_id = k.id 
+                  ORDER BY LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+    } else {
+        // Fallback: ambil data tanpa JOIN jika kelas_id belum ada
+        $query = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+    }
     $result = $conn->query($query);
     if (!$result) {
         $error = 'Error query: ' . $conn->error;
@@ -202,9 +270,13 @@ try {
             echo '<div class="alert alert-info">';
             echo '<h6>Debug Info - Semua Data di Database:</h6>';
             echo '<table class="table table-sm table-bordered">';
-            echo '<thead><tr><th>ID</th><th>' . $label_kategori . '</th><th>Nama Mulok</th><th>Jumlah Jam</th></tr></thead>';
+            echo '<thead><tr><th>ID</th><th>' . $label_kategori . '</th><th>Nama Mulok</th><th>Kelas</th></tr></thead>';
             echo '<tbody>';
-            $debug_query = "SELECT * FROM materi_mulok ORDER BY id";
+            if ($has_kelas_id) {
+                $debug_query = "SELECT m.*, k.nama_kelas FROM materi_mulok m LEFT JOIN kelas k ON m.kelas_id = k.id ORDER BY m.id";
+            } else {
+                $debug_query = "SELECT * FROM materi_mulok ORDER BY id";
+            }
             $debug_result = $conn->query($debug_query);
             if ($debug_result && $debug_result->num_rows > 0) {
                 while ($debug_row = $debug_result->fetch_assoc()) {
@@ -212,7 +284,7 @@ try {
                     echo '<td>' . $debug_row['id'] . '</td>';
                     echo '<td>' . htmlspecialchars($debug_row[$kolom_kategori] ?? '') . '</td>';
                     echo '<td>' . htmlspecialchars($debug_row['nama_mulok']) . '</td>';
-                    echo '<td>' . $debug_row['jumlah_jam'] . '</td>';
+                    echo '<td>' . htmlspecialchars($has_kelas_id ? ($debug_row['nama_kelas'] ?? '-') : '-') . '</td>';
                     echo '</tr>';
                 }
             } else {
@@ -230,7 +302,7 @@ try {
                         <th width="50">No</th>
                         <th><?php echo $label_kategori; ?></th>
                         <th>Nama Mulok</th>
-                        <th>Jumlah Jam</th>
+                        <th>Kelas</th>
                         <th width="150">Aksi</th>
                     </tr>
                 </thead>
@@ -254,7 +326,7 @@ try {
                                 <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
-                            <td><?php echo htmlspecialchars($row['jumlah_jam']); ?> Jam</td>
+                            <td><?php echo htmlspecialchars($has_kelas_id ? ($row['nama_kelas'] ?? '-') : '-'); ?></td>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick="editMateri(<?php echo $row['id']; ?>)" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -301,10 +373,33 @@ try {
                         <input type="text" class="form-control" name="nama_mulok" id="namaMulok">
                     </div>
                     
+                    <?php if ($has_kelas_id): ?>
                     <div class="mb-3">
-                        <label class="form-label">Jumlah Jam</label>
-                        <input type="number" class="form-control" name="jumlah_jam" id="jumlahJam" min="0">
+                        <label class="form-label">Kelas <span class="text-danger">*</span></label>
+                        <select class="form-select" name="kelas_id" id="kelasId" required>
+                            <option value="">-- Pilih Kelas --</option>
+                            <?php if ($kelas_list): 
+                                $kelas_list->data_seek(0);
+                                while ($kelas = $kelas_list->fetch_assoc()): 
+                                    // Skip kelas Alumni (double check untuk keamanan)
+                                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
+                                        continue;
+                                    }
+                            ?>
+                                <option value="<?php echo $kelas['id']; ?>"><?php echo htmlspecialchars($kelas['nama_kelas']); ?></option>
+                            <?php 
+                                endwhile;
+                            endif; ?>
+                        </select>
                     </div>
+                    <?php else: ?>
+                    <div class="mb-3">
+                        <div class="alert alert-warning">
+                            <strong>Perhatian:</strong> Kolom kelas_id belum ada di database. 
+                            <a href="migrate_jumlah_jam_to_kelas_id.php" class="alert-link">Jalankan migrasi terlebih dahulu</a>.
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -382,7 +477,9 @@ try {
         $('#formId').val(<?php echo $edit_data['id']; ?>);
         $('#kategoriMulok').val('<?php echo addslashes($edit_data[$kolom_kategori] ?? ''); ?>');
         $('#namaMulok').val('<?php echo addslashes($edit_data['nama_mulok']); ?>');
-        $('#jumlahJam').val(<?php echo $edit_data['jumlah_jam']; ?>);
+        <?php if ($has_kelas_id): ?>
+        $('#kelasId').val(<?php echo $edit_data['kelas_id'] ?? 'null'; ?>);
+        <?php endif; ?>
         $('#modalTitle').text('Edit Materi Mulok');
         $('#modalMateri').modal('show');
     });

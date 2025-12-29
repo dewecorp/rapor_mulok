@@ -17,6 +17,15 @@ try {
 $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
 $label_kategori = $use_kategori ? 'Kategori Mulok' : 'Kode Mulok';
 
+// Cek apakah kolom kelas_id sudah ada
+$has_kelas_id = false;
+try {
+    $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
+    $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
+} catch (Exception $e) {
+    $has_kelas_id = false;
+}
+
 // Fungsi untuk mendapatkan warna badge berdasarkan kategori (case-insensitive)
 function getBadgeColor($kategori) {
     if (empty($kategori)) {
@@ -42,12 +51,22 @@ function getBadgeColor($kategori) {
 // Ambil materi yang diampu oleh wali kelas ini
 $result = null;
 try {
-    $stmt = $conn->prepare("SELECT DISTINCT m.*, k.nama_kelas
-              FROM mengampu_materi mm
-              INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-              INNER JOIN kelas k ON mm.kelas_id = k.id
-              WHERE mm.guru_id = ?
-              ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC");
+    if ($has_kelas_id) {
+        $stmt = $conn->prepare("SELECT DISTINCT m.*, k.nama_kelas, k_materi.nama_kelas as nama_kelas_materi
+                  FROM mengampu_materi mm
+                  INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                  INNER JOIN kelas k ON mm.kelas_id = k.id
+                  LEFT JOIN kelas k_materi ON m.kelas_id = k_materi.id
+                  WHERE mm.guru_id = ?
+                  ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC");
+    } else {
+        $stmt = $conn->prepare("SELECT DISTINCT m.*, k.nama_kelas, NULL as nama_kelas_materi
+                  FROM mengampu_materi mm
+                  INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                  INNER JOIN kelas k ON mm.kelas_id = k.id
+                  WHERE mm.guru_id = ?
+                  ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC");
+    }
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -73,8 +92,8 @@ try {
                             <th width="50">No</th>
                             <th><?php echo $label_kategori; ?></th>
                             <th>Nama Mulok</th>
-                            <th>Jumlah Jam</th>
-                            <th>Kelas</th>
+                            <th>Kelas Materi</th>
+                            <th>Kelas Mengampu</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,7 +115,7 @@ try {
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
-                                <td><?php echo htmlspecialchars($row['jumlah_jam']); ?> Jam</td>
+                                <td><?php echo htmlspecialchars($row['nama_kelas_materi'] ?? '-'); ?></td>
                                 <td><?php echo htmlspecialchars($row['nama_kelas']); ?></td>
                             </tr>
                         <?php endwhile; ?>
