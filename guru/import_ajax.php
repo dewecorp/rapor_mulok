@@ -486,9 +486,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             $password_to_use = $existing_password;
                         }
                         
-                        // UPDATE data yang sudah ada
+                        // UPDATE data yang sudah ada - PASTIKAN password selalu di-update jika ada di Excel
                         $foto_default = 'default.png';
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, password=?, foto=?, role=? WHERE nuptk=? AND is_proktor_utama=0");
+                        if (!$stmt) {
+                            $error_count++;
+                            error_log("Data $index prepare UPDATE failed: " . $conn->error);
+                            continue;
+                        }
                         $stmt->bind_param("ssssssssss", 
                             $nama,
                             $jenis_kelamin,
@@ -505,7 +510,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                         if ($stmt->execute()) {
                             $success_count++;
                             $duplicate_count++; // Hitung sebagai duplicate yang di-replace
-                            error_log("Data $index updated successfully (duplicate replaced): " . $nama);
+                            error_log("Data $index updated successfully - NUPTK: {$nuptk_clean}, Password updated: " . ($password_excel ? 'YES' : 'NO'));
                         } else {
                             $error_count++;
                             error_log("Data $index update failed: " . $stmt->error);

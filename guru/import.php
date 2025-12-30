@@ -74,9 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             foreach ($rows as $row) {
                                 if (count($row) >= 6 && !empty($row[0]) && !empty($row[5])) {
                                     // Baca password dari kolom 6 (index 6) - simpan apa adanya, kosong jika kosong
-                                    // Pastikan membaca dengan benar, handle null dan empty
-                                    $password_raw = isset($row[6]) ? $row[6] : null;
-                                    $password = ($password_raw !== null && $password_raw !== '') ? trim((string)$password_raw) : '';
+                                    $password = isset($row[6]) ? trim((string)$row[6]) : '';
                                     
                                     $data[] = [
                                         'nama' => trim($row[0] ?? ''),
@@ -163,8 +161,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             $password_to_use = $existing_password;
                         }
                         
-                        // UPDATE data yang sudah ada
+                        // UPDATE data yang sudah ada - PASTIKAN password selalu di-update jika ada di Excel
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, password=?, foto=?, role=? WHERE nuptk=?");
+                        if (!$stmt) {
+                            $error_count++;
+                            $errors[] = "Baris $line: Error prepare UPDATE - " . $conn->error;
+                            continue;
+                        }
                         $stmt->bind_param("ssssssssss", 
                             $row_data['nama'],
                             $jenis_kelamin,
@@ -177,6 +180,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             $role,
                             $row_data['nuptk']
                         );
+                        
+                        if (!$stmt->execute()) {
+                            $error_count++;
+                            $errors[] = "Baris $line: Error execute UPDATE - " . $stmt->error;
+                            continue;
+                        }
                         
                         if ($stmt->execute()) {
                             $success_count++;
