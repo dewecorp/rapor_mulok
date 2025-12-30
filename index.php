@@ -63,8 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         }
                         
                         $success_message = 'Foto berhasil diperbarui!';
-                        // Refresh halaman setelah 1 detik
-                        echo '<script>setTimeout(function(){ window.location.reload(); }, 1000);</script>';
+                        // Jangan reload otomatis, biarkan user refresh manual atau redirect
+                        // echo '<script>setTimeout(function(){ window.location.reload(); }, 1000);</script>';
                     } else {
                         $error_message = 'Gagal memperbarui foto.';
                     }
@@ -323,8 +323,12 @@ if ($role == 'proktor') {
                     KEY `idx_role` (`role`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                 
-                // Hapus aktivitas yang lebih dari 24 jam
-                $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+                // Hapus aktivitas yang lebih dari 24 jam (dijalankan dengan timeout)
+                try {
+                    $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+                } catch (Exception $e) {
+                    // Skip jika error, tidak critical
+                }
                 
                 // Ambil aktivitas 24 jam terakhir
                 $query_aktivitas = "SELECT * FROM aktivitas_login ORDER BY waktu_login DESC LIMIT 50";
@@ -514,18 +518,42 @@ if ($role == 'proktor') {
                     <div class="card">
                         <div class="card-body text-center">
                             <div class="position-relative d-inline-block mb-3">
-                                <img src="uploads/<?php echo htmlspecialchars($guru_data['foto'] ?? 'default.png'); ?>" 
-                                     alt="Foto" class="rounded-circle" width="200" height="200" 
-                                     style="object-fit: cover; border: 4px solid #2d5016;" 
-                                     id="previewFoto"
-                                     onerror="this.onerror=null; this.src='uploads/default.png';">
+                                <?php 
+                                $guru_foto = $guru_data['foto'] ?? null;
+                                $guru_nama = $guru_data['nama'] ?? $_SESSION['nama'] ?? 'User';
+                                $guru_inisial = strtoupper(substr($guru_nama, 0, 1));
+                                
+                                // Cek apakah foto ada dan valid
+                                $foto_path = __DIR__ . '/uploads/' . ($guru_foto ?? '');
+                                $use_avatar = empty($guru_foto) || $guru_foto == 'default.png' || !file_exists($foto_path);
+                                ?>
+                                <?php if ($use_avatar): ?>
+                                    <!-- Avatar dengan inisial -->
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                         style="width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 72px; border: 4px solid #2d5016;" 
+                                         id="previewFoto">
+                                        <?php echo htmlspecialchars($guru_inisial); ?>
+                                    </div>
+                                <?php else: ?>
+                                    <!-- Foto user -->
+                                    <img src="uploads/<?php echo htmlspecialchars($guru_foto); ?>" 
+                                         alt="Foto" class="rounded-circle" width="200" height="200" 
+                                         style="object-fit: cover; border: 4px solid #2d5016;" 
+                                         id="previewFoto"
+                                         onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                         style="display: none; width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 72px; border: 4px solid #2d5016;">
+                                        <?php echo htmlspecialchars($guru_inisial); ?>
+                                    </div>
+                                <?php endif; ?>
                                 <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
                                         style="width: 40px; height: 40px; border: 2px solid white;" 
-                                        data-bs-toggle="modal" data-bs-target="#modalEditFoto">
+                                        data-bs-toggle="modal" data-bs-target="#modalEditFoto"
+                                        title="Edit Foto">
                                     <i class="fas fa-camera"></i>
                                 </button>
                             </div>
-                            <h4 class="mb-1"><?php echo htmlspecialchars($guru_data['nama'] ?? $_SESSION['nama']); ?></h4>
+                            <h4 class="mb-1"><?php echo htmlspecialchars($guru_nama); ?></h4>
                             <p class="text-muted mb-2"><?php echo ucfirst(str_replace('_', ' ', $role)); ?></p>
                             <?php if ($is_wali_kelas): ?>
                                 <span class="badge bg-success fs-6">Wali Kelas Aktif</span>
@@ -644,60 +672,48 @@ if ($role == 'proktor') {
                                         // Use default values
                                     }
                                     
-                                    $no = 1;
-                                    $materi_diampu->data_seek(0);
-                                    while ($materi = $materi_diampu->fetch_assoc()): 
-                                        // Cek apakah nilai sudah dikirim untuk materi ini
-                                        $materi_id = $materi['materi_mulok_id'] ?? 0;
-                                        $kelas_id_materi = $materi['kelas_id'] ?? 0;
-                                        $nilai_terkirim = false;
-                                        
-                                        if ($materi_id > 0) {
-                                            try {
-                                                // Hitung jumlah siswa di kelas
-                                                $stmt_count_siswa = $conn->prepare("SELECT COUNT(*) as total FROM siswa WHERE kelas_id = ?");
-                                                $stmt_count_siswa->bind_param("i", $kelas_id_materi);
-                                                $stmt_count_siswa->execute();
-                                                $result_count_siswa = $stmt_count_siswa->get_result();
-                                                $total_siswa = $result_count_siswa ? $result_count_siswa->fetch_assoc()['total'] : 0;
-                                                
-                                                // Hitung jumlah siswa yang sudah memiliki nilai
-                                                $stmt_count_nilai = $conn->prepare("SELECT COUNT(DISTINCT ns.siswa_id) as total 
-                                                                                   FROM nilai_siswa ns
-                                                                                   INNER JOIN siswa s ON ns.siswa_id = s.id
-                                                                                   WHERE ns.materi_mulok_id = ? 
-                                                                                   AND ns.guru_id = ?
-                                                                                   AND ns.semester = ?
-                                                                                   AND ns.tahun_ajaran = ?
-                                                                                   AND s.kelas_id = ?
-                                                                                   AND (ns.nilai_pengetahuan IS NOT NULL AND ns.nilai_pengetahuan != '' 
-                                                                                        OR ns.nilai_keterampilan IS NOT NULL AND ns.nilai_keterampilan != ''
-                                                                                        OR ns.harian IS NOT NULL AND ns.harian != ''
-                                                                                        OR ns.pas_pat IS NOT NULL AND ns.pas_pat != '')");
-                                                $stmt_count_nilai->bind_param("iissi", $materi_id, $user_id, $semester, $tahun_ajaran, $kelas_id_materi);
-                                                $stmt_count_nilai->execute();
-                                                $result_count_nilai = $stmt_count_nilai->get_result();
-                                                $total_nilai = $result_count_nilai ? $result_count_nilai->fetch_assoc()['total'] : 0;
-                                                
-                                                // Nilai terkirim jika semua siswa sudah memiliki nilai
-                                                $nilai_terkirim = ($total_siswa > 0 && $total_nilai >= $total_siswa);
-                                            } catch (Exception $e) {
-                                                $nilai_terkirim = false;
-                                            }
+                                    // Simpan semua materi ke array dulu untuk menghindari multiple data_seek
+                                    $materi_list = [];
+                                    if ($materi_diampu && $materi_diampu->num_rows > 0) {
+                                        $materi_diampu->data_seek(0);
+                                        while ($m = $materi_diampu->fetch_assoc()) {
+                                            $materi_list[] = $m;
                                         }
+                                    }
+                                    
+                                    // Untuk sementara, tampilkan semua sebagai "Belum" untuk menghindari query yang lambat
+                                    // Status nilai bisa dihitung di halaman detail jika diperlukan
+                                    
+                                    $no = 1;
+                                    // Gunakan array materi_list jika sudah dibuat
+                                    if (!empty($materi_list)) {
+                                        foreach ($materi_list as $materi):
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
                                             <td>
-                                                <?php if ($nilai_terkirim): ?>
-                                                    <span class="badge bg-success">Terkirim</span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-danger">Belum</span>
-                                                <?php endif; ?>
+                                                <span class="badge bg-danger">Belum</span>
                                             </td>
                                         </tr>
-                                    <?php endwhile; ?>
+                                    <?php 
+                                        endforeach;
+                                    } elseif ($materi_diampu && $materi_diampu->num_rows > 0) {
+                                        // Fallback jika materi_list tidak ada
+                                        $materi_diampu->data_seek(0);
+                                        while ($materi = $materi_diampu->fetch_assoc()): 
+                                    ?>
+                                        <tr>
+                                            <td><?php echo $no++; ?></td>
+                                            <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
+                                            <td>
+                                                <span class="badge bg-danger">Belum</span>
+                                            </td>
+                                        </tr>
+                                    <?php 
+                                        endwhile;
+                                    }
+                                    ?>
                                 </tbody>
                             </table>
                         </div>
@@ -726,10 +742,29 @@ if ($role == 'proktor') {
                                     <small class="text-muted">Format: JPG, PNG, GIF. Maksimal 5MB</small>
                                 </div>
                                 <div class="text-center">
-                                    <img src="uploads/<?php echo htmlspecialchars($guru_data['foto'] ?? 'default.png'); ?>" 
-                                         alt="Preview" id="previewFotoModal" 
-                                         class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;"
-                                         onerror="this.src='uploads/default.png';">
+                                    <?php 
+                                    $guru_foto_modal_wk = $guru_data['foto'] ?? null;
+                                    $guru_nama_modal_wk = $guru_data['nama'] ?? $_SESSION['nama'] ?? 'User';
+                                    $guru_inisial_modal_wk = strtoupper(substr($guru_nama_modal_wk, 0, 1));
+                                    $foto_path_modal_wk = __DIR__ . '/uploads/' . ($guru_foto_modal_wk ?? '');
+                                    $use_avatar_modal_wk = empty($guru_foto_modal_wk) || $guru_foto_modal_wk == 'default.png' || !file_exists($foto_path_modal_wk);
+                                    ?>
+                                    <?php if ($use_avatar_modal_wk): ?>
+                                        <div class="d-inline-flex align-items-center justify-content-center img-thumbnail" 
+                                             id="previewFotoModal"
+                                             style="width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 48px; border-radius: 4px;">
+                                            <?php echo htmlspecialchars($guru_inisial_modal_wk); ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <img src="uploads/<?php echo htmlspecialchars($guru_foto_modal_wk); ?>" 
+                                             alt="Preview" id="previewFotoModal" 
+                                             class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;"
+                                             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <div class="d-inline-flex align-items-center justify-content-center img-thumbnail" 
+                                             style="display: none; width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 48px; border-radius: 4px;">
+                                            <?php echo htmlspecialchars($guru_inisial_modal_wk); ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -744,13 +779,25 @@ if ($role == 'proktor') {
             </div>
             
             <script>
-                // Preview foto sebelum upload
+                // Preview foto sebelum upload (untuk modal)
                 document.getElementById('inputFoto').addEventListener('change', function(e) {
                     const file = e.target.files[0];
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = function(e) {
-                            document.getElementById('previewFotoModal').src = e.target.result;
+                            const preview = document.getElementById('previewFotoModal');
+                            if (preview.tagName === 'IMG') {
+                                preview.src = e.target.result;
+                            } else {
+                                // Jika avatar, ganti dengan img
+                                const img = document.createElement('img');
+                                img.src = e.target.result;
+                                img.alt = 'Preview';
+                                img.id = 'previewFotoModal';
+                                img.className = 'img-thumbnail';
+                                img.style.cssText = 'max-width: 200px; max-height: 200px; object-fit: cover;';
+                                preview.parentNode.replaceChild(img, preview);
+                            }
                         };
                         reader.readAsDataURL(file);
                     }
@@ -839,18 +886,42 @@ if ($role == 'proktor') {
                     <div class="card">
                         <div class="card-body text-center">
                             <div class="position-relative d-inline-block mb-3">
-                                <img src="uploads/<?php echo htmlspecialchars($guru_data['foto'] ?? 'default.png'); ?>" 
-                                     alt="Foto" class="rounded-circle" width="200" height="200" 
-                                     style="object-fit: cover; border: 4px solid #2d5016;" 
-                                     id="previewFotoGuru"
-                                     onerror="this.onerror=null; this.src='uploads/default.png';">
+                                <?php 
+                                $guru_foto = $guru_data['foto'] ?? null;
+                                $guru_nama = $guru_data['nama'] ?? $_SESSION['nama'] ?? 'User';
+                                $guru_inisial = strtoupper(substr($guru_nama, 0, 1));
+                                
+                                // Cek apakah foto ada dan valid
+                                $foto_path = __DIR__ . '/uploads/' . ($guru_foto ?? '');
+                                $use_avatar = empty($guru_foto) || $guru_foto == 'default.png' || !file_exists($foto_path);
+                                ?>
+                                <?php if ($use_avatar): ?>
+                                    <!-- Avatar dengan inisial -->
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                         style="width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 72px; border: 4px solid #2d5016;" 
+                                         id="previewFotoGuru">
+                                        <?php echo htmlspecialchars($guru_inisial); ?>
+                                    </div>
+                                <?php else: ?>
+                                    <!-- Foto user -->
+                                    <img src="uploads/<?php echo htmlspecialchars($guru_foto); ?>" 
+                                         alt="Foto" class="rounded-circle" width="200" height="200" 
+                                         style="object-fit: cover; border: 4px solid #2d5016;" 
+                                         id="previewFotoGuru"
+                                         onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                         style="display: none; width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 72px; border: 4px solid #2d5016;">
+                                        <?php echo htmlspecialchars($guru_inisial); ?>
+                                    </div>
+                                <?php endif; ?>
                                 <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
                                         style="width: 40px; height: 40px; border: 2px solid white;" 
-                                        data-bs-toggle="modal" data-bs-target="#modalEditFotoGuru">
+                                        data-bs-toggle="modal" data-bs-target="#modalEditFotoGuru"
+                                        title="Edit Foto">
                                     <i class="fas fa-camera"></i>
                                 </button>
                             </div>
-                            <h4 class="mb-1"><?php echo htmlspecialchars($guru_data['nama'] ?? $_SESSION['nama']); ?></h4>
+                            <h4 class="mb-1"><?php echo htmlspecialchars($guru_nama); ?></h4>
                             <p class="text-muted mb-2"><?php echo ucfirst(str_replace('_', ' ', $role)); ?></p>
                         </div>
                     </div>
@@ -935,60 +1006,48 @@ if ($role == 'proktor') {
                                         // Use default values
                                     }
                                     
-                                    $no = 1;
-                                    $materi_diampu->data_seek(0);
-                                    while ($materi = $materi_diampu->fetch_assoc()): 
-                                        // Cek apakah nilai sudah dikirim untuk materi ini
-                                        $materi_id = $materi['materi_mulok_id'] ?? 0;
-                                        $kelas_id_materi = $materi['kelas_id'] ?? 0;
-                                        $nilai_terkirim = false;
-                                        
-                                        if ($materi_id > 0) {
-                                            try {
-                                                // Hitung jumlah siswa di kelas
-                                                $stmt_count_siswa = $conn->prepare("SELECT COUNT(*) as total FROM siswa WHERE kelas_id = ?");
-                                                $stmt_count_siswa->bind_param("i", $kelas_id_materi);
-                                                $stmt_count_siswa->execute();
-                                                $result_count_siswa = $stmt_count_siswa->get_result();
-                                                $total_siswa = $result_count_siswa ? $result_count_siswa->fetch_assoc()['total'] : 0;
-                                                
-                                                // Hitung jumlah siswa yang sudah memiliki nilai
-                                                $stmt_count_nilai = $conn->prepare("SELECT COUNT(DISTINCT ns.siswa_id) as total 
-                                                                                   FROM nilai_siswa ns
-                                                                                   INNER JOIN siswa s ON ns.siswa_id = s.id
-                                                                                   WHERE ns.materi_mulok_id = ? 
-                                                                                   AND ns.guru_id = ?
-                                                                                   AND ns.semester = ?
-                                                                                   AND ns.tahun_ajaran = ?
-                                                                                   AND s.kelas_id = ?
-                                                                                   AND (ns.nilai_pengetahuan IS NOT NULL AND ns.nilai_pengetahuan != '' 
-                                                                                        OR ns.nilai_keterampilan IS NOT NULL AND ns.nilai_keterampilan != ''
-                                                                                        OR ns.harian IS NOT NULL AND ns.harian != ''
-                                                                                        OR ns.pas_pat IS NOT NULL AND ns.pas_pat != '')");
-                                                $stmt_count_nilai->bind_param("iissi", $materi_id, $user_id, $semester, $tahun_ajaran, $kelas_id_materi);
-                                                $stmt_count_nilai->execute();
-                                                $result_count_nilai = $stmt_count_nilai->get_result();
-                                                $total_nilai = $result_count_nilai ? $result_count_nilai->fetch_assoc()['total'] : 0;
-                                                
-                                                // Nilai terkirim jika semua siswa sudah memiliki nilai
-                                                $nilai_terkirim = ($total_siswa > 0 && $total_nilai >= $total_siswa);
-                                            } catch (Exception $e) {
-                                                $nilai_terkirim = false;
-                                            }
+                                    // Simpan semua materi ke array dulu untuk menghindari multiple data_seek
+                                    $materi_list = [];
+                                    if ($materi_diampu && $materi_diampu->num_rows > 0) {
+                                        $materi_diampu->data_seek(0);
+                                        while ($m = $materi_diampu->fetch_assoc()) {
+                                            $materi_list[] = $m;
                                         }
+                                    }
+                                    
+                                    // Untuk sementara, tampilkan semua sebagai "Belum" untuk menghindari query yang lambat
+                                    // Status nilai bisa dihitung di halaman detail jika diperlukan
+                                    
+                                    $no = 1;
+                                    // Gunakan array materi_list jika sudah dibuat
+                                    if (!empty($materi_list)) {
+                                        foreach ($materi_list as $materi):
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
                                             <td>
-                                                <?php if ($nilai_terkirim): ?>
-                                                    <span class="badge bg-success">Terkirim</span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-danger">Belum</span>
-                                                <?php endif; ?>
+                                                <span class="badge bg-danger">Belum</span>
                                             </td>
                                         </tr>
-                                    <?php endwhile; ?>
+                                    <?php 
+                                        endforeach;
+                                    } elseif ($materi_diampu && $materi_diampu->num_rows > 0) {
+                                        // Fallback jika materi_list tidak ada
+                                        $materi_diampu->data_seek(0);
+                                        while ($materi = $materi_diampu->fetch_assoc()): 
+                                    ?>
+                                        <tr>
+                                            <td><?php echo $no++; ?></td>
+                                            <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
+                                            <td>
+                                                <span class="badge bg-danger">Belum</span>
+                                            </td>
+                                        </tr>
+                                    <?php 
+                                        endwhile;
+                                    }
+                                    ?>
                                 </tbody>
                             </table>
                         </div>
@@ -1017,10 +1076,29 @@ if ($role == 'proktor') {
                                     <small class="text-muted">Format: JPG, PNG, GIF. Maksimal 5MB</small>
                                 </div>
                                 <div class="text-center">
-                                    <img src="uploads/<?php echo htmlspecialchars($guru_data['foto'] ?? 'default.png'); ?>" 
-                                         alt="Preview" id="previewFotoModalGuru" 
-                                         class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;"
-                                         onerror="this.src='uploads/default.png';">
+                                    <?php 
+                                    $guru_foto_modal_guru = $guru_data['foto'] ?? null;
+                                    $guru_nama_modal_guru = $guru_data['nama'] ?? $_SESSION['nama'] ?? 'User';
+                                    $guru_inisial_modal_guru = strtoupper(substr($guru_nama_modal_guru, 0, 1));
+                                    $foto_path_modal_guru = __DIR__ . '/uploads/' . ($guru_foto_modal_guru ?? '');
+                                    $use_avatar_modal_guru = empty($guru_foto_modal_guru) || $guru_foto_modal_guru == 'default.png' || !file_exists($foto_path_modal_guru);
+                                    ?>
+                                    <?php if ($use_avatar_modal_guru): ?>
+                                        <div class="d-inline-flex align-items-center justify-content-center img-thumbnail" 
+                                             id="previewFotoModalGuru"
+                                             style="width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 48px; border-radius: 4px;">
+                                            <?php echo htmlspecialchars($guru_inisial_modal_guru); ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <img src="uploads/<?php echo htmlspecialchars($guru_foto_modal_guru); ?>" 
+                                             alt="Preview" id="previewFotoModalGuru" 
+                                             class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;"
+                                             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <div class="d-inline-flex align-items-center justify-content-center img-thumbnail" 
+                                             style="display: none; width: 200px; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 48px; border-radius: 4px;">
+                                            <?php echo htmlspecialchars($guru_inisial_modal_guru); ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -1035,13 +1113,25 @@ if ($role == 'proktor') {
             </div>
             
             <script>
-                // Preview foto sebelum upload untuk guru
+                // Preview foto sebelum upload untuk guru (modal)
                 document.getElementById('inputFotoGuru').addEventListener('change', function(e) {
                     const file = e.target.files[0];
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = function(e) {
-                            document.getElementById('previewFotoModalGuru').src = e.target.result;
+                            const preview = document.getElementById('previewFotoModalGuru');
+                            if (preview.tagName === 'IMG') {
+                                preview.src = e.target.result;
+                            } else {
+                                // Jika avatar, ganti dengan img
+                                const img = document.createElement('img');
+                                img.src = e.target.result;
+                                img.alt = 'Preview';
+                                img.id = 'previewFotoModalGuru';
+                                img.className = 'img-thumbnail';
+                                img.style.cssText = 'max-width: 200px; max-height: 200px; object-fit: cover;';
+                                preview.parentNode.replaceChild(img, preview);
+                            }
                         };
                         reader.readAsDataURL(file);
                     }

@@ -110,30 +110,35 @@ if ($kelas_filter) {
         $total_target = $total_siswa * count($materi_ids);
         $sudah_nilai = 0;
         
-        // Hitung total nilai yang sudah disetorkan untuk kelas ini
-        if ($total_target > 0 && count($siswa_ids) > 0 && count($materi_ids) > 0) {
-            $placeholders_siswa = str_repeat('?,', count($siswa_ids) - 1) . '?';
+        // Hitung total nilai yang sudah TERKIRIM (bukan hanya sudah dinilai)
+        // Gunakan status_kirim_nilai untuk menghitung nilai yang sudah dikirim
+        $sudah_nilai = 0;
+        if ($total_target > 0 && count($materi_ids) > 0) {
+            // Hitung jumlah materi yang sudah dikirim (status = 1)
             $placeholders_materi = str_repeat('?,', count($materi_ids) - 1) . '?';
             
-            $query_nilai = "SELECT COUNT(*) as total 
-                           FROM nilai_siswa 
-                           WHERE siswa_id IN ($placeholders_siswa) 
-                           AND materi_mulok_id IN ($placeholders_materi)
+            $query_status = "SELECT COUNT(DISTINCT materi_mulok_id) as total 
+                           FROM status_kirim_nilai 
+                           WHERE materi_mulok_id IN ($placeholders_materi)
+                           AND kelas_id = ?
                            AND semester = ? 
-                           AND tahun_ajaran = ?";
-            $stmt_nilai = $conn->prepare($query_nilai);
-            $params = array_merge($siswa_ids, $materi_ids, [$semester, $tahun_ajaran]);
-            $types = str_repeat('i', count($siswa_ids) + count($materi_ids)) . 'ss';
-            $stmt_nilai->bind_param($types, ...$params);
-            $stmt_nilai->execute();
-            $result_nilai = $stmt_nilai->get_result();
-            if ($result_nilai) {
-                $row = $result_nilai->fetch_assoc();
-                $sudah_nilai = $row['total'] ?? 0;
+                           AND tahun_ajaran = ?
+                           AND status = 1";
+            $stmt_status = $conn->prepare($query_status);
+            $params_status = array_merge($materi_ids, [$kelas_id, $semester, $tahun_ajaran]);
+            $types_status = str_repeat('i', count($materi_ids)) . 'iss';
+            $stmt_status->bind_param($types_status, ...$params_status);
+            $stmt_status->execute();
+            $result_status = $stmt_status->get_result();
+            if ($result_status) {
+                $row_status = $result_status->fetch_assoc();
+                $materi_terkirim = $row_status['total'] ?? 0;
+                // Hitung total nilai terkirim = jumlah siswa x jumlah materi terkirim
+                $sudah_nilai = $total_siswa * $materi_terkirim;
             }
         }
         
-        // Hitung persentase
+        // Hitung persentase berdasarkan nilai terkirim
         $persentase = $total_target > 0 ? round(($sudah_nilai / $total_target) * 100, 2) : 0;
         
         // Akumulasi untuk progress bar keseluruhan

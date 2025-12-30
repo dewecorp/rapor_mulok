@@ -99,7 +99,26 @@ if ($kelas_id > 0) {
                     if ($result_nilai) {
                         $row_nilai = $result_nilai->fetch_assoc();
                         $sudah_nilai = $row_nilai['total'] ?? 0;
-                        // Sudah terkirim jika semua siswa sudah dinilai
+                    }
+                    
+                    // Cek status kirim nilai dari tabel status_kirim_nilai
+                    $sudah_terkirim = false;
+                    try {
+                        $stmt_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                      WHERE materi_mulok_id = ? 
+                                                      AND kelas_id = ? 
+                                                      AND guru_id = ? 
+                                                      AND semester = ? 
+                                                      AND tahun_ajaran = ?");
+                        $stmt_status->bind_param("iiiss", $materi_id, $kelas_id, $guru_id, $semester, $tahun_ajaran);
+                        $stmt_status->execute();
+                        $result_status = $stmt_status->get_result();
+                        if ($result_status && $result_status->num_rows > 0) {
+                            $status_row = $result_status->fetch_assoc();
+                            $sudah_terkirim = intval($status_row['status']) == 1;
+                        }
+                    } catch (Exception $e) {
+                        // Fallback: sudah terkirim jika semua siswa sudah dinilai
                         $sudah_terkirim = ($sudah_nilai == $total_siswa && $total_siswa > 0);
                     }
                 }

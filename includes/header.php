@@ -11,8 +11,21 @@ try {
     $stmt->execute();
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
+    
+    // Ambil foto user, jika tidak ada atau default, gunakan avatar
+    $user_foto = $user['foto'] ?? null;
+    $user_avatar = '';
+    if (empty($user_foto) || $user_foto == 'default.png' || !file_exists(__DIR__ . '/../uploads/' . $user_foto)) {
+        // Gunakan avatar dengan inisial nama
+        $nama = $user['nama'] ?? 'User';
+        $inisial = strtoupper(substr($nama, 0, 1));
+        $user_avatar = 'avatar'; // Flag untuk menggunakan avatar
+    } else {
+        $user_avatar = $user_foto;
+    }
 } catch (Exception $e) {
     $user = null;
+    $user_avatar = 'avatar';
 }
 
 // Ambil materi mulok yang diampu oleh wali kelas (jika role adalah wali_kelas)
@@ -255,6 +268,16 @@ $basePath = getBasePath();
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             display: block;
             background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .user-avatar[style*="display: flex"] {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
         }
         
         .user-avatar-dropdown button {
@@ -846,7 +869,18 @@ $basePath = getBasePath();
                     </div>
                     <div class="dropdown user-avatar-dropdown">
                         <button type="button" class="btn btn-link p-0 border-0" id="userDropdownBtn" onclick="toggleUserDropdown(event)" title="Klik untuk logout" style="background: transparent !important; border: 2px solid white !important; border-radius: 50% !important; padding: 0 !important; line-height: 1; cursor: pointer !important; display: inline-block !important; position: relative; z-index: 1000; width: 40px; height: 40px; min-width: 40px; min-height: 40px; overflow: hidden;">
-                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="user-avatar" onerror="this.onerror=null; this.src='<?php echo $basePath; ?>uploads/logo.png'; this.style.display='block';" style="pointer-events: none; width: 100%; height: 100%; object-fit: cover;">
+                            <?php if ($user_avatar == 'avatar' || empty($user_avatar)): ?>
+                                <!-- Avatar dengan inisial -->
+                                <div class="user-avatar" style="display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 16px; width: 100%; height: 100%; border-radius: 50%;">
+                                    <?php echo htmlspecialchars(strtoupper(substr($user['nama'] ?? 'U', 0, 1))); ?>
+                                </div>
+                            <?php else: ?>
+                                <!-- Foto user -->
+                                <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($user_avatar); ?>" alt="User Avatar" class="user-avatar" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';" style="pointer-events: none; width: 100%; height: 100%; object-fit: cover;">
+                                <div class="user-avatar" style="display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 16px; width: 100%; height: 100%; border-radius: 50%;">
+                                    <?php echo htmlspecialchars(strtoupper(substr($user['nama'] ?? 'U', 0, 1))); ?>
+                                </div>
+                            <?php endif; ?>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end dropdown-menu-user" id="userDropdownMenu" style="display: none;">
                             <li>
