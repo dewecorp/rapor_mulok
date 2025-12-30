@@ -332,10 +332,19 @@ try {
     </div>
     <div class="card-body">
         <?php if ($success): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: '<?php echo addslashes($success); ?>',
+                        confirmButtonColor: '#2d5016',
+                        timer: 3000,
+                        timerProgressBar: true,
+                        showConfirmButton: false
+                    });
+                });
+            </script>
         <?php endif; ?>
         
         <?php if ($error): ?>

@@ -188,21 +188,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     // Hitung predikat dari nilai
                     $predikat = hitungPredikat($nilai_float);
                     
-                    // Ambil nama materi untuk deskripsi - gunakan nama_mulok langsung dari database tanpa modifikasi
+                    // Ambil nama materi dan kategori untuk deskripsi - gunakan nama_mulok langsung dari database tanpa modifikasi
                     // Gunakan BINARY untuk memastikan case sensitivity
                     $nama_materi = '';
-                    $stmt_materi_nama = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok FROM materi_mulok WHERE id = ?");
+                    $kategori_materi = '';
+                    // Cek kolom kategori
+                    $use_kategori = false;
+                    try {
+                        $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+                        $use_kategori = ($check_column && $check_column->num_rows > 0);
+                    } catch (Exception $e) {
+                        $use_kategori = false;
+                    }
+                    $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
+                    
+                    $stmt_materi_nama = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok, BINARY $kolom_kategori as kategori FROM materi_mulok WHERE id = ?");
                     $stmt_materi_nama->bind_param("i", $materi_id_post);
                     $stmt_materi_nama->execute();
                     $result_materi_nama = $stmt_materi_nama->get_result();
                     if ($result_materi_nama && $result_materi_nama->num_rows > 0) {
                         $materi_row = $result_materi_nama->fetch_assoc();
-                        // Ambil nama_mulok langsung tanpa modifikasi apapun (termasuk case)
+                        // Ambil nama_mulok dan kategori langsung tanpa modifikasi apapun (termasuk case)
                         $nama_materi = isset($materi_row['nama_mulok']) ? (string)$materi_row['nama_mulok'] : '';
+                        $kategori_materi = isset($materi_row['kategori']) ? (string)$materi_row['kategori'] : '';
                     }
                     
-                    // Hitung deskripsi dengan nama materi yang sama persis dengan database
-                    $deskripsi = hitungDeskripsi($predikat, $nama_materi);
+                    // Hitung deskripsi dengan kategori dan nama materi yang sama persis dengan database
+                    $deskripsi = hitungDeskripsi($predikat, $kategori_materi, $nama_materi);
                     
                     // Cek apakah nilai sudah ada
                     $stmt_check = $conn->prepare("SELECT id FROM nilai_siswa 
@@ -341,10 +353,20 @@ $kelas_id_for_materi = 0;
 
 if ($materi_id > 0) {
     try {
+        // Cek kolom kategori terlebih dahulu
+        $use_kategori = false;
+        try {
+            $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+            $use_kategori = ($check_column && $check_column->num_rows > 0);
+        } catch (Exception $e) {
+            $use_kategori = false;
+        }
+        $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
+        
         // Ambil data materi beserta kelas yang diampu
         // Jika ada kelas_nama filter, gunakan untuk memastikan kelas yang tepat
         if (!empty($kelas_nama_filter)) {
-            $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas
+            $stmt_materi = $conn->prepare("SELECT m.*, m.$kolom_kategori as kategori, mm.kelas_id, k.nama_kelas
                                            FROM materi_mulok m
                                            INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id
                                            LEFT JOIN kelas k ON mm.kelas_id = k.id
@@ -358,7 +380,7 @@ if ($materi_id > 0) {
         
         // Jika tidak ditemukan dengan filter kelas_nama, coba ambil dengan filter guru_id saja
         if (!$materi_data) {
-            $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas
+            $stmt_materi = $conn->prepare("SELECT m.*, m.$kolom_kategori as kategori, mm.kelas_id, k.nama_kelas
                                            FROM materi_mulok m
                                            INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id
                                            LEFT JOIN kelas k ON mm.kelas_id = k.id
@@ -373,7 +395,7 @@ if ($materi_id > 0) {
         
         // Jika tidak ditemukan dengan filter guru_id, coba ambil tanpa filter guru_id
         if (!$materi_data) {
-            $stmt_materi2 = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas
+            $stmt_materi2 = $conn->prepare("SELECT m.*, m.$kolom_kategori as kategori, mm.kelas_id, k.nama_kelas
                                            FROM materi_mulok m
                                            INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id
                                            LEFT JOIN kelas k ON mm.kelas_id = k.id
@@ -388,7 +410,7 @@ if ($materi_id > 0) {
         
         // Jika masih belum ditemukan, ambil langsung dari tabel materi_mulok
         if (!$materi_data) {
-            $stmt_materi3 = $conn->prepare("SELECT m.*, NULL as kelas_id, NULL as nama_kelas
+            $stmt_materi3 = $conn->prepare("SELECT m.*, m.$kolom_kategori as kategori, NULL as kelas_id, NULL as nama_kelas
                                            FROM materi_mulok m
                                            WHERE m.id = ?");
             $stmt_materi3->bind_param("i", $materi_id);
@@ -397,15 +419,16 @@ if ($materi_id > 0) {
             $materi_data = $result_materi3 ? $result_materi3->fetch_assoc() : null;
         }
         
-        // Pastikan nama_mulok menggunakan case yang benar dengan mengambil ulang menggunakan BINARY jika perlu
+        // Pastikan nama_mulok dan kategori menggunakan case yang benar dengan mengambil ulang menggunakan BINARY jika perlu
         if ($materi_data && isset($materi_data['id'])) {
-            $stmt_nama_binary = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok FROM materi_mulok WHERE id = ?");
+            $stmt_nama_binary = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok, BINARY $kolom_kategori as kategori FROM materi_mulok WHERE id = ?");
             $stmt_nama_binary->bind_param("i", $materi_data['id']);
             $stmt_nama_binary->execute();
             $result_nama_binary = $stmt_nama_binary->get_result();
             if ($result_nama_binary && $result_nama_binary->num_rows > 0) {
                 $row_nama = $result_nama_binary->fetch_assoc();
                 $materi_data['nama_mulok'] = (string)$row_nama['nama_mulok'];
+                $materi_data['kategori'] = isset($row_nama['kategori']) ? (string)$row_nama['kategori'] : '';
             }
         }
         
@@ -473,10 +496,19 @@ if ($materi_id > 0) {
 <?php include '../includes/header.php'; ?>
 
 <?php if ($success_message): ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: '<?php echo addslashes($success_message); ?>',
+                confirmButtonColor: '#2d5016',
+                timer: 3000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+        });
+    </script>
 <?php endif; ?>
 
 <?php if ($error_message): ?>
@@ -563,13 +595,34 @@ if ($materi_id > 0) {
                                         $predikat_value = hitungPredikat($nilai_value);
                                     }
                                     
-                                    // Hitung deskripsi jika belum ada - gunakan kategori dan nama_mulok langsung dari database tanpa modifikasi
-                                    if (empty($deskripsi_value) && !empty($predikat_value) && $predikat_value != '-') {
+                                    // Hitung deskripsi jika belum ada atau belum sesuai format (belum ada kategori)
+                                    // Cek apakah deskripsi sudah sesuai format dengan kategori
+                                    $deskripsi_sudah_sesuai = false;
+                                    if (!empty($deskripsi_value) && !empty($materi_data['kategori'])) {
+                                        // Cek apakah kategori ada di deskripsi
+                                        $kategori_check = trim($materi_data['kategori']);
+                                        if (stripos($deskripsi_value, $kategori_check) !== false) {
+                                            $deskripsi_sudah_sesuai = true;
+                                        }
+                                    }
+                                    
+                                    if ((empty($deskripsi_value) || !$deskripsi_sudah_sesuai) && !empty($predikat_value) && $predikat_value != '-') {
                                         // Ambil kategori dan nama_mulok langsung dari materi_data tanpa modifikasi apapun (termasuk case)
                                         // Pastikan menggunakan string cast untuk mempertahankan case
                                         $kategori_display = isset($materi_data['kategori']) ? (string)$materi_data['kategori'] : '';
                                         $nama_materi_display = isset($materi_data['nama_mulok']) ? (string)$materi_data['nama_mulok'] : '';
                                         $deskripsi_value = hitungDeskripsi($predikat_value, $kategori_display, $nama_materi_display);
+                                        
+                                        // Update deskripsi di database jika sudah ada nilai
+                                        if ($nilai && isset($nilai['id']) && !$deskripsi_sudah_sesuai) {
+                                            try {
+                                                $stmt_update_deskripsi = $conn->prepare("UPDATE nilai_siswa SET deskripsi = ? WHERE id = ?");
+                                                $stmt_update_deskripsi->bind_param("si", $deskripsi_value, $nilai['id']);
+                                                $stmt_update_deskripsi->execute();
+                                            } catch (Exception $e) {
+                                                // Ignore error
+                                            }
+                                        }
                                     }
                                 ?>
                                     <tr>

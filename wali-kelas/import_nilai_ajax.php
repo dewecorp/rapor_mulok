@@ -138,14 +138,25 @@ try {
         sendErrorResponse('Data materi tidak ditemukan');
     }
     
-    // Ambil nama materi dengan case yang benar
-    $stmt_nama_binary = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok FROM materi_mulok WHERE id = ?");
+    // Ambil nama materi dan kategori dengan case yang benar
+    // Cek kolom kategori
+    $use_kategori = false;
+    try {
+        $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+        $use_kategori = ($check_column && $check_column->num_rows > 0);
+    } catch (Exception $e) {
+        $use_kategori = false;
+    }
+    $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
+    
+    $stmt_nama_binary = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok, BINARY $kolom_kategori as kategori FROM materi_mulok WHERE id = ?");
     $stmt_nama_binary->bind_param("i", $materi_id);
     $stmt_nama_binary->execute();
     $result_nama_binary = $stmt_nama_binary->get_result();
     if ($result_nama_binary && $result_nama_binary->num_rows > 0) {
         $row_nama = $result_nama_binary->fetch_assoc();
         $materi_data['nama_mulok'] = (string)$row_nama['nama_mulok'];
+        $materi_data['kategori'] = isset($row_nama['kategori']) ? (string)$row_nama['kategori'] : '';
     }
     
     $kelas_id_for_materi = $materi_data['kelas_id'] ?? 0;
@@ -242,19 +253,27 @@ try {
             
             $deskripsi = '';
             if (!empty($predikat)) {
+                // Ambil kategori dan nama materi
+                $kategori_materi = isset($materi_data['kategori']) ? $materi_data['kategori'] : '';
                 $nama_materi = $materi_data['nama_mulok'];
+                
+                // Gabungkan kategori dan nama materi
+                $kategori_display = !empty($kategori_materi) ? trim($kategori_materi) . ' ' : '';
+                $materi_display = trim($nama_materi);
+                $full_materi = trim($kategori_display . $materi_display);
+                
                 switch ($predikat) {
                     case 'A':
-                        $deskripsi = 'Sangat baik dalam ' . $nama_materi;
+                        $deskripsi = 'Sangat baik dalam ' . $full_materi;
                         break;
                     case 'B':
-                        $deskripsi = 'Baik dalam ' . $nama_materi;
+                        $deskripsi = 'Baik dalam ' . $full_materi;
                         break;
                     case 'C':
-                        $deskripsi = 'Cukup dalam ' . $nama_materi;
+                        $deskripsi = 'Cukup dalam ' . $full_materi;
                         break;
                     case 'D':
-                        $deskripsi = 'Kurang dalam ' . $nama_materi;
+                        $deskripsi = 'Kurang dalam ' . $full_materi;
                         break;
                 }
             }

@@ -206,16 +206,12 @@ end:
     </div>
     <div class="card-body">
         <?php if ($success): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle"></i> <?php echo $success; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
             <script>
-                setTimeout(function() {
+                document.addEventListener('DOMContentLoaded', function() {
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil!',
-                        html: '<?php echo addslashes($success); ?>',
+                        text: '<?php echo addslashes($success); ?>',
                         confirmButtonColor: '#2d5016',
                         timer: 3000,
                         timerProgressBar: true,
@@ -223,7 +219,7 @@ end:
                     }).then(() => {
                         window.location.href = 'data.php';
                     });
-                }, 100);
+                });
             </script>
         <?php endif; ?>
         

@@ -486,10 +486,19 @@ if ($role == 'proktor') {
             
         <?php elseif ($role == 'wali_kelas'): ?>
             <?php if ($success_message): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: '<?php echo addslashes($success_message); ?>',
+                            confirmButtonColor: '#2d5016',
+                            timer: 3000,
+                            timerProgressBar: true,
+                            showConfirmButton: false
+                        });
+                    });
+                </script>
             <?php endif; ?>
             
             <?php if ($error_message): ?>
@@ -616,19 +625,77 @@ if ($role == 'proktor') {
                                     <tr>
                                         <th width="50">No</th>
                                         <th>Materi Mulok</th>
-                                        <th>Kelas</th>
+                                        <th>Status Nilai</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php 
+                                    // Ambil semester dan tahun ajaran
+                                    $semester = '1';
+                                    $tahun_ajaran = date('Y') . '/' . (date('Y') + 1);
+                                    try {
+                                        $stmt_profil = $conn->query("SELECT semester, tahun_ajaran FROM profil_madrasah LIMIT 1");
+                                        if ($stmt_profil && $stmt_profil->num_rows > 0) {
+                                            $profil_data = $stmt_profil->fetch_assoc();
+                                            $semester = $profil_data['semester'] ?? '1';
+                                            $tahun_ajaran = $profil_data['tahun_ajaran'] ?? $tahun_ajaran;
+                                        }
+                                    } catch (Exception $e) {
+                                        // Use default values
+                                    }
+                                    
                                     $no = 1;
                                     $materi_diampu->data_seek(0);
                                     while ($materi = $materi_diampu->fetch_assoc()): 
+                                        // Cek apakah nilai sudah dikirim untuk materi ini
+                                        $materi_id = $materi['materi_mulok_id'] ?? 0;
+                                        $kelas_id_materi = $materi['kelas_id'] ?? 0;
+                                        $nilai_terkirim = false;
+                                        
+                                        if ($materi_id > 0) {
+                                            try {
+                                                // Hitung jumlah siswa di kelas
+                                                $stmt_count_siswa = $conn->prepare("SELECT COUNT(*) as total FROM siswa WHERE kelas_id = ?");
+                                                $stmt_count_siswa->bind_param("i", $kelas_id_materi);
+                                                $stmt_count_siswa->execute();
+                                                $result_count_siswa = $stmt_count_siswa->get_result();
+                                                $total_siswa = $result_count_siswa ? $result_count_siswa->fetch_assoc()['total'] : 0;
+                                                
+                                                // Hitung jumlah siswa yang sudah memiliki nilai
+                                                $stmt_count_nilai = $conn->prepare("SELECT COUNT(DISTINCT ns.siswa_id) as total 
+                                                                                   FROM nilai_siswa ns
+                                                                                   INNER JOIN siswa s ON ns.siswa_id = s.id
+                                                                                   WHERE ns.materi_mulok_id = ? 
+                                                                                   AND ns.guru_id = ?
+                                                                                   AND ns.semester = ?
+                                                                                   AND ns.tahun_ajaran = ?
+                                                                                   AND s.kelas_id = ?
+                                                                                   AND (ns.nilai_pengetahuan IS NOT NULL AND ns.nilai_pengetahuan != '' 
+                                                                                        OR ns.nilai_keterampilan IS NOT NULL AND ns.nilai_keterampilan != ''
+                                                                                        OR ns.harian IS NOT NULL AND ns.harian != ''
+                                                                                        OR ns.pas_pat IS NOT NULL AND ns.pas_pat != '')");
+                                                $stmt_count_nilai->bind_param("iissi", $materi_id, $user_id, $semester, $tahun_ajaran, $kelas_id_materi);
+                                                $stmt_count_nilai->execute();
+                                                $result_count_nilai = $stmt_count_nilai->get_result();
+                                                $total_nilai = $result_count_nilai ? $result_count_nilai->fetch_assoc()['total'] : 0;
+                                                
+                                                // Nilai terkirim jika semua siswa sudah memiliki nilai
+                                                $nilai_terkirim = ($total_siswa > 0 && $total_nilai >= $total_siswa);
+                                            } catch (Exception $e) {
+                                                $nilai_terkirim = false;
+                                            }
+                                        }
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($materi['nama_kelas'] ?? '-'); ?></td>
+                                            <td>
+                                                <?php if ($nilai_terkirim): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
+                                            </td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
@@ -744,10 +811,19 @@ if ($role == 'proktor') {
             
         <?php elseif ($role == 'guru'): ?>
             <?php if ($success_message): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: '<?php echo addslashes($success_message); ?>',
+                            confirmButtonColor: '#2d5016',
+                            timer: 3000,
+                            timerProgressBar: true,
+                            showConfirmButton: false
+                        });
+                    });
+                </script>
             <?php endif; ?>
             
             <?php if ($error_message): ?>
@@ -840,19 +916,77 @@ if ($role == 'proktor') {
                                     <tr>
                                         <th width="50">No</th>
                                         <th>Materi Mulok</th>
-                                        <th>Kelas</th>
+                                        <th>Status Nilai</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php 
+                                    // Ambil semester dan tahun ajaran
+                                    $semester = '1';
+                                    $tahun_ajaran = date('Y') . '/' . (date('Y') + 1);
+                                    try {
+                                        $stmt_profil = $conn->query("SELECT semester, tahun_ajaran FROM profil_madrasah LIMIT 1");
+                                        if ($stmt_profil && $stmt_profil->num_rows > 0) {
+                                            $profil_data = $stmt_profil->fetch_assoc();
+                                            $semester = $profil_data['semester'] ?? '1';
+                                            $tahun_ajaran = $profil_data['tahun_ajaran'] ?? $tahun_ajaran;
+                                        }
+                                    } catch (Exception $e) {
+                                        // Use default values
+                                    }
+                                    
                                     $no = 1;
                                     $materi_diampu->data_seek(0);
                                     while ($materi = $materi_diampu->fetch_assoc()): 
+                                        // Cek apakah nilai sudah dikirim untuk materi ini
+                                        $materi_id = $materi['materi_mulok_id'] ?? 0;
+                                        $kelas_id_materi = $materi['kelas_id'] ?? 0;
+                                        $nilai_terkirim = false;
+                                        
+                                        if ($materi_id > 0) {
+                                            try {
+                                                // Hitung jumlah siswa di kelas
+                                                $stmt_count_siswa = $conn->prepare("SELECT COUNT(*) as total FROM siswa WHERE kelas_id = ?");
+                                                $stmt_count_siswa->bind_param("i", $kelas_id_materi);
+                                                $stmt_count_siswa->execute();
+                                                $result_count_siswa = $stmt_count_siswa->get_result();
+                                                $total_siswa = $result_count_siswa ? $result_count_siswa->fetch_assoc()['total'] : 0;
+                                                
+                                                // Hitung jumlah siswa yang sudah memiliki nilai
+                                                $stmt_count_nilai = $conn->prepare("SELECT COUNT(DISTINCT ns.siswa_id) as total 
+                                                                                   FROM nilai_siswa ns
+                                                                                   INNER JOIN siswa s ON ns.siswa_id = s.id
+                                                                                   WHERE ns.materi_mulok_id = ? 
+                                                                                   AND ns.guru_id = ?
+                                                                                   AND ns.semester = ?
+                                                                                   AND ns.tahun_ajaran = ?
+                                                                                   AND s.kelas_id = ?
+                                                                                   AND (ns.nilai_pengetahuan IS NOT NULL AND ns.nilai_pengetahuan != '' 
+                                                                                        OR ns.nilai_keterampilan IS NOT NULL AND ns.nilai_keterampilan != ''
+                                                                                        OR ns.harian IS NOT NULL AND ns.harian != ''
+                                                                                        OR ns.pas_pat IS NOT NULL AND ns.pas_pat != '')");
+                                                $stmt_count_nilai->bind_param("iissi", $materi_id, $user_id, $semester, $tahun_ajaran, $kelas_id_materi);
+                                                $stmt_count_nilai->execute();
+                                                $result_count_nilai = $stmt_count_nilai->get_result();
+                                                $total_nilai = $result_count_nilai ? $result_count_nilai->fetch_assoc()['total'] : 0;
+                                                
+                                                // Nilai terkirim jika semua siswa sudah memiliki nilai
+                                                $nilai_terkirim = ($total_siswa > 0 && $total_nilai >= $total_siswa);
+                                            } catch (Exception $e) {
+                                                $nilai_terkirim = false;
+                                            }
+                                        }
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($materi['nama_kelas'] ?? '-'); ?></td>
+                                            <td>
+                                                <?php if ($nilai_terkirim): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
+                                            </td>
                                         </tr>
                                     <?php endwhile; ?>
                                 </tbody>
