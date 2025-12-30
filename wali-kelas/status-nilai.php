@@ -169,9 +169,9 @@ if ($kelas_id > 0) {
                         <small class="text-dark fw-bold">Materi Mulok</small>
                     </div>
                     <div class="progress" style="height: 30px;">
-                        <div class="progress-bar <?php echo $persentase_keseluruhan == 100 ? 'bg-success' : ($persentase_keseluruhan >= 50 ? 'bg-warning' : 'bg-danger'); ?>" 
+                        <div class="progress-bar" 
                              role="progressbar" 
-                             style="width: <?php echo $persentase_keseluruhan; ?>%; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center;" 
+                             style="width: <?php echo $persentase_keseluruhan; ?>%; background-color: #2d5016; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; color: white;" 
                              aria-valuenow="<?php echo $persentase_keseluruhan; ?>" 
                              aria-valuemin="0" 
                              aria-valuemax="100">

@@ -119,7 +119,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $tanggal_lahir = $_POST['tanggal_lahir'] ?? null;
             $pendidikan = trim($_POST['pendidikan'] ?? '');
             $nuptk = trim($_POST['nuptk'] ?? '');
-            $role = $_POST['role'] ?? 'guru';
+            // Role tidak bisa diubah dari form edit, ditentukan dari tabel kelas
+            // Cek apakah guru ini adalah wali_kelas_id di tabel kelas
+            $role = 'guru'; // Default
+            try {
+                $stmt_check_wali = $conn->prepare("SELECT id FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
+                $stmt_check_wali->bind_param("i", $id);
+                $stmt_check_wali->execute();
+                $result_check_wali = $stmt_check_wali->get_result();
+                if ($result_check_wali && $result_check_wali->num_rows > 0) {
+                    $role = 'wali_kelas';
+                }
+            } catch (Exception $e) {
+                // Jika error, tetap gunakan default 'guru'
+                $role = 'guru';
+            }
             
             // Validasi input
             if (empty($nama)) {
@@ -190,16 +204,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                     
                     if ($stmt->execute()) {
-                        // Jika role diubah dari wali_kelas ke guru, hapus wali_kelas_id dari kelas
-                        if ($role_lama == 'wali_kelas' && $role == 'guru') {
-                            try {
-                                $update_kelas = $conn->prepare("UPDATE kelas SET wali_kelas_id = NULL WHERE wali_kelas_id = ?");
-                                $update_kelas->bind_param("i", $id);
-                                $update_kelas->execute();
-                            } catch (Exception $e) {
-                                // Log error tapi jangan gagalkan update
-                                error_log("Error updating kelas wali_kelas_id: " . $e->getMessage());
-                            }
+                        // Update role di tabel pengguna sesuai dengan status di tabel kelas
+                        // (Role sudah ditentukan sebelumnya berdasarkan tabel kelas)
+                        try {
+                            $stmt_update_role = $conn->prepare("UPDATE pengguna SET role = ? WHERE id = ?");
+                            $stmt_update_role->bind_param("si", $role, $id);
+                            $stmt_update_role->execute();
+                        } catch (Exception $e) {
+                            // Log error tapi jangan gagalkan update
+                            error_log("Error updating role: " . $e->getMessage());
                         }
                         
                         // Redirect untuk mencegah resubmit dan refresh data
@@ -249,10 +262,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt->execute()) {
                 // Redirect untuk mencegah resubmit dan refresh data
                 $_SESSION['success_message'] = 'Data guru berhasil dihapus!';
-                redirect(basename($_SERVER['PHP_SELF']), false);
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: data.php');
+                exit();
             } else {
                 $_SESSION['error_message'] = 'Gagal menghapus data guru!';
-                redirect(basename($_SERVER['PHP_SELF']), false);
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: data.php');
+                exit();
             }
         }
     }
@@ -263,11 +284,28 @@ $edit_data = null;
 if (isset($_GET['edit'])) {
     $id = intval($_GET['edit']);
     try {
+        // Ambil data pengguna
         $stmt = $conn->prepare("SELECT * FROM pengguna WHERE id = ? AND role IN ('guru', 'wali_kelas')");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
         $edit_data = $result->fetch_assoc();
+        
+        // Tentukan role berdasarkan data kelas (jika ada di tabel kelas sebagai wali_kelas_id, maka wali_kelas, jika tidak maka guru)
+        if ($edit_data) {
+            $stmt_kelas = $conn->prepare("SELECT id FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
+            $stmt_kelas->bind_param("i", $id);
+            $stmt_kelas->execute();
+            $result_kelas = $stmt_kelas->get_result();
+            
+            if ($result_kelas && $result_kelas->num_rows > 0) {
+                // Jika ada di tabel kelas sebagai wali_kelas_id, maka role = wali_kelas
+                $edit_data['role'] = 'wali_kelas';
+            } else {
+                // Jika tidak ada, maka role = guru
+                $edit_data['role'] = 'guru';
+            }
+        }
     } catch (Exception $e) {
         $error = 'Error: ' . $e->getMessage();
     }
@@ -278,11 +316,7 @@ $result = null;
 $guru_data = [];
 try {
     $query = "SELECT p.*, 
-              CASE 
-                  WHEN p.role = 'wali_kelas' THEN 
-                      (SELECT nama_kelas FROM kelas WHERE wali_kelas_id = p.id LIMIT 1)
-                  ELSE NULL
-              END as wali_kelas_nama
+              (SELECT nama_kelas FROM kelas WHERE wali_kelas_id = p.id LIMIT 1) as wali_kelas_nama
               FROM pengguna p 
               WHERE p.role IN ('guru', 'wali_kelas')
               ORDER BY p.nama";
@@ -339,9 +373,9 @@ try {
                         title: 'Berhasil!',
                         text: '<?php echo addslashes($success); ?>',
                         confirmButtonColor: '#2d5016',
-                        timer: 3000,
+                        timer: 5000,
                         timerProgressBar: true,
-                        showConfirmButton: false
+                        showConfirmButton: true
                     });
                 });
             </script>
@@ -388,7 +422,7 @@ try {
                             <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?><?php echo ($row['tempat_lahir'] ?? '') && ($row['tanggal_lahir'] ?? '') ? ', ' : ''; ?><?php echo $row['tanggal_lahir'] ? htmlspecialchars(date('d/m/Y', strtotime($row['tanggal_lahir']))) : ''; ?></td>
                             <td><?php echo htmlspecialchars($row['pendidikan'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($row['nuptk'] ?? $row['username'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo ($row['role'] == 'wali_kelas' && !empty($row['wali_kelas_nama'])) ? htmlspecialchars($row['wali_kelas_nama'], ENT_QUOTES, 'UTF-8') : '-'; ?></td>
+                            <td><?php echo !empty($row['wali_kelas_nama']) ? htmlspecialchars($row['wali_kelas_nama'], ENT_QUOTES, 'UTF-8') : '-'; ?></td>
                             <td>
                                 <span style="font-family: monospace; font-size: 0.9em; color: #333;">
                                     <?php 
@@ -476,10 +510,12 @@ try {
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Role <span class="text-danger">*</span></label>
-                            <select class="form-select" name="role" id="role" required>
+                            <select class="form-select" name="role" id="role" required disabled>
                                 <option value="guru">Guru</option>
                                 <option value="wali_kelas">Wali Kelas</option>
                             </select>
+                            <input type="hidden" name="role" id="roleHidden">
+                            <small class="text-muted">Role ditentukan dari data kelas. Untuk mengubah role, edit di menu Data Kelas.</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Foto</label>
@@ -664,6 +700,26 @@ try {
         $('#modalTitle').text('Tambah Data Guru');
         $('#passwordRequired').show();
         $('#passwordHint').hide();
+        $('#role').prop('disabled', false); // Enable untuk form add
+        $('#roleHidden').val('guru'); // Default untuk form add
+    });
+    
+    // Update hidden field saat role berubah (untuk form add)
+    $('#role').on('change', function() {
+        if (!$(this).prop('disabled')) {
+            $('#roleHidden').val($(this).val());
+        }
+    });
+    
+    // Update hidden field saat form submit (untuk form edit yang disabled)
+    $('#formGuru').on('submit', function() {
+        // Jika role disabled (form edit), gunakan nilai dari select yang disabled
+        if ($('#role').prop('disabled')) {
+            $('#roleHidden').val($('#role').val());
+        } else {
+            // Jika role enabled (form add), gunakan nilai dari select
+            $('#roleHidden').val($('#role').val());
+        }
     });
     
     // Reset tabel import saat modal import ditutup
@@ -691,6 +747,7 @@ try {
         $('#pendidikan').val('<?php echo addslashes($edit_data['pendidikan'] ?? ''); ?>');
         $('#nuptk').val('<?php echo addslashes($edit_data['nuptk'] ?? $edit_data['username'] ?? ''); ?>');
         $('#role').val('<?php echo $edit_data['role']; ?>');
+        $('#roleHidden').val('<?php echo $edit_data['role']; ?>'); // Set hidden field untuk submit
         $('#modalTitle').text('Edit Data Guru');
         $('#passwordRequired').hide();
         $('#passwordHint').show();
@@ -705,11 +762,13 @@ try {
         title: 'Berhasil',
         text: '<?php echo addslashes($success); ?>',
         confirmButtonColor: '#2d5016',
-        timer: 2000,
+        timer: 5000,
         timerProgressBar: true,
-        showConfirmButton: false
-    }).then(() => {
-        window.location.href = 'data.php';
+        showConfirmButton: true
+    }).then((result) => {
+        if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+            // Tidak perlu redirect karena sudah di halaman yang benar
+        }
     });
     <?php endif; ?>
     

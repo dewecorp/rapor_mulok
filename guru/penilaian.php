@@ -46,8 +46,11 @@ try {
 // Handle toggle status kirim nilai (AJAX)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'toggle_kirim_nilai') {
     // Clear any previous output
-    ob_clean();
+    if (ob_get_level()) {
+        ob_clean();
+    }
     header('Content-Type: application/json');
+    header('Cache-Control: no-cache, must-revalidate');
     
     $materi_id_kirim = intval($_POST['materi_id'] ?? 0);
     $kelas_id_kirim = intval($_POST['kelas_id'] ?? 0);
@@ -151,9 +154,12 @@ try {
 
 // Handle simpan nilai (inline editing)
 $success_message = $_SESSION['success_message'] ?? '';
-$error_message = '';
+$error_message = $_SESSION['error_message'] ?? '';
 if (isset($_SESSION['success_message'])) {
     unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    unset($_SESSION['error_message']);
 }
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'simpan_nilai') {
     $materi_id_post = $_POST['materi_id'] ?? 0;
@@ -162,6 +168,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $tahun_ajaran_post = $_POST['tahun_ajaran'] ?? '';
     $harian_array = $_POST['harian'] ?? [];
     $pas_pat_array = $_POST['pas_pat'] ?? [];
+    
+    // Cek apakah nilai sudah dikirim
+    $status_terkirim = false;
+    if ($materi_id_post > 0 && $kelas_id_post > 0) {
+        try {
+            $stmt_check_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                WHERE materi_mulok_id = ? 
+                                                AND kelas_id = ? 
+                                                AND guru_id = ? 
+                                                AND semester = ? 
+                                                AND tahun_ajaran = ?");
+            $stmt_check_status->bind_param("iiiss", $materi_id_post, $kelas_id_post, $user_id, $semester_post, $tahun_ajaran_post);
+            $stmt_check_status->execute();
+            $result_check_status = $stmt_check_status->get_result();
+            if ($result_check_status && $result_check_status->num_rows > 0) {
+                $status_row = $result_check_status->fetch_assoc();
+                $status_terkirim = intval($status_row['status']) == 1;
+            }
+        } catch (Exception $e) {
+            // Ignore error
+        }
+    }
+    
+    if ($status_terkirim) {
+        $_SESSION['error_message'] = 'Nilai sudah dikirim! Silakan batal kirim terlebih dahulu untuk mengubah nilai.';
+        $redirect_url = 'penilaian.php?materi_id=' . $materi_id_post;
+        if (!empty($_GET['kelas_nama'])) {
+            $redirect_url .= '&kelas_nama=' . urlencode($_GET['kelas_nama']);
+        }
+        header('Location: ' . $redirect_url);
+        exit;
+    }
     
     if ($materi_id_post > 0 && $kelas_id_post > 0) {
         $conn->begin_transaction();
@@ -251,6 +289,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $semester_post = $_POST['semester'] ?? '1';
     $tahun_ajaran_post = $_POST['tahun_ajaran'] ?? '';
     $nilai_array = $_POST['nilai'] ?? [];
+    
+    // Cek apakah nilai sudah dikirim
+    $status_terkirim = false;
+    if ($materi_id_post > 0 && $kelas_id_post > 0) {
+        try {
+            $stmt_check_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                WHERE materi_mulok_id = ? 
+                                                AND kelas_id = ? 
+                                                AND guru_id = ? 
+                                                AND semester = ? 
+                                                AND tahun_ajaran = ?");
+            $stmt_check_status->bind_param("iiiss", $materi_id_post, $kelas_id_post, $user_id, $semester_post, $tahun_ajaran_post);
+            $stmt_check_status->execute();
+            $result_check_status = $stmt_check_status->get_result();
+            if ($result_check_status && $result_check_status->num_rows > 0) {
+                $status_row = $result_check_status->fetch_assoc();
+                $status_terkirim = intval($status_row['status']) == 1;
+            }
+        } catch (Exception $e) {
+            // Ignore error
+        }
+    }
+    
+    if ($status_terkirim) {
+        $_SESSION['error_message'] = 'Nilai sudah dikirim! Silakan batal kirim terlebih dahulu untuk menambah nilai.';
+        $redirect_url = 'penilaian.php?materi_id=' . $materi_id_post;
+        if (!empty($_GET['kelas_nama'])) {
+            $redirect_url .= '&kelas_nama=' . urlencode($_GET['kelas_nama']);
+        }
+        header('Location: ' . $redirect_url);
+        exit;
+    }
     
     if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($nilai_array)) {
         $conn->begin_transaction();
@@ -612,10 +682,16 @@ if ($materi_id > 0) {
         </h5>
         <?php if ($materi_id > 0 && $materi_data): ?>
             <div>
-                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambahNilai">
+                <button type="button" class="btn btn-success btn-sm <?php echo $status_kirim_nilai == 1 ? 'disabled' : ''; ?>" 
+                        data-bs-toggle="<?php echo $status_kirim_nilai == 1 ? '' : 'modal'; ?>" 
+                        data-bs-target="<?php echo $status_kirim_nilai == 1 ? '' : '#modalTambahNilai'; ?>"
+                        <?php if ($status_kirim_nilai == 1): ?>onclick="return false;" title="Nilai sudah dikirim. Batal kirim terlebih dahulu."<?php endif; ?>>
                     <i class="fas fa-plus"></i> Tambah Nilai
                 </button>
-                <button type="button" class="btn btn-warning btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#modalImportNilai">
+                <button type="button" class="btn btn-warning btn-sm ms-2 <?php echo $status_kirim_nilai == 1 ? 'disabled' : ''; ?>" 
+                        data-bs-toggle="<?php echo $status_kirim_nilai == 1 ? '' : 'modal'; ?>" 
+                        data-bs-target="<?php echo $status_kirim_nilai == 1 ? '' : '#modalImportNilai'; ?>"
+                        <?php if ($status_kirim_nilai == 1): ?>onclick="return false;" title="Nilai sudah dikirim. Batal kirim terlebih dahulu."<?php endif; ?>>
                     <i class="fas fa-file-import"></i> Impor Nilai
                 </button>
                 <?php if ($status_kirim_nilai == 1): ?>
@@ -639,6 +715,27 @@ if ($materi_id > 0) {
         <?php endif; ?>
     </div>
     <div class="card-body">
+        <?php if ($error_message): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert" data-auto-dismiss="5000">
+                <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_message); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <script>
+                setTimeout(function() {
+                    var alert = document.querySelector('.alert[data-auto-dismiss]');
+                    if (alert) {
+                        var bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 5000);
+            </script>
+        <?php endif; ?>
+        <?php if ($success_message): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
         <?php if (!$materi_id): ?>
             <?php if (count($materi_list) > 0): ?>
                 <!-- Pilih Materi -->
@@ -749,68 +846,54 @@ if ($materi_id > 0) {
     </div>
 </div>
 
+<?php include '../includes/footer.php'; ?>
+
 <script>
-// Pastikan jQuery sudah ter-load
-(function() {
-    function initKirimNilai() {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery belum ter-load, mencoba lagi...');
-            setTimeout(initKirimNilai, 100);
-            return;
+// Script untuk tombol Kirim Nilai - Pastikan dijalankan setelah jQuery dan SweetAlert ter-load
+$(document).ready(function() {
+    console.log('[Kirim Nilai] Script loaded, jQuery ready');
+    
+    // Cek apakah tombol ada
+    const btn = $('#btnKirimNilai');
+    console.log('[Kirim Nilai] Tombol ditemukan:', btn.length > 0);
+    
+    if (btn.length > 0) {
+        console.log('[Kirim Nilai] Tombol data:', {
+            materiId: btn.data('materi-id'),
+            kelasId: btn.data('kelas-id'),
+            semester: btn.data('semester'),
+            tahunAjaran: btn.data('tahun-ajaran')
+        });
+    }
+    
+    // Handle klik tombol Kirim Nilai / Batal Kirim
+    $(document).on('click', '#btnKirimNilai', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('[Kirim Nilai] Button clicked!');
+        
+        const btn = $(this);
+        const materiId = parseInt(btn.data('materi-id')) || 0;
+        const kelasId = parseInt(btn.data('kelas-id')) || 0;
+        const semester = btn.data('semester') || '1';
+        const tahunAjaran = btn.data('tahun-ajaran') || '';
+        const isTerkirim = btn.hasClass('btn-danger');
+        
+        console.log('[Kirim Nilai] Data:', {materiId, kelasId, semester, tahunAjaran, isTerkirim});
+        
+        if (!materiId || !kelasId) {
+            console.error('[Kirim Nilai] Data tidak lengkap!', {materiId, kelasId});
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'Data tidak lengkap. Materi ID: ' + materiId + ', Kelas ID: ' + kelasId,
+                confirmButtonColor: '#2d5016'
+            });
+            return false;
         }
         
-        if (typeof Swal === 'undefined') {
-            console.log('SweetAlert belum ter-load, menunggu...');
-            setTimeout(initKirimNilai, 100);
-            return;
-        }
-        
-        console.log('jQuery dan SweetAlert ter-load, setting up btnKirimNilai handler');
-        
-        jQuery(document).ready(function($) {
-            console.log('Document ready, setting up btnKirimNilai handler');
-            
-            // Cek apakah tombol ada
-            const btnExists = $('#btnKirimNilai').length > 0;
-            console.log('Tombol btnKirimNilai ditemukan:', btnExists);
-            
-            if (btnExists) {
-                const btn = $('#btnKirimNilai');
-                console.log('Tombol data:', {
-                    materiId: btn.data('materi-id'),
-                    kelasId: btn.data('kelas-id'),
-                    semester: btn.data('semester'),
-                    tahunAjaran: btn.data('tahun-ajaran')
-                });
-            }
-            
-            // Handle klik tombol Kirim Nilai / Batal Kirim menggunakan event delegation
-            $(document).on('click', '#btnKirimNilai', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                console.log('btnKirimNilai clicked');
-                
-                const btn = $(this);
-                const materiId = parseInt(btn.data('materi-id')) || 0;
-                const kelasId = parseInt(btn.data('kelas-id')) || 0;
-                const semester = btn.data('semester') || '1';
-                const tahunAjaran = btn.data('tahun-ajaran') || '';
-                const isTerkirim = btn.hasClass('btn-danger');
-                
-                console.log('Data:', {materiId, kelasId, semester, tahunAjaran, isTerkirim});
-                
-                if (!materiId || !kelasId) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: 'Data tidak lengkap. Materi ID: ' + materiId + ', Kelas ID: ' + kelasId,
-                        confirmButtonColor: '#2d5016'
-                    });
-                    return false;
-                }
-                
-                Swal.fire({
+        Swal.fire({
             title: isTerkirim ? 'Batal Kirim Nilai?' : 'Kirim Nilai?',
             text: isTerkirim ? 'Apakah Anda yakin ingin membatalkan pengiriman nilai ini?' : 'Apakah Anda yakin ingin mengirim nilai ini?',
             icon: 'question',
@@ -821,6 +904,8 @@ if ($materi_id > 0) {
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
+                console.log('[Kirim Nilai] User confirmed, sending AJAX...');
+                
                 // Disable button selama proses
                 btn.prop('disabled', true);
                 
@@ -836,8 +921,11 @@ if ($materi_id > 0) {
                         tahun_ajaran: tahunAjaran
                     },
                     dataType: 'json',
+                    beforeSend: function() {
+                        console.log('[Kirim Nilai] Sending AJAX request...');
+                    },
                     success: function(response) {
-                        console.log('AJAX Success:', response);
+                        console.log('[Kirim Nilai] AJAX Success:', response);
                         if (response && response.success) {
                             // Update tombol berdasarkan status baru
                             if (response.status == 1) {
@@ -872,6 +960,7 @@ if ($materi_id > 0) {
                                 });
                             }
                         } else {
+                            console.error('[Kirim Nilai] Response error:', response);
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error!',
@@ -882,15 +971,17 @@ if ($materi_id > 0) {
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('AJAX Error:', {xhr, status, error, responseText: xhr.responseText});
+                        console.error('[Kirim Nilai] AJAX Error:', {xhr, status, error, responseText: xhr.responseText});
                         let errorMsg = 'Terjadi kesalahan saat mengubah status kirim nilai.';
                         try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            if (errorResponse.error) {
-                                errorMsg = errorResponse.error;
+                            if (xhr.responseText) {
+                                const errorResponse = JSON.parse(xhr.responseText);
+                                if (errorResponse.error) {
+                                    errorMsg = errorResponse.error;
+                                }
                             }
                         } catch (e) {
-                            // Use default error message
+                            console.error('[Kirim Nilai] Parse error:', e);
                         }
                         Swal.fire({
                             icon: 'error',
@@ -901,21 +992,13 @@ if ($materi_id > 0) {
                         btn.prop('disabled', false);
                     }
                 });
+            } else {
+                console.log('[Kirim Nilai] User cancelled');
             }
         });
-        });
-    }
-    
-    // Jalankan saat halaman dimuat
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initKirimNilai);
-    } else {
-        initKirimNilai();
-    }
-})();
+    });
+});
 </script>
-
-<?php include '../includes/footer.php'; ?>
 
 
 <!-- Modal Tambah Nilai -->

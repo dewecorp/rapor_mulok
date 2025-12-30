@@ -101,8 +101,8 @@ $kelas_asal_filter = $_POST['kelas_asal'] ?? $_GET['kelas_asal'] ?? '';
 $kelas_tujuan_filter = $_POST['kelas_tujuan'] ?? $_GET['kelas_tujuan'] ?? '';
 $status_tingkat_filter = $_POST['status_tingkat'] ?? $_GET['status_tingkat'] ?? 'sama'; // Default: tingkat sama
 
-// Ambil data kelas
-$query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
+// Ambil data kelas (exclude kelas Alumni)
+$query_kelas = "SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%Alumni%' AND nama_kelas NOT LIKE '%Lulus%' ORDER BY nama_kelas";
 $kelas_list = $conn->query($query_kelas);
 
 // Fungsi untuk mendapatkan tingkat dari nama kelas (I, II, III, IV, V, VI)
@@ -165,14 +165,18 @@ if (!empty($kelas_tujuan_filter)) {
 } 
 // Jika kelas asal sudah dipilih tapi kelas tujuan belum dipilih, ambil semua kelas yang sesuai dengan filter
 elseif (!empty($kelas_asal_filter) && !empty($tingkat_kelas_asal)) {
-    // Ambil semua kelas sesuai dengan filter status tingkat
-    $query_kelas_fresh = "SELECT * FROM kelas ORDER BY nama_kelas";
+    // Ambil semua kelas sesuai dengan filter status tingkat (exclude kelas Alumni)
+    $query_kelas_fresh = "SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%Alumni%' AND nama_kelas NOT LIKE '%Lulus%' ORDER BY nama_kelas";
     $kelas_list_fresh = $conn->query($query_kelas_fresh);
     
     if ($kelas_list_fresh) {
         while ($kelas = $kelas_list_fresh->fetch_assoc()) {
             // Skip kelas asal
             if ($kelas['id'] == $kelas_asal_filter) {
+                continue;
+            }
+            // Skip kelas Alumni (double check)
+            if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
                 continue;
             }
             

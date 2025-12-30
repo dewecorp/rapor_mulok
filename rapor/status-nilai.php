@@ -26,7 +26,8 @@ try {
     $query_kelas = "SELECT k.*, p.nama as wali_kelas_nama 
                     FROM kelas k 
                     LEFT JOIN pengguna p ON k.wali_kelas_id = p.id 
-                    WHERE k.nama_kelas NOT LIKE '%Alumni%' AND k.nama_kelas NOT LIKE '%Lulus%' 
+                    WHERE k.nama_kelas NOT LIKE '%Alumni%' 
+                    AND k.nama_kelas NOT LIKE '%Lulus%'
                     ORDER BY k.nama_kelas";
     $kelas_list = $conn->query($query_kelas);
     if (!$kelas_list) {
@@ -197,9 +198,9 @@ if ($kelas_filter) {
                         <small class="text-dark fw-bold">Materi Mulok</small>
                     </div>
                     <div class="progress" style="height: 30px;">
-                        <div class="progress-bar <?php echo $persentase_keseluruhan == 100 ? 'bg-success' : ($persentase_keseluruhan >= 50 ? 'bg-warning' : 'bg-danger'); ?>" 
+                        <div class="progress-bar" 
                              role="progressbar" 
-                             style="width: <?php echo $persentase_keseluruhan; ?>%; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center;" 
+                             style="width: <?php echo $persentase_keseluruhan; ?>%; background-color: #2d5016; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; color: white;" 
                              aria-valuenow="<?php echo $persentase_keseluruhan; ?>" 
                              aria-valuemin="0" 
                              aria-valuemax="100">
@@ -227,7 +228,7 @@ if ($kelas_filter) {
                                     <?php if ($status['persentase'] == 100): ?>
                                         <span class="badge bg-success">100%</span>
                                     <?php else: ?>
-                                        <span class="badge bg-danger">Belum Terkirim</span>
+                                        <span class="badge bg-danger">Belum</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>

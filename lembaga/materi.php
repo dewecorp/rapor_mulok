@@ -37,6 +37,25 @@ try {
     $has_jumlah_jam = false;
 }
 
+// Cek apakah kolom semester sudah ada
+$has_semester = false;
+try {
+    $check_semester = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'semester'");
+    $has_semester = ($check_semester && $check_semester->num_rows > 0);
+} catch (Exception $e) {
+    $has_semester = false;
+}
+
+// Tambahkan kolom semester jika belum ada
+if (!$has_semester) {
+    try {
+        $conn->query("ALTER TABLE materi_mulok ADD COLUMN semester VARCHAR(10) DEFAULT '1' AFTER kelas_id");
+        $has_semester = true;
+    } catch (Exception $e) {
+        // Ignore jika kolom sudah ada atau error lainnya
+    }
+}
+
 // Jika kelas_id belum ada, tampilkan pesan error dan redirect ke migration
 if (!$has_kelas_id && !$has_jumlah_jam) {
     $error = 'Kolom kelas_id belum ada di database. Silakan jalankan migrasi terlebih dahulu: <a href="migrate_jumlah_jam_to_kelas_id.php">Jalankan Migrasi</a>';
@@ -77,14 +96,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $error = 'Kolom kelas_id belum ada di database. Silakan jalankan migrasi terlebih dahulu!';
             } else {
                 $kelas_id = !empty($_POST['kelas_id']) ? intval($_POST['kelas_id']) : null;
+                $semester = !empty($_POST['semester']) ? trim($_POST['semester']) : '1';
                 
                 try {
                     if ($kelas_id !== null && $kelas_id > 0) {
-                        $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id) VALUES (?, ?, ?)");
-                        $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $kelas_id);
+                        if ($has_semester) {
+                            $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id, semester) VALUES (?, ?, ?, ?)");
+                            $stmt->bind_param("ssis", $kategori_mulok, $nama_mulok, $kelas_id, $semester);
+                        } else {
+                            $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id) VALUES (?, ?, ?)");
+                            $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $kelas_id);
+                        }
                     } else {
-                        $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id) VALUES (?, ?, NULL)");
-                        $stmt->bind_param("ss", $kategori_mulok, $nama_mulok);
+                        if ($has_semester) {
+                            $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id, semester) VALUES (?, ?, NULL, ?)");
+                            $stmt->bind_param("sss", $kategori_mulok, $nama_mulok, $semester);
+                        } else {
+                            $stmt = $conn->prepare("INSERT INTO materi_mulok ($kolom_kategori, nama_mulok, kelas_id) VALUES (?, ?, NULL)");
+                            $stmt->bind_param("ss", $kategori_mulok, $nama_mulok);
+                        }
                     }
                     
                     if ($stmt->execute()) {
@@ -106,14 +136,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $error = 'Kolom kelas_id belum ada di database. Silakan jalankan migrasi terlebih dahulu!';
             } else {
                 $kelas_id = !empty($_POST['kelas_id']) ? intval($_POST['kelas_id']) : null;
+                $semester = !empty($_POST['semester']) ? trim($_POST['semester']) : '1';
                 
                 try {
                     if ($kelas_id !== null && $kelas_id > 0) {
-                        $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=? WHERE id=?");
-                        $stmt->bind_param("ssii", $kategori_mulok, $nama_mulok, $kelas_id, $id);
+                        if ($has_semester) {
+                            $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=?, semester=? WHERE id=?");
+                            $stmt->bind_param("ssisi", $kategori_mulok, $nama_mulok, $kelas_id, $semester, $id);
+                        } else {
+                            $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=? WHERE id=?");
+                            $stmt->bind_param("ssii", $kategori_mulok, $nama_mulok, $kelas_id, $id);
+                        }
                     } else {
-                        $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=NULL WHERE id=?");
-                        $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $id);
+                        if ($has_semester) {
+                            $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=NULL, semester=? WHERE id=?");
+                            $stmt->bind_param("sssi", $kategori_mulok, $nama_mulok, $semester, $id);
+                        } else {
+                            $stmt = $conn->prepare("UPDATE materi_mulok SET $kolom_kategori=?, nama_mulok=?, kelas_id=NULL WHERE id=?");
+                            $stmt->bind_param("ssi", $kategori_mulok, $nama_mulok, $id);
+                        }
                     }
                     
                     if ($stmt->execute()) {
@@ -203,10 +244,10 @@ try {
         $query = "SELECT m.*, k.nama_kelas 
                   FROM materi_mulok m 
                   LEFT JOIN kelas k ON m.kelas_id = k.id 
-                  ORDER BY LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+                  ORDER BY m.semester ASC, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
     } else {
         // Fallback: ambil data tanpa JOIN jika kelas_id belum ada
-        $query = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+        $query = "SELECT * FROM materi_mulok ORDER BY semester ASC, LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
     }
     $result = $conn->query($query);
     if (!$result) {
@@ -249,9 +290,9 @@ try {
                         title: 'Berhasil!',
                         text: '<?php echo addslashes($success); ?>',
                         confirmButtonColor: '#2d5016',
-                        timer: 3000,
+                        timer: 5000,
                         timerProgressBar: true,
-                        showConfirmButton: false
+                        showConfirmButton: true
                     });
                 });
             </script>
@@ -312,6 +353,9 @@ try {
                         <th><?php echo $label_kategori; ?></th>
                         <th>Nama Mulok</th>
                         <th>Kelas</th>
+                        <?php if ($has_semester): ?>
+                        <th>Semester</th>
+                        <?php endif; ?>
                         <th width="150">Aksi</th>
                     </tr>
                 </thead>
@@ -336,6 +380,14 @@ try {
                             </td>
                             <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
                             <td><?php echo htmlspecialchars($has_kelas_id ? ($row['nama_kelas'] ?? '-') : '-'); ?></td>
+                            <?php if ($has_semester): ?>
+                            <td>
+                                <?php 
+                                $semester_value = $row['semester'] ?? '1';
+                                echo $semester_value == '2' ? 'Semester II' : 'Semester I';
+                                ?>
+                            </td>
+                            <?php endif; ?>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick="editMateri(<?php echo $row['id']; ?>)" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -407,6 +459,16 @@ try {
                             <strong>Perhatian:</strong> Kolom kelas_id belum ada di database. 
                             <a href="migrate_jumlah_jam_to_kelas_id.php" class="alert-link">Jalankan migrasi terlebih dahulu</a>.
                         </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($has_semester): ?>
+                    <div class="mb-3">
+                        <label class="form-label">Semester <span class="text-danger">*</span></label>
+                        <select class="form-select" name="semester" id="semester" required>
+                            <option value="1" selected>Semester I</option>
+                            <option value="2">Semester II</option>
+                        </select>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -489,6 +551,9 @@ try {
         <?php if ($has_kelas_id): ?>
         $('#kelasId').val(<?php echo $edit_data['kelas_id'] ?? 'null'; ?>);
         <?php endif; ?>
+        <?php if ($has_semester): ?>
+        $('#semester').val('<?php echo $edit_data['semester'] ?? '1'; ?>');
+        <?php endif; ?>
         $('#modalTitle').text('Edit Materi Mulok');
         $('#modalMateri').modal('show');
     });
@@ -500,15 +565,17 @@ try {
         title: 'Berhasil',
         text: '<?php echo addslashes($success); ?>',
         confirmButtonColor: '#2d5016',
-        timer: 2000,
+        timer: 5000,
         timerProgressBar: true,
-        showConfirmButton: false
-    }).then(() => {
+        showConfirmButton: true
+    }).then((result) => {
         // Hapus parameter dari URL untuk mencegah resubmit dan form edit muncul
-        if (window.location.search.includes('edit=')) {
-            window.location.href = window.location.pathname;
-        } else {
-            window.location.href = window.location.pathname;
+        if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+            if (window.location.search.includes('edit=')) {
+                window.location.href = window.location.pathname;
+            } else {
+                window.location.href = window.location.pathname;
+            }
         }
     });
     <?php endif; ?>

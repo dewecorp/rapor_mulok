@@ -173,6 +173,46 @@ try {
         }
     }
     
+    // Cek apakah nilai sudah dikirim
+    if ($kelas_id_for_materi > 0) {
+        try {
+            // Ambil semester dan tahun ajaran dulu untuk cek status
+            $profil_temp = null;
+            $semester_temp = '1';
+            $tahun_ajaran_temp = '';
+            try {
+                $query_profil_temp = "SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1";
+                $result_profil_temp = $conn->query($query_profil_temp);
+                if ($result_profil_temp && $result_profil_temp->num_rows > 0) {
+                    $profil_temp = $result_profil_temp->fetch_assoc();
+                    $semester_temp = $profil_temp['semester_aktif'] ?? '1';
+                    $tahun_ajaran_temp = $profil_temp['tahun_ajaran_aktif'] ?? '';
+                }
+            } catch (Exception $e) {
+                // Use default
+            }
+            
+            $stmt_check_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                WHERE materi_mulok_id = ? 
+                                                AND kelas_id = ? 
+                                                AND guru_id = ? 
+                                                AND semester = ? 
+                                                AND tahun_ajaran = ?");
+            $stmt_check_status->bind_param("iiiss", $materi_id, $kelas_id_for_materi, $user_id, $semester_temp, $tahun_ajaran_temp);
+            $stmt_check_status->execute();
+            $result_check_status = $stmt_check_status->get_result();
+            if ($result_check_status && $result_check_status->num_rows > 0) {
+                $status_row = $result_check_status->fetch_assoc();
+                if (intval($status_row['status']) == 1) {
+                    unlink($file_path);
+                    sendErrorResponse('Nilai sudah dikirim! Silakan batal kirim terlebih dahulu untuk mengimpor nilai.');
+                }
+            }
+        } catch (Exception $e) {
+            // Ignore error, lanjutkan proses
+        }
+    }
+    
     // Ambil profil untuk semester dan tahun ajaran
     $profil = null;
     $semester = '1';

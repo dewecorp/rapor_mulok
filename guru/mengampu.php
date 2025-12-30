@@ -131,20 +131,60 @@ function getBadgeColor($kategori) {
 
 // Ambil data materi mulok untuk dropdown (filter berdasarkan kelas yang dipilih)
 // Jika kelas dipilih, hanya tampilkan materi yang kelas_id-nya sesuai atau NULL
+// Ambil semester aktif dari profil
+$semester_aktif = '1';
+try {
+    $stmt_profil = $conn->query("SELECT semester_aktif FROM profil_madrasah LIMIT 1");
+    if ($stmt_profil && $stmt_profil->num_rows > 0) {
+        $profil_data = $stmt_profil->fetch_assoc();
+        $semester_aktif = $profil_data['semester_aktif'] ?? '1';
+    }
+} catch (Exception $e) {
+    // Use default
+}
+
+// Cek apakah kolom semester sudah ada
+$has_semester = false;
+try {
+    $check_semester = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'semester'");
+    $has_semester = ($check_semester && $check_semester->num_rows > 0);
+} catch (Exception $e) {
+    $has_semester = false;
+}
+
 $materi_list = null;
 if (!empty($kelas_filter) && $kelas_filter !== '' && $has_kelas_id) {
     $kelas_id_for_materi = intval($kelas_filter);
-    $query_materi = "SELECT * FROM materi_mulok 
-                     WHERE kelas_id = ? OR kelas_id IS NULL 
-                     ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
-    $stmt_materi = $conn->prepare($query_materi);
-    $stmt_materi->bind_param("i", $kelas_id_for_materi);
+    if ($has_semester) {
+        $query_materi = "SELECT * FROM materi_mulok 
+                         WHERE (kelas_id = ? OR kelas_id IS NULL) 
+                         AND (semester = ? OR semester IS NULL)
+                         ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("is", $kelas_id_for_materi, $semester_aktif);
+    } else {
+        $query_materi = "SELECT * FROM materi_mulok 
+                         WHERE kelas_id = ? OR kelas_id IS NULL 
+                         ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("i", $kelas_id_for_materi);
+    }
     $stmt_materi->execute();
     $materi_list = $stmt_materi->get_result();
 } else {
     // Jika kelas belum dipilih atau kelas_id belum ada, tampilkan semua materi
-    $query_materi = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
-    $materi_list = $conn->query($query_materi);
+    if ($has_semester) {
+        $query_materi = "SELECT * FROM materi_mulok 
+                         WHERE semester = ? OR semester IS NULL
+                         ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("s", $semester_aktif);
+        $stmt_materi->execute();
+        $materi_list = $stmt_materi->get_result();
+    } else {
+        $query_materi = "SELECT * FROM materi_mulok ORDER BY LOWER($kolom_kategori) ASC, LOWER(nama_mulok) ASC";
+        $materi_list = $conn->query($query_materi);
+    }
 }
 
 // Ambil data guru
@@ -345,7 +385,7 @@ try {
                                 <?php if ($nama_guru): ?>
                                     <span class="badge bg-success"><?php echo htmlspecialchars($nama_guru); ?></span>
                                 <?php else: ?>
-                                    <select class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="setGuru(<?php echo $materi_id; ?>, this.value, <?php echo $kelas_filter; ?>)">
+                                    <select class="form-select form-select-sm select-guru-table" style="width: 100%; min-width: 200px;" data-materi-id="<?php echo $materi_id; ?>" data-kelas-id="<?php echo $kelas_filter; ?>">
                                         <option value="">-- Pilih Guru --</option>
                                         <?php 
                                         $guru_list->data_seek(0);
@@ -399,7 +439,7 @@ try {
                     
                     <div class="mb-3">
                         <label class="form-label">Materi Mulok <span class="text-danger">*</span></label>
-                        <select class="form-select" name="materi_mulok_id" required>
+                        <select class="form-select" name="materi_mulok_id" id="materiMulokId" style="width: 100%;" required>
                             <option value="">-- Pilih Materi Mulok --</option>
                             <?php 
                             if ($materi_list):
@@ -433,7 +473,7 @@ try {
                     
                     <div class="mb-3">
                         <label class="form-label">Guru <span class="text-danger">*</span></label>
-                        <select class="form-select" name="guru_id" id="guruId" required>
+                        <select class="form-select" name="guru_id" id="guruId" style="width: 100%;" required>
                             <option value="">-- Pilih Guru --</option>
                             <?php 
                             $guru_list->data_seek(0);
@@ -448,7 +488,7 @@ try {
                     
                     <div class="mb-3">
                         <label class="form-label">Kelas <span class="text-danger">*</span></label>
-                        <select class="form-select" name="kelas_id" required>
+                        <select class="form-select" name="kelas_id" id="kelasIdModal" style="width: 100%;" required>
                             <option value="">-- Pilih Kelas --</option>
                             <?php if ($kelas_list): 
                                 $kelas_list->data_seek(0);
@@ -474,6 +514,20 @@ try {
 
 <?php include '../includes/footer.php'; ?>
 
+<style>
+    /* Pastikan dropdown Select2 muncul di bawah dan z-index tinggi */
+    .select2-container--bootstrap-5 .select2-dropdown {
+        z-index: 9999 !important;
+    }
+    .select2-dropdown-below {
+        margin-top: 0 !important;
+    }
+    /* Pastikan Select2 container tidak overflow */
+    .select2-container {
+        z-index: 9999 !important;
+    }
+</style>
+
 <script>
     function filterKelas() {
         var kelasId = $('#filterKelas').val();
@@ -482,6 +536,54 @@ try {
         } else {
             window.location.href = 'mengampu.php';
         }
+    }
+    
+    // Inisialisasi Select2 untuk dropdown di tabel (dinamis)
+    function initSelect2Table() {
+        // Destroy dulu semua Select2 yang sudah ada untuk menghindari duplikasi
+        $('.select-guru-table').each(function() {
+            if ($(this).hasClass('select2-hidden-accessible')) {
+                try {
+                    $(this).select2('destroy');
+                } catch(e) {
+                    // Ignore error jika destroy gagal
+                }
+            }
+        });
+        
+        // Inisialisasi Select2 untuk semua dropdown guru di tabel
+        $('.select-guru-table').each(function() {
+            var $select = $(this);
+            
+            // Skip jika sudah diinisialisasi
+            if ($select.hasClass('select2-hidden-accessible')) {
+                return;
+            }
+            
+            $select.select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Pilih Guru --',
+                allowClear: true,
+                dropdownParent: $('body'), // Gunakan body sebagai parent untuk memastikan dropdown muncul dengan benar
+                width: '100%',
+                dropdownCssClass: 'select2-dropdown-below', // CSS class untuk memastikan dropdown ke bawah
+                language: {
+                    noResults: function() {
+                        return "Tidak ada data ditemukan";
+                    },
+                    searching: function() {
+                        return "Mencari...";
+                    }
+                }
+            }).on('change', function() {
+                var materiId = $(this).data('materi-id');
+                var kelasId = $(this).data('kelas-id');
+                var guruId = $(this).val();
+                if (guruId) {
+                    setGuru(materiId, guruId, kelasId);
+                }
+            });
+        });
     }
     
     function setGuru(materiId, guruId, kelasId) {
@@ -510,17 +612,108 @@ try {
     }
     
     $(document).ready(function() {
-        // Inisialisasi DataTables hanya jika kelas sudah dipilih DAN ada data
+        // Re-inisialisasi Select2 setelah DataTables selesai render
         <?php if (!empty($kelas_filter) && count($mengampu_data) > 0): ?>
         // Pastikan tabel ada sebelum inisialisasi DataTables
         if ($('#tableMengampu').length > 0) {
-            $('#tableMengampu').DataTable({
+            var table = $('#tableMengampu').DataTable({
                 language: {
                     url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                },
+                drawCallback: function() {
+                    // Re-inisialisasi Select2 setelah tabel di-render ulang
+                    setTimeout(function() {
+                        initSelect2Table();
+                    }, 300);
                 }
             });
+            
+            // Inisialisasi Select2 setelah DataTables selesai
+            setTimeout(function() {
+                initSelect2Table();
+            }, 500);
         }
+        <?php else: ?>
+        // Jika tidak ada DataTables, langsung inisialisasi Select2
+        setTimeout(function() {
+            initSelect2Table();
+        }, 100);
         <?php endif; ?>
+        
+        // Fungsi untuk inisialisasi Select2 di modal
+        function initSelect2Modal() {
+            // Materi Mulok
+            if ($('#materiMulokId').length && !$('#materiMulokId').hasClass('select2-hidden-accessible')) {
+                $('#materiMulokId').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: '-- Pilih Materi Mulok --',
+                    allowClear: true,
+                    dropdownParent: $('#modalMengampu'),
+                    language: {
+                        noResults: function() {
+                            return "Tidak ada data ditemukan";
+                        },
+                        searching: function() {
+                            return "Mencari...";
+                        }
+                    }
+                });
+            }
+            
+            // Guru
+            if ($('#guruId').length && !$('#guruId').hasClass('select2-hidden-accessible')) {
+                $('#guruId').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: '-- Pilih Guru --',
+                    allowClear: true,
+                    dropdownParent: $('#modalMengampu'),
+                    language: {
+                        noResults: function() {
+                            return "Tidak ada data ditemukan";
+                        },
+                        searching: function() {
+                            return "Mencari...";
+                        }
+                    }
+                });
+            }
+            
+            // Kelas
+            if ($('#kelasIdModal').length && !$('#kelasIdModal').hasClass('select2-hidden-accessible')) {
+                $('#kelasIdModal').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: '-- Pilih Kelas --',
+                    allowClear: true,
+                    dropdownParent: $('#modalMengampu'),
+                    language: {
+                        noResults: function() {
+                            return "Tidak ada data ditemukan";
+                        },
+                        searching: function() {
+                            return "Mencari...";
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Inisialisasi Select2 saat modal dibuka
+        $('#modalMengampu').on('shown.bs.modal', function() {
+            initSelect2Modal();
+        });
+        
+        // Destroy Select2 saat modal ditutup
+        $('#modalMengampu').on('hidden.bs.modal', function() {
+            if ($('#materiMulokId').hasClass('select2-hidden-accessible')) {
+                $('#materiMulokId').select2('destroy');
+            }
+            if ($('#guruId').hasClass('select2-hidden-accessible')) {
+                $('#guruId').select2('destroy');
+            }
+            if ($('#kelasIdModal').hasClass('select2-hidden-accessible')) {
+                $('#kelasIdModal').select2('destroy');
+            }
+        });
     });
     
     function deleteMengampu(id) {

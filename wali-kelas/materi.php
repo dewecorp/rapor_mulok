@@ -71,7 +71,22 @@ if ($materi_id > 0) {
             $materi_data = $result_materi ? $result_materi->fetch_assoc() : null;
         }
         
-        // Jika tidak ditemukan dengan filter kelas_nama, coba ambil dengan filter guru_id saja
+        // Jika tidak ditemukan dengan filter kelas_nama, coba ambil dengan filter guru_id dan kelas wali_kelas
+        if (!$materi_data && $kelas_data && isset($kelas_data['id'])) {
+            // Prioritas: ambil dari kelas yang diampu oleh wali_kelas ini
+            $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas 
+                                           FROM materi_mulok m
+                                           INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id
+                                           INNER JOIN kelas k ON mm.kelas_id = k.id
+                                           WHERE m.id = ? AND mm.guru_id = ? AND mm.kelas_id = ?
+                                           LIMIT 1");
+            $stmt_materi->bind_param("iii", $materi_id, $user_id, $kelas_data['id']);
+            $stmt_materi->execute();
+            $result_materi = $stmt_materi->get_result();
+            $materi_data = $result_materi ? $result_materi->fetch_assoc() : null;
+        }
+        
+        // Jika masih tidak ditemukan, coba ambil dengan filter guru_id saja (tanpa filter kelas)
         if (!$materi_data) {
             $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas 
                                            FROM materi_mulok m

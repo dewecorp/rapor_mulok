@@ -107,7 +107,7 @@ if ($role == 'proktor') {
     }
     
     try {
-        $result = $conn->query("SELECT COUNT(*) as total FROM kelas");
+        $result = $conn->query("SELECT COUNT(*) as total FROM kelas WHERE nama_kelas NOT LIKE '%Alumni%' AND nama_kelas NOT LIKE '%Lulus%'");
         $total_kelas = $result ? $result->fetch_assoc()['total'] : 0;
     } catch (Exception $e) {
         $total_kelas = 0;
@@ -662,11 +662,11 @@ if ($role == 'proktor') {
                                     $semester = '1';
                                     $tahun_ajaran = date('Y') . '/' . (date('Y') + 1);
                                     try {
-                                        $stmt_profil = $conn->query("SELECT semester, tahun_ajaran FROM profil_madrasah LIMIT 1");
+                                        $stmt_profil = $conn->query("SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1");
                                         if ($stmt_profil && $stmt_profil->num_rows > 0) {
                                             $profil_data = $stmt_profil->fetch_assoc();
-                                            $semester = $profil_data['semester'] ?? '1';
-                                            $tahun_ajaran = $profil_data['tahun_ajaran'] ?? $tahun_ajaran;
+                                            $semester = $profil_data['semester_aktif'] ?? '1';
+                                            $tahun_ajaran = $profil_data['tahun_ajaran_aktif'] ?? $tahun_ajaran;
                                         }
                                     } catch (Exception $e) {
                                         // Use default values
@@ -681,19 +681,47 @@ if ($role == 'proktor') {
                                         }
                                     }
                                     
-                                    // Untuk sementara, tampilkan semua sebagai "Belum" untuk menghindari query yang lambat
-                                    // Status nilai bisa dihitung di halaman detail jika diperlukan
-                                    
+                                    // Cek status kirim nilai untuk setiap materi
                                     $no = 1;
                                     // Gunakan array materi_list jika sudah dibuat
                                     if (!empty($materi_list)) {
                                         foreach ($materi_list as $materi):
+                                            // Cek status_kirim_nilai
+                                            $materi_id = intval($materi['materi_mulok_id'] ?? 0);
+                                            $materi_kelas_id = intval($materi['kelas_id'] ?? 0);
+                                            $status_terkirim = false;
+                                            
+                                            if ($materi_id > 0 && $materi_kelas_id > 0) {
+                                                try {
+                                                    $stmt_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                                                  WHERE materi_mulok_id = ? 
+                                                                                  AND kelas_id = ? 
+                                                                                  AND guru_id = ? 
+                                                                                  AND semester = ? 
+                                                                                  AND tahun_ajaran = ? 
+                                                                                  LIMIT 1");
+                                                    $stmt_status->bind_param("iiiss", $materi_id, $materi_kelas_id, $user_id, $semester, $tahun_ajaran);
+                                                    $stmt_status->execute();
+                                                    $result_status = $stmt_status->get_result();
+                                                    if ($result_status && $result_status->num_rows > 0) {
+                                                        $status_row = $result_status->fetch_assoc();
+                                                        $status_terkirim = intval($status_row['status']) == 1;
+                                                    }
+                                                } catch (Exception $e) {
+                                                    // Jika error, default ke false
+                                                    $status_terkirim = false;
+                                                }
+                                            }
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
                                             <td>
-                                                <span class="badge bg-danger">Belum</span>
+                                                <?php if ($status_terkirim): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php 
@@ -702,12 +730,42 @@ if ($role == 'proktor') {
                                         // Fallback jika materi_list tidak ada
                                         $materi_diampu->data_seek(0);
                                         while ($materi = $materi_diampu->fetch_assoc()): 
+                                            // Cek status_kirim_nilai
+                                            $materi_id = intval($materi['materi_mulok_id'] ?? 0);
+                                            $materi_kelas_id = intval($materi['kelas_id'] ?? 0);
+                                            $status_terkirim = false;
+                                            
+                                            if ($materi_id > 0 && $materi_kelas_id > 0) {
+                                                try {
+                                                    $stmt_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                                                  WHERE materi_mulok_id = ? 
+                                                                                  AND kelas_id = ? 
+                                                                                  AND guru_id = ? 
+                                                                                  AND semester = ? 
+                                                                                  AND tahun_ajaran = ? 
+                                                                                  LIMIT 1");
+                                                    $stmt_status->bind_param("iiiss", $materi_id, $materi_kelas_id, $user_id, $semester, $tahun_ajaran);
+                                                    $stmt_status->execute();
+                                                    $result_status = $stmt_status->get_result();
+                                                    if ($result_status && $result_status->num_rows > 0) {
+                                                        $status_row = $result_status->fetch_assoc();
+                                                        $status_terkirim = intval($status_row['status']) == 1;
+                                                    }
+                                                } catch (Exception $e) {
+                                                    // Jika error, default ke false
+                                                    $status_terkirim = false;
+                                                }
+                                            }
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
                                             <td>
-                                                <span class="badge bg-danger">Belum</span>
+                                                <?php if ($status_terkirim): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php 
@@ -996,11 +1054,11 @@ if ($role == 'proktor') {
                                     $semester = '1';
                                     $tahun_ajaran = date('Y') . '/' . (date('Y') + 1);
                                     try {
-                                        $stmt_profil = $conn->query("SELECT semester, tahun_ajaran FROM profil_madrasah LIMIT 1");
+                                        $stmt_profil = $conn->query("SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1");
                                         if ($stmt_profil && $stmt_profil->num_rows > 0) {
                                             $profil_data = $stmt_profil->fetch_assoc();
-                                            $semester = $profil_data['semester'] ?? '1';
-                                            $tahun_ajaran = $profil_data['tahun_ajaran'] ?? $tahun_ajaran;
+                                            $semester = $profil_data['semester_aktif'] ?? '1';
+                                            $tahun_ajaran = $profil_data['tahun_ajaran_aktif'] ?? $tahun_ajaran;
                                         }
                                     } catch (Exception $e) {
                                         // Use default values
@@ -1015,19 +1073,47 @@ if ($role == 'proktor') {
                                         }
                                     }
                                     
-                                    // Untuk sementara, tampilkan semua sebagai "Belum" untuk menghindari query yang lambat
-                                    // Status nilai bisa dihitung di halaman detail jika diperlukan
-                                    
+                                    // Cek status kirim nilai untuk setiap materi
                                     $no = 1;
                                     // Gunakan array materi_list jika sudah dibuat
                                     if (!empty($materi_list)) {
                                         foreach ($materi_list as $materi):
+                                            // Cek status_kirim_nilai
+                                            $materi_id = intval($materi['materi_mulok_id'] ?? 0);
+                                            $materi_kelas_id = intval($materi['kelas_id'] ?? 0);
+                                            $status_terkirim = false;
+                                            
+                                            if ($materi_id > 0 && $materi_kelas_id > 0) {
+                                                try {
+                                                    $stmt_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                                                  WHERE materi_mulok_id = ? 
+                                                                                  AND kelas_id = ? 
+                                                                                  AND guru_id = ? 
+                                                                                  AND semester = ? 
+                                                                                  AND tahun_ajaran = ? 
+                                                                                  LIMIT 1");
+                                                    $stmt_status->bind_param("iiiss", $materi_id, $materi_kelas_id, $user_id, $semester, $tahun_ajaran);
+                                                    $stmt_status->execute();
+                                                    $result_status = $stmt_status->get_result();
+                                                    if ($result_status && $result_status->num_rows > 0) {
+                                                        $status_row = $result_status->fetch_assoc();
+                                                        $status_terkirim = intval($status_row['status']) == 1;
+                                                    }
+                                                } catch (Exception $e) {
+                                                    // Jika error, default ke false
+                                                    $status_terkirim = false;
+                                                }
+                                            }
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
                                             <td>
-                                                <span class="badge bg-danger">Belum</span>
+                                                <?php if ($status_terkirim): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php 
@@ -1036,12 +1122,42 @@ if ($role == 'proktor') {
                                         // Fallback jika materi_list tidak ada
                                         $materi_diampu->data_seek(0);
                                         while ($materi = $materi_diampu->fetch_assoc()): 
+                                            // Cek status_kirim_nilai
+                                            $materi_id = intval($materi['materi_mulok_id'] ?? 0);
+                                            $materi_kelas_id = intval($materi['kelas_id'] ?? 0);
+                                            $status_terkirim = false;
+                                            
+                                            if ($materi_id > 0 && $materi_kelas_id > 0) {
+                                                try {
+                                                    $stmt_status = $conn->prepare("SELECT status FROM status_kirim_nilai 
+                                                                                  WHERE materi_mulok_id = ? 
+                                                                                  AND kelas_id = ? 
+                                                                                  AND guru_id = ? 
+                                                                                  AND semester = ? 
+                                                                                  AND tahun_ajaran = ? 
+                                                                                  LIMIT 1");
+                                                    $stmt_status->bind_param("iiiss", $materi_id, $materi_kelas_id, $user_id, $semester, $tahun_ajaran);
+                                                    $stmt_status->execute();
+                                                    $result_status = $stmt_status->get_result();
+                                                    if ($result_status && $result_status->num_rows > 0) {
+                                                        $status_row = $result_status->fetch_assoc();
+                                                        $status_terkirim = intval($status_row['status']) == 1;
+                                                    }
+                                                } catch (Exception $e) {
+                                                    // Jika error, default ke false
+                                                    $status_terkirim = false;
+                                                }
+                                            }
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
                                             <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
                                             <td>
-                                                <span class="badge bg-danger">Belum</span>
+                                                <?php if ($status_terkirim): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php 

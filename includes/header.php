@@ -43,24 +43,71 @@ if ($user && $user['role'] == 'wali_kelas') {
         $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
         $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
         
-        // Ambil semua kombinasi materi-kelas dengan DISTINCT berdasarkan materi_id dan kelas_id
+        // Cek kolom semester
+        $has_semester = false;
+        try {
+            $check_semester = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'semester'");
+            $has_semester = ($check_semester && $check_semester->num_rows > 0);
+        } catch (Exception $e) {
+            $has_semester = false;
+        }
+        
+        // Ambil semester aktif dari profil
+        $semester_aktif = '1';
+        try {
+            $stmt_profil = $conn->query("SELECT semester_aktif FROM profil_madrasah LIMIT 1");
+            if ($stmt_profil && $stmt_profil->num_rows > 0) {
+                $profil_data = $stmt_profil->fetch_assoc();
+                $semester_aktif = $profil_data['semester_aktif'] ?? '1';
+            }
+        } catch (Exception $e) {
+            // Use default
+        }
+        
+        // Ambil semua kombinasi materi-kelas dengan GROUP BY untuk menghindari duplikasi
         if ($has_kelas_id) {
-            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                            FROM mengampu_materi mm
-                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                            INNER JOIN kelas k ON mm.kelas_id = k.id
-                            WHERE mm.guru_id = ?
-                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            if ($has_semester) {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            } else {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ?
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            }
         } else {
-            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                            FROM mengampu_materi mm
-                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                            INNER JOIN kelas k ON mm.kelas_id = k.id
-                            WHERE mm.guru_id = ?
-                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            if ($has_semester) {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            } else {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ?
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            }
         }
         $stmt_materi = $conn->prepare($query_materi);
-        $stmt_materi->bind_param("i", $user_id);
+        if ($has_semester) {
+            $stmt_materi->bind_param("is", $user_id, $semester_aktif);
+        } else {
+            $stmt_materi->bind_param("i", $user_id);
+        }
         $stmt_materi->execute();
         $result_materi = $stmt_materi->get_result();
         if ($result_materi) {
@@ -88,24 +135,71 @@ if ($user && $user['role'] == 'guru') {
         $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
         $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
         
-        // Ambil semua kombinasi materi-kelas dengan DISTINCT berdasarkan materi_id dan kelas_id
+        // Cek kolom semester
+        $has_semester = false;
+        try {
+            $check_semester = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'semester'");
+            $has_semester = ($check_semester && $check_semester->num_rows > 0);
+        } catch (Exception $e) {
+            $has_semester = false;
+        }
+        
+        // Ambil semester aktif dari profil
+        $semester_aktif = '1';
+        try {
+            $stmt_profil = $conn->query("SELECT semester_aktif FROM profil_madrasah LIMIT 1");
+            if ($stmt_profil && $stmt_profil->num_rows > 0) {
+                $profil_data = $stmt_profil->fetch_assoc();
+                $semester_aktif = $profil_data['semester_aktif'] ?? '1';
+            }
+        } catch (Exception $e) {
+            // Use default
+        }
+        
+        // Ambil semua kombinasi materi-kelas dengan GROUP BY untuk menghindari duplikasi
         if ($has_kelas_id) {
-            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                            FROM mengampu_materi mm
-                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                            INNER JOIN kelas k ON mm.kelas_id = k.id
-                            WHERE mm.guru_id = ?
-                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            if ($has_semester) {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            } else {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ?
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            }
         } else {
-            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                            FROM mengampu_materi mm
-                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                            INNER JOIN kelas k ON mm.kelas_id = k.id
-                            WHERE mm.guru_id = ?
-                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            if ($has_semester) {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            } else {
+                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                                FROM mengampu_materi mm
+                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                                INNER JOIN kelas k ON mm.kelas_id = k.id
+                                WHERE mm.guru_id = ?
+                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
+                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+            }
         }
         $stmt_materi = $conn->prepare($query_materi);
-        $stmt_materi->bind_param("i", $user_id);
+        if ($has_semester) {
+            $stmt_materi->bind_param("is", $user_id, $semester_aktif);
+        } else {
+            $stmt_materi->bind_param("i", $user_id);
+        }
         $stmt_materi->execute();
         $result_materi = $stmt_materi->get_result();
         if ($result_materi) {
@@ -163,6 +257,9 @@ $basePath = getBasePath();
     
     <!-- Toastr -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <!-- Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     
     <style>
         :root {
@@ -981,7 +1078,8 @@ $basePath = getBasePath();
                             // Group by kombinasi materi_id dan kelas_id untuk menghindari duplikasi
                             $materi_grouped = [];
                             foreach ($materi_diampu_wali as $materi) {
-                                $key = $materi['id'] . '_' . ($materi['kelas_id'] ?? '') . '_' . ($materi['nama_kelas'] ?? '');
+                                // Gunakan kombinasi materi_id dan kelas_id sebagai key
+                                $key = intval($materi['id']) . '_' . intval($materi['kelas_id'] ?? 0);
                                 if (!isset($materi_grouped[$key])) {
                                     $materi_grouped[$key] = $materi;
                                 }
@@ -1032,7 +1130,8 @@ $basePath = getBasePath();
                             // Group by kombinasi materi_id dan kelas_id untuk menghindari duplikasi
                             $materi_grouped_guru = [];
                             foreach ($materi_diampu_guru as $materi) {
-                                $key = $materi['id'] . '_' . ($materi['kelas_id'] ?? '') . '_' . ($materi['nama_kelas'] ?? '');
+                                // Gunakan kombinasi materi_id dan kelas_id sebagai key
+                                $key = intval($materi['id']) . '_' . intval($materi['kelas_id'] ?? 0);
                                 if (!isset($materi_grouped_guru[$key])) {
                                     $materi_grouped_guru[$key] = $materi;
                                 }
