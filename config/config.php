@@ -113,20 +113,38 @@ function requireLogin() {
 // Redirect berdasarkan role
 function requireRole($role) {
     requireLogin();
-    if (!hasRole($role)) {
-        // Pastikan tidak ada output sebelum redirect
-        if (ob_get_level() > 0) {
-            ob_clean();
+    
+    // Jika role adalah array, cek apakah user memiliki salah satu role
+    if (is_array($role)) {
+        $has_access = false;
+        foreach ($role as $r) {
+            if (hasRole($r)) {
+                $has_access = true;
+                break;
+            }
         }
-        // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
-        $redirect_url = '/index.php';
-        if (isset($_SERVER['HTTP_HOST'])) {
-            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-            header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
-        } else {
+        if (!$has_access) {
+            // Pastikan tidak ada output sebelum redirect
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            // Gunakan BASE_URL untuk redirect yang benar
+            $redirect_url = BASE_URL . 'index.php';
             header('Location: ' . $redirect_url);
+            exit();
         }
-        exit();
+    } else {
+        // Jika role adalah string tunggal
+        if (!hasRole($role)) {
+            // Pastikan tidak ada output sebelum redirect
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            // Gunakan BASE_URL untuk redirect yang benar
+            $redirect_url = BASE_URL . 'index.php';
+            header('Location: ' . $redirect_url);
+            exit();
+        }
     }
 }
 

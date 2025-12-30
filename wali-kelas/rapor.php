@@ -78,9 +78,6 @@ try {
                 <button type="button" class="btn btn-secondary btn-sm" onclick="cetakSampul()">
                     <i class="fas fa-book"></i> Cetak Sampul
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="cetakIdentitas()">
-                    <i class="fas fa-id-card"></i> Identitas
-                </button>
                 <button type="button" class="btn btn-success btn-sm" onclick="exportLeggerExcel()">
                     <i class="fas fa-file-excel"></i> Legger Excel
                 </button>
@@ -107,7 +104,7 @@ try {
                             <th>Nama</th>
                             <th>L/P</th>
                             <th>TTL</th>
-                            <th width="100">Aksi</th>
+                            <th width="130">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -135,9 +132,22 @@ try {
                                 <td><?php echo (($row['jenis_kelamin'] ?? '') == 'L') ? 'L' : 'P'; ?></td>
                                 <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo !empty($row['tanggal_lahir']) ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
                                 <td>
-                                    <button class="btn btn-sm btn-primary" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
-                                        <i class="fas fa-print"></i> Cetak
-                                    </button>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
+                                            <i class="fas fa-print"></i> Rapor
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="visually-hidden">Toggle Dropdown</span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="javascript:void(0);" onclick="cetakSampulSiswa(<?php echo $siswa_id; ?>)">
+                                                <i class="fas fa-book"></i> Cetak Sampul
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0);" onclick="cetakNilaiSiswa(<?php echo $siswa_id; ?>)">
+                                                <i class="fas fa-file-alt"></i> Cetak Nilai
+                                            </a></li>
+                                        </ul>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -179,6 +189,14 @@ try {
         window.open('../rapor/cetak_rapor.php?siswa=' + siswaId, '_blank');
     }
     
+    function cetakSampulSiswa(siswaId) {
+        window.open('../rapor/cetak_sampul.php?siswa=' + siswaId, '_blank');
+    }
+    
+    function cetakNilaiSiswa(siswaId) {
+        window.open('../rapor/cetak_nilai.php?siswa=' + siswaId, '_blank');
+    }
+    
     function cetakSemuaRapor() {
         var kelasId = <?php echo $kelas_id; ?>;
         window.open('../rapor/cetak_rapor.php?kelas=' + kelasId + '&semua=1', '_blank');
@@ -192,11 +210,6 @@ try {
     function cetakSampul() {
         var kelasId = <?php echo $kelas_id; ?>;
         window.open('../rapor/cetak_sampul.php?kelas=' + kelasId, '_blank');
-    }
-    
-    function cetakIdentitas() {
-        var kelasId = <?php echo $kelas_id; ?>;
-        window.open('../rapor/cetak_identitas.php?kelas=' + kelasId, '_blank');
     }
     
     function exportLeggerExcel() {
