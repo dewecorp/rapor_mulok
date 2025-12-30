@@ -37,10 +37,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // Redirect untuk mencegah resubmit dan refresh data
                     // Gunakan kelas_id dari form untuk redirect
                     $_SESSION['success_message'] = 'Data mengampu berhasil ditambahkan!';
-                    redirect(basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id, false);
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    exit();
                 } else {
                     $_SESSION['error_message'] = 'Gagal menambahkan data mengampu!';
-                    redirect(basename($_SERVER['PHP_SELF']) . '?kelas=' . $kelas_id, false);
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    exit();
                 }
             }
         } elseif ($_POST['action'] == 'delete') {
@@ -603,6 +611,8 @@ try {
         // Submit form untuk menambahkan data mengampu
         var form = document.createElement('form');
         form.method = 'POST';
+        // Gunakan path yang sama dengan halaman saat ini (mengampu.php)
+        form.action = window.location.pathname;
         form.innerHTML = '<input type="hidden" name="action" value="add">' +
                         '<input type="hidden" name="materi_mulok_id" value="' + materiId + '">' +
                         '<input type="hidden" name="guru_id" value="' + guruId + '">' +

@@ -447,8 +447,8 @@ try {
         $('#modalTitle').text('Tambah Kelas');
     });
     
-    // Load data untuk edit
-    <?php if ($edit_data): ?>
+    // Load data untuk edit (hanya jika tidak ada pesan sukses/error)
+    <?php if ($edit_data && empty($success) && empty($error)): ?>
     $(document).ready(function() {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
@@ -477,6 +477,14 @@ try {
         showConfirmButton: true
     }).then((result) => {
         if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+            // Tutup modal jika terbuka
+            var modalElement = document.getElementById('modalKelas');
+            if (modalElement) {
+                var modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
+            }
             // Hapus parameter edit dari URL jika ada
             if (window.location.search.includes('edit=')) {
                 window.location.href = 'kelas.php';

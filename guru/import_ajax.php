@@ -386,8 +386,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     $pendidikan = preg_replace('/[\x00-\x1F\x7F]/', '', $pendidikan);
                     $pendidikan = filter_var($pendidikan, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW);
                     
-                    $password = trim($row[6] ?? '123456');
-                    $password = preg_replace('/[\x00-\x1F\x7F]/', '', $password);
+                    // Baca password dari kolom 6 (index 6) - simpan apa adanya, kosong jika kosong
+                    $password = isset($row[6]) ? trim((string)$row[6]) : '';
+                    // Hapus karakter kontrol
+                    if ($password) {
+                        $password = preg_replace('/[\x00-\x1F\x7F]/', '', $password);
+                    }
                     
                     $role = trim($row[7] ?? 'guru');
                     $role = preg_replace('/[\x00-\x1F\x7F]/', '', $role);
@@ -437,9 +441,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                 $nuptk_clean = trim($row_data['nuptk']);
                 $username = $nuptk_clean; // Username sama dengan NUPTK
                 
-                // Hash password
-                $password = password_hash($row_data['password'], PASSWORD_DEFAULT);
-                
                 // Prepare data
                 $tempat_lahir_null = empty($row_data['tempat_lahir']) ? null : $row_data['tempat_lahir'];
                 $tanggal_lahir_null = empty($row_data['tanggal_lahir']) ? null : $row_data['tanggal_lahir'];
@@ -451,15 +452,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                 
                 try {
                     // Cek apakah NUPTK sudah ada
-                    $check_nuptk = $conn->prepare("SELECT id FROM pengguna WHERE nuptk = ?");
+                    $check_nuptk = $conn->prepare("SELECT id, password FROM pengguna WHERE nuptk = ?");
                     $check_nuptk->bind_param("s", $nuptk_clean);
                     $check_nuptk->execute();
                     $result_check = $check_nuptk->get_result();
                     
                     if ($result_check->num_rows > 0) {
-                        // Jika sudah ada, UPDATE (replace) data
+                        // Jika sudah ada, UPDATE (gunakan password yang ada di tabel jika password Excel kosong)
                         $existing_user = $result_check->fetch_assoc();
                         $user_id = $existing_user['id'];
+                        $existing_password = $existing_user['password'];
                         
                         // Jangan update jika user adalah proktor utama
                         $check_proktor = $conn->prepare("SELECT is_proktor_utama FROM pengguna WHERE id = ?");
@@ -474,6 +476,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             continue;
                         }
                         
+                        // Logika sederhana: SELALU update password jika ada di Excel (tanpa pengecekan)
+                        $password_excel = isset($row_data['password']) ? trim((string)$row_data['password']) : '';
+                        
+                        // SELALU update password jika ada nilai (tanpa pengecekan kompleks)
+                        if ($password_excel) {
+                            $password_to_use = password_hash($password_excel, PASSWORD_DEFAULT);
+                        } else {
+                            $password_to_use = $existing_password;
+                        }
+                        
                         // UPDATE data yang sudah ada
                         $foto_default = 'default.png';
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, password=?, foto=?, role=? WHERE nuptk=? AND is_proktor_utama=0");
@@ -484,7 +496,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             $tanggal_lahir_null,
                             $pendidikan_null,
                             $username,
-                            $password,
+                            $password_to_use,
                             $foto_default,
                             $role,
                             $nuptk_clean
@@ -500,6 +512,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                         }
                     } else {
                         // Jika belum ada, INSERT data baru
+                        // Hash password untuk data baru
+                        // Jika password kosong, gunakan default '123456' untuk sementara (nanti proktor akan ubah manual)
+                        if (!empty($row_data['password'])) {
+                            $password = password_hash($row_data['password'], PASSWORD_DEFAULT);
+                        } else {
+                            // Password kosong, gunakan default '123456' untuk sementara (nanti proktor akan ubah manual)
+                            $password = password_hash('123456', PASSWORD_DEFAULT);
+                        }
+                        
                         $foto_default = 'default.png';
                         $stmt = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                         $stmt->bind_param("ssssssssss", 

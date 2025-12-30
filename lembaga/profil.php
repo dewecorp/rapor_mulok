@@ -40,7 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Logo berhasil diperbarui!';
-            redirect(basename($_SERVER['PHP_SELF']), false);
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: profil.php');
+            exit();
         } else {
             $error = 'Gagal memperbarui logo!';
         }
@@ -59,7 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Info madrasah berhasil diperbarui!';
-            redirect(basename($_SERVER['PHP_SELF']), false);
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: profil.php');
+            exit();
         } else {
             $error = 'Gagal memperbarui info madrasah!';
         }
@@ -73,7 +81,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Data pimpinan berhasil diperbarui!';
-            redirect(basename($_SERVER['PHP_SELF']), false);
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: profil.php');
+            exit();
         } else {
             $error = 'Gagal memperbarui data pimpinan!';
         }
@@ -87,7 +99,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Pengaturan akademik berhasil diperbarui!';
-            redirect(basename($_SERVER['PHP_SELF']), false);
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: profil.php');
+            exit();
         } else {
             $error = 'Gagal memperbarui pengaturan akademik!';
         }

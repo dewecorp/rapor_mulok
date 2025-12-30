@@ -47,6 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                     
                     foreach ($rows as $row) {
                         if (count($row) >= 6 && !empty($row[0]) && !empty($row[5])) {
+                            // Baca password dari kolom 6 (index 6) - simpan apa adanya, kosong jika kosong
+                            $password = isset($row[6]) ? trim((string)$row[6]) : '';
+                            
                             $data[] = [
                                 'nama' => trim($row[0] ?? ''),
                                 'jenis_kelamin' => trim($row[1] ?? 'L'),
@@ -54,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                                 'tanggal_lahir' => trim($row[3] ?? ''),
                                 'pendidikan' => trim($row[4] ?? ''),
                                 'nuptk' => trim($row[5] ?? ''),
-                                'password' => trim($row[6] ?? '123456'),
+                                'password' => $password,
                                 'role' => trim($row[7] ?? 'guru')
                             ];
                         }
@@ -70,6 +73,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             
                             foreach ($rows as $row) {
                                 if (count($row) >= 6 && !empty($row[0]) && !empty($row[5])) {
+                                    // Baca password dari kolom 6 (index 6) - simpan apa adanya, kosong jika kosong
+                                    // Pastikan membaca dengan benar, handle null dan empty
+                                    $password_raw = isset($row[6]) ? $row[6] : null;
+                                    $password = ($password_raw !== null && $password_raw !== '') ? trim((string)$password_raw) : '';
+                                    
                                     $data[] = [
                                         'nama' => trim($row[0] ?? ''),
                                         'jenis_kelamin' => trim($row[1] ?? 'L'),
@@ -77,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                                         'tanggal_lahir' => trim($row[3] ?? ''),
                                         'pendidikan' => trim($row[4] ?? ''),
                                         'nuptk' => trim($row[5] ?? ''),
-                                        'password' => trim($row[6] ?? '123456'),
+                                        'password' => $password,
                                         'role' => trim($row[7] ?? 'guru')
                                     ];
                                 }
@@ -112,58 +120,111 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                         continue;
                     }
                     
-                    // Validasi NUPTK unik
-                    $check_nuptk = $conn->prepare("SELECT id FROM pengguna WHERE nuptk = ?");
+                    // Cek apakah NUPTK sudah ada
+                    $check_nuptk = $conn->prepare("SELECT id, password FROM pengguna WHERE nuptk = ?");
                     $check_nuptk->bind_param("s", $row_data['nuptk']);
                     $check_nuptk->execute();
                     $result_check = $check_nuptk->get_result();
                     
-                    if ($result_check->num_rows > 0) {
-                        $error_count++;
-                        $errors[] = "Baris $line: NUPTK '{$row_data['nuptk']}' sudah digunakan";
-                        continue;
-                    }
-                    
-                    // Validasi username unik (username = NUPTK)
+                    // Prepare data
                     $username = $row_data['nuptk'];
-                    $check_username = $conn->prepare("SELECT id FROM pengguna WHERE username = ?");
-                    $check_username->bind_param("s", $username);
-                    $check_username->execute();
-                    $result_check_username = $check_username->get_result();
-                    
-                    if ($result_check_username->num_rows > 0) {
-                        $error_count++;
-                        $errors[] = "Baris $line: Username/NUPTK '{$row_data['nuptk']}' sudah digunakan";
-                        continue;
-                    }
-                    
-                    // Hash password
-                    $password = password_hash($row_data['password'], PASSWORD_DEFAULT);
-                    
-                    // Insert data
                     $tempat_lahir_null = empty($row_data['tempat_lahir']) ? null : $row_data['tempat_lahir'];
                     $tanggal_lahir_null = empty($row_data['tanggal_lahir']) ? null : $row_data['tanggal_lahir'];
                     $pendidikan_null = empty($row_data['pendidikan']) ? null : $row_data['pendidikan'];
                     $role = in_array($row_data['role'], ['guru', 'wali_kelas', 'proktor']) ? $row_data['role'] : 'guru';
+                    $jenis_kelamin = in_array($row_data['jenis_kelamin'], ['L', 'P']) ? $row_data['jenis_kelamin'] : 'L';
                     
-                    $stmt = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'default.png', ?)");
-                    $stmt->bind_param("sssssssss", 
-                        $row_data['nama'],
-                        $row_data['jenis_kelamin'],
-                        $tempat_lahir_null,
-                        $tanggal_lahir_null,
-                        $pendidikan_null,
-                        $username,
-                        $row_data['nuptk'],
-                        $password,
-                        $role
-                    );
-                    
-                    if ($stmt->execute()) {
-                        $success_count++;
+                    if ($result_check->num_rows > 0) {
+                        // Jika sudah ada, UPDATE data (gunakan password yang ada di tabel jika password Excel kosong)
+                        $existing_user = $result_check->fetch_assoc();
+                        $user_id = $existing_user['id'];
+                        $existing_password = $existing_user['password'];
+                        
+                        // Cek apakah user adalah proktor utama (jangan update)
+                        $check_proktor = $conn->prepare("SELECT is_proktor_utama FROM pengguna WHERE id = ?");
+                        $check_proktor->bind_param("i", $user_id);
+                        $check_proktor->execute();
+                        $result_proktor = $check_proktor->get_result();
+                        $proktor_data = $result_proktor->fetch_assoc();
+                        
+                        if ($proktor_data && isset($proktor_data['is_proktor_utama']) && $proktor_data['is_proktor_utama'] == 1) {
+                            $error_count++;
+                            $errors[] = "Baris $line: Tidak dapat mengupdate proktor utama";
+                            continue;
+                        }
+                        
+                        // Logika sederhana: SELALU update password jika ada di Excel (tanpa pengecekan)
+                        $password_excel = isset($row_data['password']) ? trim((string)$row_data['password']) : '';
+                        
+                        // SELALU update password jika ada nilai (tanpa pengecekan kompleks)
+                        if ($password_excel) {
+                            $password_to_use = password_hash($password_excel, PASSWORD_DEFAULT);
+                        } else {
+                            $password_to_use = $existing_password;
+                        }
+                        
+                        // UPDATE data yang sudah ada
+                        $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, password=?, foto=?, role=? WHERE nuptk=?");
+                        $stmt->bind_param("ssssssssss", 
+                            $row_data['nama'],
+                            $jenis_kelamin,
+                            $tempat_lahir_null,
+                            $tanggal_lahir_null,
+                            $pendidikan_null,
+                            $username,
+                            $password_to_use,
+                            'default.png',
+                            $role,
+                            $row_data['nuptk']
+                        );
+                        
+                        if ($stmt->execute()) {
+                            $success_count++;
+                        } else {
+                            $error_count++;
+                            $errors[] = "Baris $line: Gagal mengupdate data - " . $stmt->error;
+                        }
                     } else {
-                        $error_count++;
-                        $errors[] = "Baris $line: " . $stmt->error;
+                        // Hash password untuk data baru
+                        // Jika password kosong, gunakan default '123456' untuk sementara (nanti proktor akan ubah manual)
+                        if (!empty($row_data['password'])) {
+                            $password = password_hash($row_data['password'], PASSWORD_DEFAULT);
+                        } else {
+                            // Password kosong, gunakan default '123456' untuk sementara (nanti proktor akan ubah manual)
+                            $password = password_hash('123456', PASSWORD_DEFAULT);
+                        }
+                        // Validasi username unik (username = NUPTK)
+                        $check_username = $conn->prepare("SELECT id FROM pengguna WHERE username = ?");
+                        $check_username->bind_param("s", $username);
+                        $check_username->execute();
+                        $result_check_username = $check_username->get_result();
+                        
+                        if ($result_check_username->num_rows > 0) {
+                            $error_count++;
+                            $errors[] = "Baris $line: Username/NUPTK '{$row_data['nuptk']}' sudah digunakan";
+                            continue;
+                        }
+                        
+                        // INSERT data baru
+                        $stmt = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'default.png', ?)");
+                        $stmt->bind_param("sssssssss", 
+                            $row_data['nama'],
+                            $jenis_kelamin,
+                            $tempat_lahir_null,
+                            $tanggal_lahir_null,
+                            $pendidikan_null,
+                            $username,
+                            $row_data['nuptk'],
+                            $password,
+                            $role
+                        );
+                        
+                        if ($stmt->execute()) {
+                            $success_count++;
+                        } else {
+                            $error_count++;
+                            $errors[] = "Baris $line: " . $stmt->error;
+                        }
                     }
                 }
                 
@@ -290,7 +351,7 @@ end:
                                 </tr>
                                 <tr>
                                     <td>7. Password</td>
-                                    <td>Password default (jika kosong akan menggunakan "123456")</td>
+                                    <td>Password (jika kosong akan menggunakan "123456" sementara, nanti diubah manual oleh proktor)</td>
                                     <td><span class="badge bg-warning">Opsional</span></td>
                                 </tr>
                                 <tr>
