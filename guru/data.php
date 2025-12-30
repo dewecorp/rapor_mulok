@@ -194,11 +194,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // Untuk guru: username = NUPTK (untuk login menggunakan NUPTK)
                     $username = $nuptk; // Username sama dengan NUPTK
                     
-                    if (!empty($_POST['password'])) {
-                        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+                    // Handle password update - jika password diisi, update password
+                    $password_input = trim($_POST['password'] ?? '');
+                    if (!empty($password_input)) {
+                        $password = password_hash($password_input, PASSWORD_DEFAULT);
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, password=?, foto=?, role=? WHERE id=?");
                         $stmt->bind_param("ssssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $foto, $role, $id);
                     } else {
+                        // Jika password kosong, tidak update password
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, foto=?, role=? WHERE id=?");
                         $stmt->bind_param("sssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $foto, $role, $id);
                     }
@@ -329,9 +332,11 @@ try {
         // Simpan data ke array untuk digunakan di view
         while ($row = $result->fetch_assoc()) {
             // Sanitize data dari database sebelum ditampilkan
+            // Jangan sanitize password karena mengandung karakter khusus untuk hash
             foreach ($row as $key => $value) {
-                if (is_string($value)) {
+                if (is_string($value) && $key !== 'password') {
                     // Hapus karakter kontrol dan karakter berbahaya
+                    // Skip password karena password hash mengandung karakter khusus
                     $row[$key] = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
                 }
             }
@@ -424,14 +429,34 @@ try {
                             <td><?php echo htmlspecialchars($row['nuptk'] ?? $row['username'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo !empty($row['wali_kelas_nama']) ? htmlspecialchars($row['wali_kelas_nama'], ENT_QUOTES, 'UTF-8') : '-'; ?></td>
                             <td>
-                                <span style="font-family: monospace; font-size: 0.9em; color: #333;">
-                                    <?php 
-                                    // Tampilkan password default sebagai teks
-                                    // Password default adalah "123456" untuk semua user baru
-                                    // Untuk user yang sudah ada, tampilkan "123456" (default reset)
-                                    echo htmlspecialchars('123456');
-                                    ?>
-                                </span>
+                                <?php 
+                                // Cek apakah password sudah diubah (bukan default)
+                                // Password yang sudah diubah akan ter-hash dengan password_hash()
+                                $password_hash = $row['password'] ?? '';
+                                
+                                // Cek apakah password adalah hash yang valid
+                                $is_valid_hash = !empty($password_hash) && (
+                                    (strlen($password_hash) == 60 && preg_match('/^\$2[ayb]\$.{56}$/', $password_hash)) || 
+                                    (strlen($password_hash) == 96 && preg_match('/^\$argon2i\$/', $password_hash)) ||
+                                    (strlen($password_hash) == 97 && preg_match('/^\$argon2id\$/', $password_hash))
+                                );
+                                
+                                if ($is_valid_hash) {
+                                    // Cek apakah password adalah hash dari "123456"
+                                    $is_default_password = password_verify('123456', $password_hash);
+                                    
+                                    if ($is_default_password) {
+                                        // Password masih default
+                                        echo '<span class="badge bg-secondary" title="Password default: 123456">123456</span>';
+                                    } else {
+                                        // Password sudah diubah
+                                        echo '<span class="badge bg-success" title="Password sudah diubah">••••••</span>';
+                                    }
+                                } else {
+                                    // Password tidak valid atau kosong
+                                    echo '<span class="badge bg-warning" title="Password tidak valid">-</span>';
+                                }
+                                ?>
                             </td>
                             <td>
                                 <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)" title="Reset Password">
@@ -505,7 +530,7 @@ try {
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Password <span class="text-danger" id="passwordRequired">*</span></label>
-                            <input type="text" class="form-control" name="password" id="password" placeholder="Default: 123456">
+                            <input type="password" class="form-control" name="password" id="password" placeholder="Masukkan password baru" autocomplete="new-password" value="">
                             <small class="text-muted" id="passwordHint">Kosongkan jika tidak ingin mengubah password (untuk edit)</small>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -700,6 +725,9 @@ try {
         $('#modalTitle').text('Tambah Data Guru');
         $('#passwordRequired').show();
         $('#passwordHint').hide();
+        $('#password').val(''); // Clear password field
+        $('#password').removeAttr('disabled'); // Ensure password field is enabled
+        $('#password').removeAttr('readonly'); // Ensure password field is not readonly
         $('#role').prop('disabled', false); // Enable untuk form add
         $('#roleHidden').val('guru'); // Default untuk form add
     });
@@ -712,7 +740,11 @@ try {
     });
     
     // Update hidden field saat form submit (untuk form edit yang disabled)
-    $('#formGuru').on('submit', function() {
+    $('#formGuru').on('submit', function(e) {
+        // Pastikan password field tidak disabled atau readonly
+        $('#password').removeAttr('disabled');
+        $('#password').removeAttr('readonly');
+        
         // Jika role disabled (form edit), gunakan nilai dari select yang disabled
         if ($('#role').prop('disabled')) {
             $('#roleHidden').val($('#role').val());
@@ -720,6 +752,9 @@ try {
             // Jika role enabled (form add), gunakan nilai dari select
             $('#roleHidden').val($('#role').val());
         }
+        
+        // Debug: log password value sebelum submit
+        console.log('Password value before submit:', $('#password').val());
     });
     
     // Reset tabel import saat modal import ditutup
@@ -752,6 +787,20 @@ try {
         $('#passwordRequired').hide();
         $('#passwordHint').show();
         $('#password').removeAttr('required');
+        $('#password').val(''); // Clear password field saat edit
+        $('#password').removeAttr('disabled'); // Ensure password field is enabled
+        $('#password').removeAttr('readonly'); // Ensure password field is not readonly
+        $('#password').prop('disabled', false); // Explicitly enable password field
+        $('#password').prop('readonly', false); // Explicitly make password field editable
+        $('#password').attr('placeholder', 'Masukkan password baru (kosongkan jika tidak ingin mengubah)');
+        
+        // Ensure password field is focusable and editable after modal is shown
+        $('#modalGuru').on('shown.bs.modal', function() {
+            $('#password').prop('disabled', false);
+            $('#password').prop('readonly', false);
+            $('#password').focus(); // Optional: focus on password field
+        });
+        
         $('#modalGuru').modal('show');
     });
     <?php endif; ?>

@@ -158,16 +158,35 @@ if ($role == 'proktor') {
         $total_siswa = 0;
     }
     
-    // Ambil materi yang diampu dengan JOIN yang benar
+    // Ambil semester aktif dari profil_madrasah
+    $semester_aktif = '1';
     try {
-        $query_materi = "SELECT mm.*, m.nama_mulok, k.nama_kelas 
+        $stmt_profil = $conn->query("SELECT semester_aktif FROM profil_madrasah LIMIT 1");
+        if ($stmt_profil && $stmt_profil->num_rows > 0) {
+            $profil_data = $stmt_profil->fetch_assoc();
+            $semester_aktif_raw = $profil_data['semester_aktif'] ?? '1';
+            // Normalisasi semester: jika "Semester I" atau "Semester 1" -> "1", jika "Semester II" atau "Semester 2" -> "2"
+            if (stripos($semester_aktif_raw, 'II') !== false || stripos($semester_aktif_raw, '2') !== false) {
+                $semester_aktif = '2';
+            } else {
+                $semester_aktif = '1';
+            }
+        }
+    } catch (Exception $e) {
+        // Use default value
+    }
+    
+    // Ambil materi yang diampu dengan JOIN yang benar dan filter berdasarkan semester aktif
+    // Filter berdasarkan semester aktif (format: "1" atau "2")
+    try {
+        $query_materi = "SELECT mm.*, m.nama_mulok, m.semester, k.nama_kelas 
                          FROM mengampu_materi mm 
                          INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id 
                          INNER JOIN kelas k ON mm.kelas_id = k.id 
-                         WHERE mm.guru_id = ?
+                         WHERE mm.guru_id = ? AND m.semester = ?
                          ORDER BY k.nama_kelas, m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
-        $stmt_materi->bind_param("i", $user_id);
+        $stmt_materi->bind_param("is", $user_id, $semester_aktif);
         $stmt_materi->execute();
         $materi_diampu = $stmt_materi->get_result();
     } catch (Exception $e) {
@@ -190,16 +209,35 @@ if ($role == 'proktor') {
         $guru_data = null;
     }
     
-    // Ambil materi yang diampu dengan JOIN yang benar
+    // Ambil semester aktif dari profil_madrasah
+    $semester_aktif = '1';
     try {
-        $query_materi = "SELECT mm.*, m.nama_mulok, k.nama_kelas 
+        $stmt_profil = $conn->query("SELECT semester_aktif FROM profil_madrasah LIMIT 1");
+        if ($stmt_profil && $stmt_profil->num_rows > 0) {
+            $profil_data = $stmt_profil->fetch_assoc();
+            $semester_aktif_raw = $profil_data['semester_aktif'] ?? '1';
+            // Normalisasi semester: jika "Semester I" atau "Semester 1" -> "1", jika "Semester II" atau "Semester 2" -> "2"
+            if (stripos($semester_aktif_raw, 'II') !== false || stripos($semester_aktif_raw, '2') !== false) {
+                $semester_aktif = '2';
+            } else {
+                $semester_aktif = '1';
+            }
+        }
+    } catch (Exception $e) {
+        // Use default value
+    }
+    
+    // Ambil materi yang diampu dengan JOIN yang benar dan filter berdasarkan semester aktif
+    // Filter berdasarkan semester aktif (format: "1" atau "2")
+    try {
+        $query_materi = "SELECT mm.*, m.nama_mulok, m.semester, k.nama_kelas 
                          FROM mengampu_materi mm 
                          INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id 
                          INNER JOIN kelas k ON mm.kelas_id = k.id 
-                         WHERE mm.guru_id = ?
+                         WHERE mm.guru_id = ? AND m.semester = ?
                          ORDER BY k.nama_kelas, m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
-        $stmt_materi->bind_param("i", $user_id);
+        $stmt_materi->bind_param("is", $user_id, $semester_aktif);
         $stmt_materi->execute();
         $materi_diampu = $stmt_materi->get_result();
     } catch (Exception $e) {
@@ -577,10 +615,6 @@ if ($role == 'proktor') {
                                     <td><?php echo htmlspecialchars($guru_data['nama'] ?? '-'); ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>NIP:</strong></td>
-                                    <td><?php echo htmlspecialchars($guru_data['nip'] ?? '-'); ?></td>
-                                </tr>
-                                <tr>
                                     <td><strong>NUPTK:</strong></td>
                                     <td><?php echo htmlspecialchars($guru_data['nuptk'] ?? '-'); ?></td>
                                 </tr>
@@ -592,18 +626,22 @@ if ($role == 'proktor') {
                                             $ttl .= htmlspecialchars($guru_data['tempat_lahir']);
                                         }
                                         if (!empty($guru_data['tanggal_lahir'])) {
-                                            $ttl .= ($ttl ? ', ' : '') . date('d F Y', strtotime($guru_data['tanggal_lahir']));
+                                            // Cek apakah tanggal_lahir valid
+                                            $tanggal_lahir = $guru_data['tanggal_lahir'];
+                                            $timestamp = strtotime($tanggal_lahir);
+                                            if ($timestamp !== false) {
+                                                $ttl .= ($ttl ? ', ' : '') . date('d F Y', $timestamp);
+                                            } else {
+                                                // Jika format tidak valid, tampilkan as is
+                                                $ttl .= ($ttl ? ', ' : '') . htmlspecialchars($tanggal_lahir);
+                                            }
                                         }
                                         echo $ttl ?: '-';
                                     ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Pendidikan:</strong></td>
-                                    <td><?php echo htmlspecialchars($guru_data['pendidikan_terakhir'] ?? '-'); ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Email:</strong></td>
-                                    <td><?php echo htmlspecialchars($guru_data['email'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($guru_data['pendidikan'] ?? '-'); ?></td>
                                 </tr>
                             </table>
                         </div>
@@ -658,14 +696,13 @@ if ($role == 'proktor') {
                                 </thead>
                                 <tbody>
                                     <?php 
-                                    // Ambil semester dan tahun ajaran
-                                    $semester = '1';
+                                    // Gunakan semester_aktif yang sudah diambil sebelumnya
+                                    $semester = $semester_aktif; // Gunakan semester_aktif yang sudah dinormalisasi ("1" atau "2")
                                     $tahun_ajaran = date('Y') . '/' . (date('Y') + 1);
                                     try {
-                                        $stmt_profil = $conn->query("SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1");
+                                        $stmt_profil = $conn->query("SELECT tahun_ajaran_aktif FROM profil_madrasah LIMIT 1");
                                         if ($stmt_profil && $stmt_profil->num_rows > 0) {
                                             $profil_data = $stmt_profil->fetch_assoc();
-                                            $semester = $profil_data['semester_aktif'] ?? '1';
                                             $tahun_ajaran = $profil_data['tahun_ajaran_aktif'] ?? $tahun_ajaran;
                                         }
                                     } catch (Exception $e) {
@@ -673,6 +710,7 @@ if ($role == 'proktor') {
                                     }
                                     
                                     // Simpan semua materi ke array dulu untuk menghindari multiple data_seek
+                                    // Materi sudah difilter di query SQL berdasarkan semester_aktif, jadi langsung simpan ke array
                                     $materi_list = [];
                                     if ($materi_diampu && $materi_diampu->num_rows > 0) {
                                         $materi_diampu->data_seek(0);
@@ -862,57 +900,6 @@ if ($role == 'proktor') {
                 });
             </script>
             
-            <?php
-            // Buat tabel dan ambil info aplikasi untuk wali kelas
-            $info_aplikasi_wk = '';
-            try {
-                // Buat tabel jika belum ada
-                $conn->query("CREATE TABLE IF NOT EXISTS `pengaturan_aplikasi` (
-                    `id` int(11) NOT NULL AUTO_INCREMENT,
-                    `info_aplikasi` text DEFAULT NULL,
-                    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    `updated_by` int(11) DEFAULT NULL,
-                    PRIMARY KEY (`id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                
-                // Cek apakah ada data, jika tidak insert default
-                $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
-                $count = $check ? $check->fetch_assoc()['total'] : 0;
-                if ($count == 0) {
-                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-                    $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
-                    $stmt->bind_param("s", $default_info);
-                    $stmt->execute();
-                }
-                
-                // Ambil info aplikasi
-                $result_info = $conn->query("SELECT info_aplikasi FROM pengaturan_aplikasi LIMIT 1");
-                if ($result_info && $result_info->num_rows > 0) {
-                    $info_data = $result_info->fetch_assoc();
-                    $info_aplikasi_wk = $info_data['info_aplikasi'] ?? '';
-                }
-            } catch (Exception $e) {
-                // Error, tetap tampilkan default
-                $info_aplikasi_wk = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-            }
-            ?>
-            
-            <div class="card mt-3">
-                <div class="card-header" style="background-color: #2d5016; color: white;">
-                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Info Aplikasi</h6>
-                </div>
-                <div class="card-body">
-                    <div class="info-aplikasi">
-                        <?php 
-                        if (!empty($info_aplikasi_wk)) {
-                            echo $info_aplikasi_wk; 
-                        } else {
-                            echo 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-                        }
-                        ?>
-                    </div>
-                </div>
-            </div>
             
         <?php elseif ($role == 'guru'): ?>
             <?php if ($success_message): ?>
@@ -998,10 +985,6 @@ if ($role == 'proktor') {
                                     <td><?php echo htmlspecialchars($guru_data['nama'] ?? '-'); ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>NIP:</strong></td>
-                                    <td><?php echo htmlspecialchars($guru_data['nip'] ?? '-'); ?></td>
-                                </tr>
-                                <tr>
                                     <td><strong>NUPTK:</strong></td>
                                     <td><?php echo htmlspecialchars($guru_data['nuptk'] ?? '-'); ?></td>
                                 </tr>
@@ -1013,18 +996,22 @@ if ($role == 'proktor') {
                                             $ttl .= htmlspecialchars($guru_data['tempat_lahir']);
                                         }
                                         if (!empty($guru_data['tanggal_lahir'])) {
-                                            $ttl .= ($ttl ? ', ' : '') . date('d F Y', strtotime($guru_data['tanggal_lahir']));
+                                            // Cek apakah tanggal_lahir valid
+                                            $tanggal_lahir = $guru_data['tanggal_lahir'];
+                                            $timestamp = strtotime($tanggal_lahir);
+                                            if ($timestamp !== false) {
+                                                $ttl .= ($ttl ? ', ' : '') . date('d F Y', $timestamp);
+                                            } else {
+                                                // Jika format tidak valid, tampilkan as is
+                                                $ttl .= ($ttl ? ', ' : '') . htmlspecialchars($tanggal_lahir);
+                                            }
                                         }
                                         echo $ttl ?: '-';
                                     ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Pendidikan:</strong></td>
-                                    <td><?php echo htmlspecialchars($guru_data['pendidikan_terakhir'] ?? '-'); ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Email:</strong></td>
-                                    <td><?php echo htmlspecialchars($guru_data['email'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($guru_data['pendidikan'] ?? '-'); ?></td>
                                 </tr>
                             </table>
                         </div>
@@ -1050,14 +1037,13 @@ if ($role == 'proktor') {
                                 </thead>
                                 <tbody>
                                     <?php 
-                                    // Ambil semester dan tahun ajaran
-                                    $semester = '1';
+                                    // Gunakan semester_aktif yang sudah diambil sebelumnya
+                                    $semester = $semester_aktif; // Gunakan semester_aktif yang sudah dinormalisasi ("1" atau "2")
                                     $tahun_ajaran = date('Y') . '/' . (date('Y') + 1);
                                     try {
-                                        $stmt_profil = $conn->query("SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1");
+                                        $stmt_profil = $conn->query("SELECT tahun_ajaran_aktif FROM profil_madrasah LIMIT 1");
                                         if ($stmt_profil && $stmt_profil->num_rows > 0) {
                                             $profil_data = $stmt_profil->fetch_assoc();
-                                            $semester = $profil_data['semester_aktif'] ?? '1';
                                             $tahun_ajaran = $profil_data['tahun_ajaran_aktif'] ?? $tahun_ajaran;
                                         }
                                     } catch (Exception $e) {
@@ -1065,6 +1051,7 @@ if ($role == 'proktor') {
                                     }
                                     
                                     // Simpan semua materi ke array dulu untuk menghindari multiple data_seek
+                                    // Materi sudah difilter di query SQL berdasarkan semester_aktif, jadi langsung simpan ke array
                                     $materi_list = [];
                                     if ($materi_diampu && $materi_diampu->num_rows > 0) {
                                         $materi_diampu->data_seek(0);
@@ -1289,22 +1276,6 @@ if ($role == 'proktor') {
             }
             ?>
             
-            <div class="card mt-3">
-                <div class="card-header" style="background-color: #2d5016; color: white;">
-                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Info Aplikasi</h6>
-                </div>
-                <div class="card-body">
-                    <div class="info-aplikasi">
-                        <?php 
-                        if (!empty($info_aplikasi_guru)) {
-                            echo $info_aplikasi_guru; 
-                        } else {
-                            echo 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-                        }
-                        ?>
-                    </div>
-                </div>
-            </div>
         <?php endif; ?>
     </div>
 </div>

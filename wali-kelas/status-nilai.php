@@ -25,7 +25,13 @@ try {
     $query_profil = "SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1";
     $result_profil = $conn->query($query_profil);
     $profil = $result_profil ? $result_profil->fetch_assoc() : null;
-    $semester = $profil['semester_aktif'] ?? '1';
+    $semester_raw = $profil['semester_aktif'] ?? '1';
+    // Normalisasi semester: jika "Semester I" atau "Semester 1" -> "1", jika "Semester II" atau "Semester 2" -> "2"
+    if (stripos($semester_raw, 'II') !== false || stripos($semester_raw, '2') !== false) {
+        $semester = '2';
+    } else {
+        $semester = '1';
+    }
     $tahun_ajaran = $profil['tahun_ajaran_aktif'] ?? '';
 } catch (Exception $e) {
     $kelas_data = null;
@@ -56,14 +62,15 @@ if ($kelas_id > 0) {
         
         // Ambil materi yang diampu di kelas ini beserta guru yang mengampu
         // PASTIKAN hanya mengambil materi yang diampu di kelas wali kelas ini saja (kelas_id = kelas wali kelas)
-        $query_materi = "SELECT mm.materi_mulok_id, mm.guru_id, m.nama_mulok, p.nama as nama_guru
+        // DAN hanya materi pada semester aktif
+        $query_materi = "SELECT mm.materi_mulok_id, mm.guru_id, m.nama_mulok, m.semester, p.nama as nama_guru
                          FROM mengampu_materi mm
                          INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
-                         WHERE mm.kelas_id = ?
+                         WHERE mm.kelas_id = ? AND m.semester = ?
                          ORDER BY m.nama_mulok ASC";
         $stmt_materi = $conn->prepare($query_materi);
-        $stmt_materi->bind_param("i", $kelas_id);
+        $stmt_materi->bind_param("is", $kelas_id, $semester);
         $stmt_materi->execute();
         $materi_result = $stmt_materi->get_result();
         

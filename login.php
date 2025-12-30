@@ -134,7 +134,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Verifikasi hasil query
             if ($user) {
                 // Verifikasi password
-                if (password_verify($password, $user['password'])) {
+                $db_password = $user['password'];
+                
+                // Debug: log untuk melihat password di database
+                error_log("Login attempt - Username: {$username}, Password length in DB: " . strlen($db_password) . ", Password starts with: " . substr($db_password, 0, 10));
+                
+                // Cek apakah password di database adalah hash yang valid
+                $is_password_hash = (strlen($db_password) == 60 && preg_match('/^\$2[ayb]\$.{56}$/', $db_password)) || 
+                                    (strlen($db_password) == 96 && preg_match('/^\$argon2i\$/', $db_password)) ||
+                                    (strlen($db_password) == 97 && preg_match('/^\$argon2id\$/', $db_password));
+                
+                error_log("Login attempt - Is password hash: " . ($is_password_hash ? 'YES' : 'NO'));
+                
+                if ($is_password_hash && password_verify($password, $db_password)) {
+                    error_log("Login success - Password verified");
                     // Set session
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['username'] = $user['username'];
@@ -194,8 +207,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                     exit();
                 } else {
+                    error_log("Login attempt - Password verify failed, checking old formats");
                     // Cek apakah password menggunakan hash lama (md5 atau plain)
                     if ($user['password'] === md5($password) || $user['password'] === $password) {
+                        error_log("Login attempt - Password matches old format (md5 or plain), updating to hash");
                         // Update ke password_hash yang baru
                         $new_hash = password_hash($password, PASSWORD_DEFAULT);
                         $update_stmt = $conn->prepare("UPDATE pengguna SET password = ? WHERE id = ?");

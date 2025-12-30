@@ -71,7 +71,7 @@ if ($user && $user['role'] == 'wali_kelas') {
                                 FROM mengampu_materi mm
                                 INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                                 INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                WHERE mm.guru_id = ? AND m.semester = ?
                                 GROUP BY m.id, mm.kelas_id, k.nama_kelas
                                 ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
             } else {
@@ -89,7 +89,7 @@ if ($user && $user['role'] == 'wali_kelas') {
                                 FROM mengampu_materi mm
                                 INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                                 INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                WHERE mm.guru_id = ? AND m.semester = ?
                                 GROUP BY m.id, mm.kelas_id, k.nama_kelas
                                 ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
             } else {
@@ -163,7 +163,7 @@ if ($user && $user['role'] == 'guru') {
                                 FROM mengampu_materi mm
                                 INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                                 INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                WHERE mm.guru_id = ? AND m.semester = ?
                                 GROUP BY m.id, mm.kelas_id, k.nama_kelas
                                 ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
             } else {
@@ -181,7 +181,7 @@ if ($user && $user['role'] == 'guru') {
                                 FROM mengampu_materi mm
                                 INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                                 INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND (m.semester = ? OR m.semester IS NULL)
+                                WHERE mm.guru_id = ? AND m.semester = ?
                                 GROUP BY m.id, mm.kelas_id, k.nama_kelas
                                 ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
             } else {

@@ -181,12 +181,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                             $row_data['nuptk']
                         );
                         
-                        if (!$stmt->execute()) {
-                            $error_count++;
-                            $errors[] = "Baris $line: Error execute UPDATE - " . $stmt->error;
-                            continue;
-                        }
-                        
                         if ($stmt->execute()) {
                             $success_count++;
                         } else {
