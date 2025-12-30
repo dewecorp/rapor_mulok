@@ -1,7 +1,7 @@
 <?php
 require_once '../config/config.php';
 require_once '../config/database.php';
-requireRole('wali_kelas');
+requireRole('guru');
 
 $conn = getConnection();
 $user_id = $_SESSION['user_id'];
@@ -31,25 +31,20 @@ function hitungPredikat($nilai) {
     return '-';
 }
 
-// Fungsi untuk menghitung deskripsi berdasarkan predikat, kategori, dan nama materi
-function hitungDeskripsi($predikat, $kategori, $nama_materi) {
+// Fungsi untuk menghitung deskripsi berdasarkan predikat dan nama materi
+function hitungDeskripsi($predikat, $nama_materi) {
     if (empty($predikat) || $predikat == '-') return '-';
-    
-    // Gabungkan kategori dan nama materi
-    $kategori_display = !empty($kategori) ? trim($kategori) . ' ' : '';
-    $materi_display = trim($nama_materi);
-    $full_materi = trim($kategori_display . $materi_display);
     
     // Gunakan nama materi sesuai dengan data (tidak lowercase)
     switch ($predikat) {
         case 'A':
-            return 'Sangat baik dalam ' . $full_materi;
+            return 'Sangat baik dalam ' . $nama_materi;
         case 'B':
-            return 'Baik dalam ' . $full_materi;
+            return 'Baik dalam ' . $nama_materi;
         case 'C':
-            return 'Cukup dalam ' . $full_materi;
+            return 'Cukup dalam ' . $nama_materi;
         case 'D':
-            return 'Kurang dalam ' . $full_materi;
+            return 'Kurang dalam ' . $nama_materi;
         default:
             return '-';
     }
@@ -290,20 +285,9 @@ try {
     $tahun_ajaran = '';
 }
 
-// Ambil data kelas yang diampu oleh wali kelas
+// Guru tidak punya kelas sendiri, kelas diambil dari materi yang diampu
 $kelas_data = null;
 $kelas_id = 0;
-try {
-    $stmt_kelas = $conn->prepare("SELECT * FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
-    $stmt_kelas->bind_param("i", $user_id);
-    $stmt_kelas->execute();
-    $result_kelas = $stmt_kelas->get_result();
-    $kelas_data = $result_kelas ? $result_kelas->fetch_assoc() : null;
-    $kelas_id = $kelas_data['id'] ?? 0;
-} catch (Exception $e) {
-    $kelas_data = null;
-    $kelas_id = 0;
-}
 
 // Ambil materi yang diampu jika materi_id belum dipilih
 $materi_list = [];
@@ -412,26 +396,12 @@ if ($materi_id > 0) {
         if ($materi_data) {
             $kelas_id_for_materi = $materi_data['kelas_id'] ?? 0;
             
-            // Jika kelas_id dari mengampu_materi tidak ada, gunakan kelas_id dari wali_kelas
-            if (!$kelas_id_for_materi && $kelas_id) {
-                $kelas_id_for_materi = $kelas_id;
-            }
-            
             // Ambil siswa di kelas (pastikan selalu mengambil siswa jika kelas_id ada)
             if ($kelas_id_for_materi > 0) {
                 $stmt_siswa = $conn->prepare("SELECT * FROM siswa WHERE kelas_id = ? ORDER BY nama");
                 $stmt_siswa->bind_param("i", $kelas_id_for_materi);
                 $stmt_siswa->execute();
                 $siswa_list = $stmt_siswa->get_result();
-            } else {
-                // Jika tidak ada kelas_id, coba ambil dari kelas wali_kelas
-                if ($kelas_id > 0) {
-                    $stmt_siswa = $conn->prepare("SELECT * FROM siswa WHERE kelas_id = ? ORDER BY nama");
-                    $stmt_siswa->bind_param("i", $kelas_id);
-                    $stmt_siswa->execute();
-                    $siswa_list = $stmt_siswa->get_result();
-                    $kelas_id_for_materi = $kelas_id;
-                }
             }
         }
         
@@ -491,7 +461,7 @@ if ($materi_id > 0) {
         <h5 class="mb-0">
             <i class="fas fa-clipboard-check"></i> 
             <?php if ($materi_data): ?>
-                Nilai <?php echo htmlspecialchars($materi_data['nama_mulok']); ?> <?php echo htmlspecialchars($materi_data['nama_kelas'] ?? $kelas_data['nama_kelas'] ?? ''); ?>
+                Nilai <?php echo htmlspecialchars($materi_data['nama_mulok']); ?> <?php echo htmlspecialchars($materi_data['nama_kelas'] ?? ''); ?>
             <?php else: ?>
                 Penilaian
             <?php endif; ?>
@@ -563,13 +533,12 @@ if ($materi_id > 0) {
                                         $predikat_value = hitungPredikat($nilai_value);
                                     }
                                     
-                                    // Hitung deskripsi jika belum ada - gunakan kategori dan nama_mulok langsung dari database tanpa modifikasi
+                                    // Hitung deskripsi jika belum ada - gunakan nama_mulok langsung dari database tanpa modifikasi
                                     if (empty($deskripsi_value) && !empty($predikat_value) && $predikat_value != '-') {
-                                        // Ambil kategori dan nama_mulok langsung dari materi_data tanpa modifikasi apapun (termasuk case)
+                                        // Ambil nama_mulok langsung dari materi_data tanpa modifikasi apapun (termasuk case)
                                         // Pastikan menggunakan string cast untuk mempertahankan case
-                                        $kategori_display = isset($materi_data['kategori']) ? (string)$materi_data['kategori'] : '';
                                         $nama_materi_display = isset($materi_data['nama_mulok']) ? (string)$materi_data['nama_mulok'] : '';
-                                        $deskripsi_value = hitungDeskripsi($predikat_value, $kategori_display, $nama_materi_display);
+                                        $deskripsi_value = hitungDeskripsi($predikat_value, $nama_materi_display);
                                     }
                                 ?>
                                     <tr>
@@ -741,7 +710,7 @@ if ($materi_id > 0) {
     const kelasNamaNilai = '<?php echo htmlspecialchars($materi_data['nama_kelas'] ?? $kelas_nama_filter ?? '', ENT_QUOTES); ?>';
     
     function downloadTemplateNilai() {
-        const url = 'template_nilai.php?materi_id=' + materiIdNilai + '&kelas_nama=' + encodeURIComponent(kelasNamaNilai);
+        const url = '../wali-kelas/template_nilai.php?materi_id=' + materiIdNilai + '&kelas_nama=' + encodeURIComponent(kelasNamaNilai);
         window.location.href = url;
     }
     
@@ -844,7 +813,7 @@ if ($materi_id > 0) {
         statusBadge.html('<span class="badge bg-info">Mengupload...</span>');
         
         $.ajax({
-            url: 'import_nilai_ajax.php',
+            url: '../wali-kelas/import_nilai_ajax.php',
             type: 'POST',
             data: formData,
             processData: false,

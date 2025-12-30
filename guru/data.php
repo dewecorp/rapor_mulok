@@ -129,6 +129,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } elseif ($id <= 0) {
                 $error = 'ID tidak valid!';
             } else {
+                // Ambil data lama untuk cek role sebelumnya
+                $role_lama = null;
+                try {
+                    $stmt_role = $conn->prepare("SELECT role FROM pengguna WHERE id = ?");
+                    $stmt_role->bind_param("i", $id);
+                    $stmt_role->execute();
+                    $result_role = $stmt_role->get_result();
+                    $role_data = $result_role->fetch_assoc();
+                    $role_lama = $role_data ? $role_data['role'] : null;
+                } catch (Exception $e) {
+                    $role_lama = null;
+                }
+                
                 // Ambil foto lama
                 try {
                     $stmt_foto = $conn->prepare("SELECT foto FROM pengguna WHERE id = ?");
@@ -177,9 +190,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                     
                     if ($stmt->execute()) {
+                        // Jika role diubah dari wali_kelas ke guru, hapus wali_kelas_id dari kelas
+                        if ($role_lama == 'wali_kelas' && $role == 'guru') {
+                            try {
+                                $update_kelas = $conn->prepare("UPDATE kelas SET wali_kelas_id = NULL WHERE wali_kelas_id = ?");
+                                $update_kelas->bind_param("i", $id);
+                                $update_kelas->execute();
+                            } catch (Exception $e) {
+                                // Log error tapi jangan gagalkan update
+                                error_log("Error updating kelas wali_kelas_id: " . $e->getMessage());
+                            }
+                        }
+                        
                         // Redirect untuk mencegah resubmit dan refresh data
                         $_SESSION['success_message'] = 'Data guru berhasil diperbarui!';
-                        redirect(basename($_SERVER['PHP_SELF']), false);
+                        header('Location: data.php');
+                        exit();
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -252,7 +278,11 @@ $result = null;
 $guru_data = [];
 try {
     $query = "SELECT p.*, 
-              (SELECT nama_kelas FROM kelas WHERE wali_kelas_id = p.id LIMIT 1) as wali_kelas_nama
+              CASE 
+                  WHEN p.role = 'wali_kelas' THEN 
+                      (SELECT nama_kelas FROM kelas WHERE wali_kelas_id = p.id LIMIT 1)
+                  ELSE NULL
+              END as wali_kelas_nama
               FROM pengguna p 
               WHERE p.role IN ('guru', 'wali_kelas')
               ORDER BY p.nama";
@@ -349,7 +379,7 @@ try {
                             <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?><?php echo ($row['tempat_lahir'] ?? '') && ($row['tanggal_lahir'] ?? '') ? ', ' : ''; ?><?php echo $row['tanggal_lahir'] ? htmlspecialchars(date('d/m/Y', strtotime($row['tanggal_lahir']))) : ''; ?></td>
                             <td><?php echo htmlspecialchars($row['pendidikan'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($row['nuptk'] ?? $row['username'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo htmlspecialchars($row['wali_kelas_nama'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo ($row['role'] == 'wali_kelas' && !empty($row['wali_kelas_nama'])) ? htmlspecialchars($row['wali_kelas_nama'], ENT_QUOTES, 'UTF-8') : '-'; ?></td>
                             <td>
                                 <span style="font-family: monospace; font-size: 0.9em; color: #333;">
                                     <?php 

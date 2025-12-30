@@ -30,16 +30,16 @@ if ($user && $user['role'] == 'wali_kelas') {
         $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
         $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
         
-        // Ambil semua kombinasi materi-kelas (tanpa DISTINCT agar setiap kombinasi muncul)
+        // Ambil semua kombinasi materi-kelas dengan DISTINCT berdasarkan materi_id dan kelas_id
         if ($has_kelas_id) {
-            $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
                             FROM mengampu_materi mm
                             INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                             INNER JOIN kelas k ON mm.kelas_id = k.id
                             WHERE mm.guru_id = ?
                             ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
         } else {
-            $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
                             FROM mengampu_materi mm
                             INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                             INNER JOIN kelas k ON mm.kelas_id = k.id
@@ -57,6 +57,51 @@ if ($user && $user['role'] == 'wali_kelas') {
         }
     } catch (Exception $e) {
         $materi_diampu_wali = [];
+    }
+}
+
+// Ambil materi mulok yang diampu oleh guru (jika role adalah guru)
+$materi_diampu_guru = [];
+if ($user && $user['role'] == 'guru') {
+    try {
+        // Cek kolom kategori
+        $use_kategori = false;
+        $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+        $use_kategori = ($check_column && $check_column->num_rows > 0);
+        $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
+        
+        // Cek kolom kelas_id
+        $has_kelas_id = false;
+        $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
+        $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
+        
+        // Ambil semua kombinasi materi-kelas dengan DISTINCT berdasarkan materi_id dan kelas_id
+        if ($has_kelas_id) {
+            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                            FROM mengampu_materi mm
+                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                            INNER JOIN kelas k ON mm.kelas_id = k.id
+                            WHERE mm.guru_id = ?
+                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+        } else {
+            $query_materi = "SELECT DISTINCT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
+                            FROM mengampu_materi mm
+                            INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                            INNER JOIN kelas k ON mm.kelas_id = k.id
+                            WHERE mm.guru_id = ?
+                            ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
+        }
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("i", $user_id);
+        $stmt_materi->execute();
+        $result_materi = $stmt_materi->get_result();
+        if ($result_materi) {
+            while ($row = $result_materi->fetch_assoc()) {
+                $materi_diampu_guru[] = $row;
+            }
+        }
+    } catch (Exception $e) {
+        $materi_diampu_guru = [];
     }
 }
 
@@ -792,11 +837,6 @@ $basePath = getBasePath();
                 <div id="datetime"></div>
             </div>
             <div class="ms-auto d-flex align-items-center">
-                <?php if ($user && $user['role'] == 'wali_kelas'): ?>
-                    <a href="<?php echo $basePath; ?>wali-kelas/penilaian.php" class="btn btn-light btn-sm me-2" style="white-space: nowrap;">
-                        <i class="fas fa-clipboard-check"></i> Penilaian
-                    </a>
-                <?php endif; ?>
                 <div class="user-info">
                     <div class="user-details">
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
@@ -830,7 +870,7 @@ $basePath = getBasePath();
     
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-3 col-lg-2 sidebar p-0">
+            <div class="col-md-3 col-lg-2 sidebar p-0" style="max-width: 220px;">
                 <nav class="nav flex-column mt-3">
                     <?php if ($user['role'] == 'proktor'): ?>
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
@@ -926,11 +966,8 @@ $basePath = getBasePath();
                                 $materi_nama_safe = htmlspecialchars($materi['nama_mulok']);
                                 $kelas_nama_safe = htmlspecialchars($materi['nama_kelas'] ?? '');
                             ?>
-                                <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/penilaian.php?materi_id=<?php echo $materi_id_safe; ?>&kelas_nama=<?php echo urlencode($kelas_nama_safe); ?>">
-                                    <i class="fas fa-book"></i> <?php echo $materi_nama_safe; ?>
-                                    <?php if ($kelas_nama_safe): ?>
-                                        <span class="badge bg-secondary ms-1"><?php echo $kelas_nama_safe; ?></span>
-                                    <?php endif; ?>
+                                <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php?materi_id=<?php echo $materi_id_safe; ?>&kelas_nama=<?php echo urlencode($kelas_nama_safe); ?>" style="font-size: 0.85rem;">
+                                    <i class="fas fa-book"></i> <span style="font-size: 0.9em;"><?php echo $materi_nama_safe; ?><?php if ($kelas_nama_safe): ?><span class="badge bg-info ms-1" style="font-size: 0.7em; padding: 0.2em 0.5em; vertical-align: middle; font-weight: 600;"><?php echo $kelas_nama_safe; ?></span><?php endif; ?></span>
                                 </a>
                             <?php endforeach; ?>
                         <?php else: ?>
@@ -956,9 +993,39 @@ $basePath = getBasePath();
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
-                            <i class="fas fa-book"></i> Materi yang Diampu
-                        </a>
+                        <?php if (count($materi_diampu_guru) > 0): ?>
+                            <?php 
+                            // Group by kombinasi materi_id dan kelas_id untuk menghindari duplikasi
+                            $materi_grouped_guru = [];
+                            foreach ($materi_diampu_guru as $materi) {
+                                $key = $materi['id'] . '_' . ($materi['kelas_id'] ?? '') . '_' . ($materi['nama_kelas'] ?? '');
+                                if (!isset($materi_grouped_guru[$key])) {
+                                    $materi_grouped_guru[$key] = $materi;
+                                }
+                            }
+                            // Sort by kelas, then by nama materi
+                            usort($materi_grouped_guru, function($a, $b) {
+                                $kelas_a = $a['nama_kelas'] ?? '';
+                                $kelas_b = $b['nama_kelas'] ?? '';
+                                if ($kelas_a != $kelas_b) {
+                                    return strcmp($kelas_a, $kelas_b);
+                                }
+                                return strcmp($a['nama_mulok'] ?? '', $b['nama_mulok'] ?? '');
+                            });
+                            foreach ($materi_grouped_guru as $materi): 
+                                $materi_id_safe = htmlspecialchars($materi['id']);
+                                $materi_nama_safe = htmlspecialchars($materi['nama_mulok']);
+                                $kelas_nama_safe = htmlspecialchars($materi['nama_kelas'] ?? '');
+                            ?>
+                                <a class="nav-link" href="<?php echo $basePath; ?>guru/materi.php?materi_id=<?php echo $materi_id_safe; ?>&kelas_nama=<?php echo urlencode($kelas_nama_safe); ?>" style="font-size: 0.85rem;">
+                                    <i class="fas fa-book"></i> <span style="font-size: 0.9em;"><?php echo $materi_nama_safe; ?><?php if ($kelas_nama_safe): ?><span class="badge bg-info ms-1" style="font-size: 0.7em; padding: 0.2em 0.5em; vertical-align: middle; font-weight: 600;"><?php echo $kelas_nama_safe; ?></span><?php endif; ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
+                                <i class="fas fa-book"></i> Materi yang Diampu
+                            </a>
+                        <?php endif; ?>
                     <?php endif; ?>
                     <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout

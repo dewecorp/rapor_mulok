@@ -31,24 +31,36 @@ try {
     if (!empty($kelas_filter) && $kelas_filter !== '') {
         $kelas_id = intval($kelas_filter);
         
-        $query = "SELECT s.*, k.nama_kelas
-                  FROM siswa s
-                  LEFT JOIN kelas k ON s.kelas_id = k.id
-                  WHERE s.kelas_id = ?
-                  ORDER BY s.nama";
-        
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $kelas_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $siswa_data[] = $row;
+        // Pastikan kelas_id valid
+        if ($kelas_id > 0) {
+            $query = "SELECT s.*, k.nama_kelas
+                      FROM siswa s
+                      LEFT JOIN kelas k ON s.kelas_id = k.id
+                      WHERE s.kelas_id = ?
+                      ORDER BY s.nama ASC";
+            
+            $stmt = $conn->prepare($query);
+            if ($stmt) {
+                $stmt->bind_param("i", $kelas_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                if ($result) {
+                    while ($row = $result->fetch_assoc()) {
+                        // Pastikan data siswa valid sebelum ditambahkan
+                        if (isset($row['id']) && $row['id'] > 0) {
+                            $siswa_data[] = $row;
+                        }
+                    }
+                }
+                
+                $stmt->close();
+            } else {
+                $error = 'Error preparing statement: ' . $conn->error;
             }
+        } else {
+            $error = 'Kelas ID tidak valid';
         }
-        
-        $stmt->close();
     } else {
         // Jika kelas belum dipilih, tidak tampilkan data (tabel kosong)
         $result = null;
@@ -141,15 +153,23 @@ try {
                             $siswa_id = isset($row['id']) ? intval($row['id']) : 0;
                             $nama_siswa = trim($row['nama'] ?? '');
                             
-                            // Skip hanya jika ID tidak valid atau nama kosong
-                            if ($siswa_id <= 0 || empty($nama_siswa)) {
+                            // Skip hanya jika ID tidak valid
+                            if ($siswa_id <= 0) {
                                 continue;
                             }
                             
-                            // Skip jika nama persis sama dengan Administrator, Admin, atau Proktor
-                            $nama_lower = strtolower($nama_siswa);
-                            if ($nama_lower === 'administrator' || $nama_lower === 'admin' || $nama_lower === 'proktor') {
-                                continue;
+                            // Skip jika nama kosong atau sama dengan Administrator, Admin, atau Proktor
+                            if (!empty($nama_siswa)) {
+                                $nama_lower = strtolower($nama_siswa);
+                                if ($nama_lower === 'administrator' || $nama_lower === 'admin' || $nama_lower === 'proktor') {
+                                    continue;
+                                }
+                            }
+                            
+                            // Tampilkan siswa meskipun nama kosong (untuk debugging)
+                            // Jika nama kosong, tampilkan placeholder
+                            if (empty($nama_siswa)) {
+                                $nama_siswa = '[Nama tidak tersedia]';
                             }
                     ?>
                         <tr>

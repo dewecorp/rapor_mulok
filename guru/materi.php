@@ -1,7 +1,7 @@
 <?php
 require_once '../config/config.php';
 require_once '../config/database.php';
-requireRole('wali_kelas');
+requireRole('guru');
 
 $conn = getConnection();
 $user_id = $_SESSION['user_id'];
@@ -28,7 +28,7 @@ try {
     $has_kelas_id = false;
 }
 
-// Ambil data wali kelas
+// Ambil data guru
 $guru_data = null;
 try {
     $stmt_guru = $conn->prepare("SELECT * FROM pengguna WHERE id = ?");
@@ -38,18 +38,6 @@ try {
     $guru_data = $result_guru ? $result_guru->fetch_assoc() : null;
 } catch (Exception $e) {
     $guru_data = null;
-}
-
-// Ambil data kelas yang diampu
-$kelas_data = null;
-try {
-    $stmt_kelas = $conn->prepare("SELECT * FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
-    $stmt_kelas->bind_param("i", $user_id);
-    $stmt_kelas->execute();
-    $result_kelas = $stmt_kelas->get_result();
-    $kelas_data = $result_kelas ? $result_kelas->fetch_assoc() : null;
-} catch (Exception $e) {
-    $kelas_data = null;
 }
 
 // Ambil data materi yang dipilih
@@ -131,7 +119,7 @@ function getBadgeColor($kategori) {
     return 'bg-secondary';
 }
 
-// Ambil materi yang diampu oleh wali kelas ini
+// Ambil materi yang diampu oleh guru ini
 $result = null;
 try {
     if ($has_kelas_id) {
@@ -163,7 +151,7 @@ try {
 <?php include '../includes/header.php'; ?>
 
 <?php if ($materi_id > 0 && $materi_data): ?>
-    <!-- Box Wali Kelas -->
+    <!-- Box Guru -->
     <div class="row mb-3">
         <div class="col-md-4">
             <div class="card">
@@ -172,7 +160,7 @@ try {
                         <i class="fas fa-chalkboard-teacher fa-5x text-primary"></i>
                     </div>
                     <h5 class="mb-1"><?php echo htmlspecialchars($materi_data['nama_kelas'] ?? '-'); ?></h5>
-                    <p class="text-muted mb-2">Wali Kelas</p>
+                    <p class="text-muted mb-2">Guru</p>
                     <h6 class="mb-0"><?php echo htmlspecialchars($guru_data['nama'] ?? '-'); ?></h6>
                 </div>
             </div>
@@ -223,18 +211,18 @@ try {
             </a>
         </div>
         <div class="card-body">
-            <?php if ($siswa_list && $siswa_list->num_rows > 0): ?>
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped" id="tableSiswa">
-                        <thead>
-                            <tr>
-                                <th width="50">No</th>
-                                <th>NISN</th>
-                                <th>Nama</th>
-                                <th>L/P</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="tableSiswa">
+                    <thead>
+                        <tr>
+                            <th width="50">No</th>
+                            <th>NISN</th>
+                            <th>Nama</th>
+                            <th>L/P</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if ($siswa_list && $siswa_list->num_rows > 0): ?>
                             <?php 
                             $no = 1;
                             $siswa_list->data_seek(0);
@@ -247,14 +235,16 @@ try {
                                     <td><?php echo ($siswa['jenis_kelamin'] ?? '') == 'L' ? 'L' : 'P'; ?></td>
                                 </tr>
                             <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php else: ?>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> Belum ada siswa di kelas ini.
-                </div>
-            <?php endif; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    <i class="fas fa-info-circle"></i> Belum ada siswa di kelas ini.
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 <?php else: ?>
@@ -322,7 +312,7 @@ try {
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="?materi_id=<?php echo $row['id']; ?>">
+                                        <a href="?materi_id=<?php echo $row['id']; ?>&kelas_nama=<?php echo urlencode($row['nama_kelas']); ?>">
                                             <?php echo htmlspecialchars($row['nama_mulok']); ?>
                                         </a>
                                     </td>
@@ -347,15 +337,20 @@ try {
 <script>
     $(document).ready(function() {
         <?php if ($materi_id > 0 && $materi_data): ?>
-            $('#tableSiswa').DataTable({
-                language: {
-                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
-                },
-                dom: 'Bfrtip',
-                buttons: [
-                    'copy', 'print', 'excel'
-                ]
-            });
+            <?php if ($siswa_list && $siswa_list->num_rows > 0): ?>
+                $('#tableSiswa').DataTable({
+                    language: {
+                        url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                    },
+                    dom: 'Bfrtip',
+                    buttons: [
+                        'copy', 'print', 'excel'
+                    ],
+                    paging: false,
+                    searching: false,
+                    info: false
+                });
+            <?php endif; ?>
         <?php else: ?>
             $('#tableMateri').DataTable({
                 language: {

@@ -17,6 +17,8 @@ function getConnection() {
         }
         
         $conn->set_charset("utf8mb4");
+        // Set collation untuk memastikan case sensitivity
+        $conn->query("SET NAMES utf8mb4 COLLATE utf8mb4_bin");
         return $conn;
     } catch (mysqli_sql_exception $e) {
         throw new Exception("Koneksi gagal: " . $e->getMessage());
