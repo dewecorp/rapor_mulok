@@ -10,6 +10,20 @@ $conn = getConnection();
 $siswa_id = $_GET['siswa'] ?? 0;
 $kelas_id = $_GET['kelas'] ?? 0;
 
+// Pastikan kolom email_madrasah dan website_madrasah ada di database
+try {
+    $check_email = $conn->query("SHOW COLUMNS FROM profil_madrasah LIKE 'email_madrasah'");
+    if ($check_email->num_rows == 0) {
+        $conn->query("ALTER TABLE profil_madrasah ADD COLUMN email_madrasah VARCHAR(255) DEFAULT NULL");
+    }
+    $check_website = $conn->query("SHOW COLUMNS FROM profil_madrasah LIKE 'website_madrasah'");
+    if ($check_website->num_rows == 0) {
+        $conn->query("ALTER TABLE profil_madrasah ADD COLUMN website_madrasah VARCHAR(255) DEFAULT NULL");
+    }
+} catch (Exception $e) {
+    // Kolom mungkin sudah ada, lanjutkan
+}
+
 // Ambil data profil madrasah
 $profil = null;
 try {
@@ -22,28 +36,62 @@ try {
 
 // Ambil data siswa
 $siswa_data = [];
+$siswa_data_by_id = []; // Menggunakan array dengan key ID untuk menghindari duplikasi
+
 if ($siswa_id > 0) {
-    $stmt = $conn->prepare("SELECT s.*, k.nama_kelas, k.wali_kelas_id FROM siswa s LEFT JOIN kelas k ON s.kelas_id = k.id WHERE s.id = ?");
+    $stmt = $conn->prepare("SELECT s.id, s.nisn, s.nama, s.jenis_kelamin, s.tempat_lahir, s.tanggal_lahir, s.orangtua_wali, s.kelas_id, k.nama_kelas, k.wali_kelas_id FROM siswa s LEFT JOIN kelas k ON s.kelas_id = k.id WHERE s.id = ? LIMIT 1");
     $stmt->bind_param("i", $siswa_id);
     $stmt->execute();
     $result = $stmt->get_result();
     if ($result && $result->num_rows > 0) {
-        $siswa_data[] = $result->fetch_assoc();
+        $row = $result->fetch_assoc();
+        $siswa_id_key = (int)$row['id'];
+        if (!isset($siswa_data_by_id[$siswa_id_key])) {
+            $siswa_data_by_id[$siswa_id_key] = $row;
+        }
     }
 } elseif ($kelas_id > 0) {
-    $stmt = $conn->prepare("SELECT s.*, k.nama_kelas, k.wali_kelas_id FROM siswa s LEFT JOIN kelas k ON s.kelas_id = k.id WHERE s.kelas_id = ? ORDER BY s.nama ASC");
+    // Query sederhana tanpa JOIN dulu untuk menghindari duplikasi dari JOIN
+    $stmt = $conn->prepare("SELECT id, nisn, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, orangtua_wali, kelas_id FROM siswa WHERE kelas_id = ? AND id IS NOT NULL ORDER BY id ASC");
     $stmt->bind_param("i", $kelas_id);
     $stmt->execute();
     $result = $stmt->get_result();
+    
+    // Ambil data kelas sekali saja
+    $kelas_stmt = $conn->prepare("SELECT nama_kelas, wali_kelas_id FROM kelas WHERE id = ?");
+    
     if ($result) {
         while ($row = $result->fetch_assoc()) {
-            $siswa_data[] = $row;
+            $siswa_id_key = (int)$row['id'];
+            
+            // Hanya proses jika ID belum ada di array (menghindari duplikasi)
+            if (!isset($siswa_data_by_id[$siswa_id_key])) {
+                // Ambil data kelas
+                $kelas_stmt->bind_param("i", $row['kelas_id']);
+                $kelas_stmt->execute();
+                $kelas_result = $kelas_stmt->get_result();
+                if ($kelas_result && $kelas_result->num_rows > 0) {
+                    $kelas_data = $kelas_result->fetch_assoc();
+                    $row['nama_kelas'] = $kelas_data['nama_kelas'] ?? '';
+                    $row['wali_kelas_id'] = $kelas_data['wali_kelas_id'] ?? 0;
+                } else {
+                    $row['nama_kelas'] = '';
+                    $row['wali_kelas_id'] = 0;
+                }
+                
+                // Simpan dengan key ID untuk memastikan tidak ada duplikasi
+                $siswa_data_by_id[$siswa_id_key] = $row;
+            }
         }
     }
+    $kelas_stmt->close();
 }
 
+// Konversi array dengan key ID menjadi array numerik untuk looping
+$siswa_data = array_values($siswa_data_by_id);
+
 // Ambil data wali kelas dan kepala madrasah untuk setiap siswa
-foreach ($siswa_data as &$siswa) {
+foreach ($siswa_data as $index => $siswa) {
     $wali_kelas_id = $siswa['wali_kelas_id'] ?? 0;
     $wali_kelas_nama = '';
     if ($wali_kelas_id > 0) {
@@ -55,13 +103,14 @@ foreach ($siswa_data as &$siswa) {
             $wali_data = $result_wali->fetch_assoc();
             $wali_kelas_nama = $wali_data['nama'] ?? '';
         }
+        $stmt_wali->close();
     }
-    $siswa['wali_kelas_nama'] = $wali_kelas_nama;
+    $siswa_data[$index]['wali_kelas_nama'] = $wali_kelas_nama;
     
     if ($profil) {
-        $siswa['kepala_madrasah'] = $profil['nama_kepala'] ?? '';
+        $siswa_data[$index]['kepala_madrasah'] = $profil['nama_kepala'] ?? '';
     } else {
-        $siswa['kepala_madrasah'] = '';
+        $siswa_data[$index]['kepala_madrasah'] = '';
     }
 }
 
@@ -99,7 +148,9 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             color: #000;
             background: #fff;
         }
-        body, body *, body *::before, body *::after {
+        body, body *, body *::before, body *::after,
+        html, html *, html *::before, html *::after,
+        table, table *, td, th, tr, div, span, p, h1, h2, h3, h4, h5, h6 {
             font-family: Arial, sans-serif !important;
         }
         .page {
@@ -117,17 +168,19 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
         }
         .logo-container {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 40px;
         }
         .logo {
-            width: 80px;
-            height: 80px;
+            width: 160px;
+            height: 160px;
             margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #fff;
-            border: none;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
         }
         .logo img {
             max-width: 100%;
@@ -135,8 +188,19 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             object-fit: contain;
             border: none !important;
             outline: none !important;
+            box-shadow: none !important;
+            -webkit-box-shadow: none !important;
+            -moz-box-shadow: none !important;
         }
         .logo div {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-box-shadow: none !important;
+            -moz-box-shadow: none !important;
+            background: transparent !important;
+        }
+        .logo-container {
             border: none !important;
             outline: none !important;
         }
@@ -150,7 +214,8 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             font-family: Arial, sans-serif !important;
         }
         .student-info {
-            margin: 30px 0;
+            margin-top: 100px;
+            margin-bottom: 30px;
         }
         .info-box {
             border: 2px solid #000;
@@ -165,17 +230,29 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             font-family: Arial, sans-serif !important;
         }
         .info-box table td:first-child {
-            width: 140px;
+            width: auto;
             font-weight: bold;
-            text-align: right;
-            padding-right: 10px;
+            text-align: left;
+            padding-right: 5px;
             white-space: nowrap;
             font-family: Arial, sans-serif !important;
+            vertical-align: top;
+        }
+        .info-box table td:nth-child(2) {
+            width: 10px;
+            font-weight: bold;
+            text-align: right;
+            padding-right: 5px;
+            padding-left: 0;
+            white-space: nowrap;
+            font-family: Arial, sans-serif !important;
+            vertical-align: top;
         }
         .info-box table td:last-child {
             padding-left: 0;
             word-wrap: break-word;
             font-family: Arial, sans-serif !important;
+            vertical-align: top;
         }
         .madrasah-info {
             margin-top: 40px;
@@ -193,40 +270,29 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             font-family: Arial, sans-serif !important;
         }
         .madrasah-info table td:first-child {
-            width: 220px;
+            width: auto;
             font-weight: bold;
-            text-align: right;
-            padding-right: 10px;
+            text-align: left;
+            padding-right: 5px;
             white-space: nowrap;
             font-family: Arial, sans-serif !important;
+            vertical-align: top;
+        }
+        .madrasah-info table td:nth-child(2) {
+            width: 10px;
+            font-weight: bold;
+            text-align: right;
+            padding-right: 5px;
+            padding-left: 0;
+            white-space: nowrap;
+            font-family: Arial, sans-serif !important;
+            vertical-align: top;
         }
         .madrasah-info table td:last-child {
             padding-left: 0;
             word-wrap: break-word;
             font-family: Arial, sans-serif !important;
-        }
-        .signature-section {
-            margin-top: 60px;
-            font-size: 11pt;
-        }
-        .signature-date {
-            text-align: right;
-            margin-bottom: 40px;
-        }
-        .signature-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
-        }
-        .signature-left, .signature-right {
-            width: 48%;
-        }
-        .signature-center {
-            text-align: center;
-            width: 100%;
-        }
-        .signature-name {
-            margin-top: 50px;
+            vertical-align: top;
         }
         .footer {
             position: absolute;
@@ -237,14 +303,34 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             font-weight: bold;
             font-size: 11pt;
             text-transform: uppercase;
+            font-family: Arial, sans-serif !important;
+            line-height: 1.6;
+        }
+        .footer-line {
+            display: block;
+            margin-bottom: 3px;
+            text-align: center;
+        }
+        .footer-line:nth-child(2) {
+            margin-left: auto;
+            margin-right: auto;
         }
         @media print {
+            body, body *, body *::before, body *::after {
+                font-family: Arial, sans-serif !important;
+            }
+            .logo, .logo *, .logo img, .logo div {
+                border: none !important;
+                outline: none !important;
+                box-shadow: none !important;
+            }
             body {
                 background: #fff;
             }
             .page {
                 margin: 0;
                 padding: 20mm;
+                padding-bottom: 50mm;
             }
             .no-print {
                 display: none;
@@ -283,7 +369,8 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             <div class="info-box">
                 <table>
                     <tr>
-                        <td>Nama Siswa:</td>
+                        <td>Nama Siswa</td>
+                        <td>:</td>
                         <td><?php echo strtoupper(htmlspecialchars($siswa['nama'] ?? '-')); ?></td>
                     </tr>
                 </table>
@@ -291,7 +378,8 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
             <div class="info-box">
                 <table>
                     <tr>
-                        <td>NISN:</td>
+                        <td>NISN</td>
+                        <td>:</td>
                         <td><?php echo htmlspecialchars($siswa['nisn'] ?? '-'); ?></td>
                     </tr>
                 </table>
@@ -301,91 +389,65 @@ $semester_text = ($semester_aktif == '1') ? 'Gasal' : 'Genap';
         <div class="madrasah-info">
             <table>
                 <tr>
-                    <td>Nama Madrasah:</td>
+                    <td>Nama Madrasah</td>
+                    <td>:</td>
                     <td><?php echo htmlspecialchars($profil['nama_madrasah'] ?? '-'); ?></td>
                 </tr>
                 <tr>
-                    <td>NSM:</td>
+                    <td>NSM</td>
+                    <td>:</td>
                     <td><?php echo htmlspecialchars($profil['nsm'] ?? '-'); ?></td>
                 </tr>
                 <tr>
-                    <td>Alamat Madrasah:</td>
+                    <td>Alamat Madrasah</td>
+                    <td>:</td>
                     <td><?php echo htmlspecialchars($profil['alamat'] ?? '-'); ?></td>
                 </tr>
                 <?php if (!empty($profil['desa_kelurahan'])): ?>
                 <tr>
-                    <td>Desa/Kelurahan:</td>
+                    <td>Desa/Kelurahan</td>
+                    <td>:</td>
                     <td><?php echo htmlspecialchars($profil['desa_kelurahan']); ?></td>
                 </tr>
                 <?php endif; ?>
                 <?php if (!empty($profil['kecamatan'])): ?>
                 <tr>
-                    <td>Kecamatan:</td>
+                    <td>Kecamatan</td>
+                    <td>:</td>
                     <td><?php echo htmlspecialchars($profil['kecamatan']); ?></td>
                 </tr>
                 <?php endif; ?>
                 <?php if (!empty($profil['kabupaten'])): ?>
                 <tr>
-                    <td>Kabupaten / Kota:</td>
+                    <td>Kabupaten / Kota</td>
+                    <td>:</td>
                     <td><?php echo htmlspecialchars($profil['kabupaten']); ?></td>
                 </tr>
                 <?php endif; ?>
                 <?php if (!empty($profil['provinsi'])): ?>
                 <tr>
-                    <td>Provinsi:</td>
+                    <td>Provinsi</td>
+                    <td>:</td>
                     <td><?php echo htmlspecialchars($profil['provinsi']); ?></td>
                 </tr>
                 <?php endif; ?>
-                <?php if (!empty($profil['website_madrasah'])): ?>
                 <tr>
-                    <td>Website:</td>
-                    <td><?php echo htmlspecialchars($profil['website_madrasah']); ?></td>
+                    <td>Email Madrasah</td>
+                    <td>:</td>
+                    <td><?php echo !empty($profil['email_madrasah']) ? htmlspecialchars($profil['email_madrasah']) : '-'; ?></td>
                 </tr>
-                <?php endif; ?>
-                <?php if (!empty($profil['email_madrasah'])): ?>
                 <tr>
-                    <td>Email:</td>
-                    <td><?php echo htmlspecialchars($profil['email_madrasah']); ?></td>
+                    <td>Website Madrasah</td>
+                    <td>:</td>
+                    <td><?php echo !empty($profil['website_madrasah']) ? htmlspecialchars($profil['website_madrasah']) : '-'; ?></td>
                 </tr>
-                <?php endif; ?>
             </table>
         </div>
         
-        <div class="signature-section">
-            <div class="signature-date">
-                Jepara, <?php echo date('d F Y'); ?>
-            </div>
-            
-            <div class="signature-row">
-                <div class="signature-left">
-                    <div class="signature-name">
-                        <?php 
-                        $orangtua_wali = $siswa['orangtua_wali'] ?? '';
-                        if (!empty($orangtua_wali)) {
-                            echo htmlspecialchars($orangtua_wali);
-                        } else {
-                            echo 'Wali Murid';
-                        }
-                        ?>
-                    </div>
-                </div>
-                <div class="signature-right">
-                    <div class="signature-name">
-                        <?php echo htmlspecialchars($siswa['wali_kelas_nama'] ?? 'Wali Kelas'); ?>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="signature-center">
-                <div class="signature-name">
-                    Mengetahui Kepala MI<br>
-                    <?php echo htmlspecialchars($siswa['kepala_madrasah'] ?? ''); ?>
-                </div>
-            </div>
-        </div>
-        
         <div class="footer">
-            YAYASAN SULTAN FATTAH JEPARA <?php echo htmlspecialchars(strtoupper($profil['nama_madrasah'] ?? 'MADRASAH IBTIDAIYAH SULTAN FATTAH SUKOSONO')); ?> <?php echo htmlspecialchars(strtoupper($profil['kecamatan'] ?? '')); ?> <?php echo htmlspecialchars(strtoupper($profil['kabupaten'] ?? 'JEPARA')); ?>
+            <div class="footer-line">YAYASAN SULTAN FATTAH JEPARA</div>
+            <div class="footer-line">MADRASAH IBTIDAIYAH SULTAN FATTAH</div>
+            <div class="footer-line">SUKOSONO <?php echo htmlspecialchars(strtoupper($profil['kecamatan'] ?? 'KEDUNG')); ?> <?php echo htmlspecialchars(strtoupper($profil['kabupaten'] ?? 'JEPARA')); ?></div>
         </div>
     </div>
     <?php endforeach; ?>
