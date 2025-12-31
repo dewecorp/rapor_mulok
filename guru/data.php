@@ -623,6 +623,24 @@ try {
         window.location.href = 'export_guru.php?format=pdf';
     }
     
+    // Fungsi untuk toggle password visibility
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        
+        if (passwordInput && toggleIcon) {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+    }
+    
     // Reset form saat modal ditutup
     $('#modalGuru').on('hidden.bs.modal', function() {
         $('#formGuru')[0].reset();
@@ -631,6 +649,14 @@ try {
         $('#modalTitle').text('Tambah Data Guru');
         $('#passwordRequired').show();
         $('#passwordHint').hide();
+        $('#passwordInfo').show();
+        $('#password').attr('type', 'password');
+        $('#password').attr('placeholder', 'Masukkan password baru');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        if (toggleIcon) {
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
     });
     
     // Reset tabel import saat modal import ditutup
