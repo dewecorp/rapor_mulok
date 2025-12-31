@@ -161,21 +161,20 @@ $basePath = getBasePath();
         .user-info {
             display: flex !important;
             align-items: center !important;
-            justify-content: flex-end !important;
-            gap: 20px !important;
-            min-width: 400px !important;
+            gap: 15px !important;
+            min-width: 300px !important;
             position: relative;
         }
         
         .user-details {
             display: flex !important;
             flex-direction: column !important;
-            align-items: flex-end !important;
+            align-items: flex-start !important;
             gap: 5px !important;
             margin: 0 !important;
             padding: 0 !important;
-            flex: 0 1 auto !important;
-            max-width: 280px;
+            flex: 1 1 auto !important;
+            min-width: 0;
         }
         
         .user-name {
@@ -185,7 +184,7 @@ $basePath = getBasePath();
             margin: 0 !important;
             padding: 0 !important;
             white-space: nowrap !important;
-            text-align: right !important;
+            text-align: left !important;
             line-height: 1.4 !important;
         }
         
@@ -193,7 +192,7 @@ $basePath = getBasePath();
             display: inline-flex !important;
             align-items: center !important;
             gap: 10px !important;
-            justify-content: flex-end !important;
+            justify-content: flex-start !important;
             white-space: nowrap !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -219,7 +218,7 @@ $basePath = getBasePath();
             padding: 2px !important;
             flex-shrink: 0 !important;
             margin: 0 !important;
-            display: block !important;
+            display: inline-block !important;
         }
         
         .user-avatar-wrapper {
@@ -227,6 +226,7 @@ $basePath = getBasePath();
             width: 40px !important;
             height: 40px !important;
             position: relative !important;
+            margin-left: auto !important;
         }
         
         .user-avatar {
@@ -676,7 +676,7 @@ $basePath = getBasePath();
                             <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                     </div>
-                    <div class="user-avatar-wrapper" style="position: relative; flex-shrink: 0;">
+                    <div class="user-avatar-wrapper">
                         <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" id="userAvatarDropdown" onerror="this.onerror=null; this.style.display='none';">
                         <div class="user-dropdown-menu" id="userDropdownMenu">
                             <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">
