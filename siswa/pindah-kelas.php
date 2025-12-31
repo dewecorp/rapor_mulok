@@ -54,6 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $_SESSION['success_message'] = "Berhasil memindahkan $pindah_count siswa!";
             // Set flag untuk refresh halaman setelah alert
             $_SESSION['refresh_after_alert'] = true;
+            // Simpan filter kelas untuk dipertahankan setelah refresh
+            $_SESSION['pindah_kelas_asal'] = $kelas_lama_id;
+            $_SESSION['pindah_kelas_tujuan'] = $kelas_baru_id;
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal memindahkan siswa: ' . $e->getMessage();
@@ -100,6 +103,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $_SESSION['success_message'] = "Berhasil membatalkan pindah $batal_count siswa!";
             // Set flag untuk refresh halaman setelah alert
             $_SESSION['refresh_after_alert'] = true;
+            // Simpan filter kelas untuk dipertahankan setelah refresh
+            $_SESSION['pindah_kelas_asal'] = $kelas_asal_id;
+            $_SESSION['pindah_kelas_tujuan'] = $kelas_tujuan_id;
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal membatalkan pindah siswa: ' . $e->getMessage();
