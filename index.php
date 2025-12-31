@@ -27,14 +27,21 @@ if ($role == 'proktor') {
     }
     
     try {
-        $result = $conn->query("SELECT COUNT(*) as total FROM siswa");
+        // Hitung siswa yang tidak berada di kelas Alumni
+        $result = $conn->query("SELECT COUNT(*) as total FROM siswa s 
+                                INNER JOIN kelas k ON s.kelas_id = k.id 
+                                WHERE LOWER(TRIM(k.nama_kelas)) != 'alumni' 
+                                AND LOWER(TRIM(k.nama_kelas)) NOT LIKE '%lulus%'");
         $total_siswa = $result ? $result->fetch_assoc()['total'] : 0;
     } catch (Exception $e) {
         $total_siswa = 0;
     }
     
     try {
-        $result = $conn->query("SELECT COUNT(*) as total FROM kelas");
+        // Hitung kelas yang bukan Alumni
+        $result = $conn->query("SELECT COUNT(*) as total FROM kelas 
+                                WHERE LOWER(TRIM(nama_kelas)) != 'alumni' 
+                                AND LOWER(TRIM(nama_kelas)) NOT LIKE '%lulus%'");
         $total_kelas = $result ? $result->fetch_assoc()['total'] : 0;
     } catch (Exception $e) {
         $total_kelas = 0;
