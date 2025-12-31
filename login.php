@@ -67,50 +67,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             
             // Query login: Admin/Proktor hanya menggunakan username, Guru/Wali Kelas menggunakan NUPTK atau username
-            $user = null;
             if ($check_nuptk) {
                 // Jika kolom nuptk ada, cek berdasarkan role
                 // Proktor hanya bisa login dengan username
                 // Guru dan wali_kelas bisa login dengan NUPTK atau username
-                
-                // Cek dulu apakah input adalah username (untuk semua role)
-                $query = "SELECT * FROM pengguna WHERE username = ?";
+                $query = "SELECT * FROM pengguna WHERE username = ? OR (role IN ('guru', 'wali_kelas') AND nuptk = ?)";
                 $stmt = $conn->prepare($query);
                 
                 if (!$stmt) {
                     $error = 'Error prepare query: ' . $conn->error;
                     error_log("Login error: " . $conn->error);
                 } else {
-                    $stmt->bind_param("s", $username);
+                    $stmt->bind_param("ss", $username, $username);
                     $stmt->execute();
                     $result = $stmt->get_result();
-                    
-                    if ($result && $result->num_rows > 0) {
-                        $user = $result->fetch_assoc();
-                        // Jika user adalah proktor, pastikan login menggunakan username (sudah benar karena query berdasarkan username)
-                        if ($user['role'] == 'proktor') {
-                            // Proktor harus login dengan username, bukan NUPTK
-                            // Jika username tidak match, berarti input adalah NUPTK
-                            if ($user['username'] != $username) {
-                                $error = 'Admin/Proktor hanya bisa login menggunakan Username!';
-                                $user = null;
-                            }
-                        }
-                    } else {
-                        // Jika tidak ditemukan dengan username, coba cari dengan NUPTK (hanya untuk guru/wali_kelas)
-                        $query = "SELECT * FROM pengguna WHERE nuptk = ? AND role IN ('guru', 'wali_kelas')";
-                        $stmt = $conn->prepare($query);
-                        
-                        if ($stmt) {
-                            $stmt->bind_param("s", $username);
-                            $stmt->execute();
-                            $result = $stmt->get_result();
-                            
-                            if ($result && $result->num_rows > 0) {
-                                $user = $result->fetch_assoc();
-                            }
-                        }
-                    }
                 }
             } else {
                 // Jika kolom nuptk belum ada, gunakan username saja
@@ -124,105 +94,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $stmt->bind_param("s", $username);
                     $stmt->execute();
                     $result = $stmt->get_result();
-                    
-                    if ($result && $result->num_rows > 0) {
-                        $user = $result->fetch_assoc();
-                    }
                 }
             }
             
             // Verifikasi hasil query
-            if ($user) {
-                // Verifikasi password
-                $db_password = $user['password'];
+            if ($result && $result->num_rows > 0) {
+                $user = $result->fetch_assoc();
                 
-                // Debug: log untuk melihat password di database
-                error_log("Login attempt - Username: {$username}, Password length in DB: " . strlen($db_password) . ", Password starts with: " . substr($db_password, 0, 10));
-                
-                // Cek apakah password di database adalah hash yang valid
-                $is_password_hash = (strlen($db_password) == 60 && preg_match('/^\$2[ayb]\$.{56}$/', $db_password)) || 
-                                    (strlen($db_password) == 96 && preg_match('/^\$argon2i\$/', $db_password)) ||
-                                    (strlen($db_password) == 97 && preg_match('/^\$argon2id\$/', $db_password));
-                
-                error_log("Login attempt - Is password hash: " . ($is_password_hash ? 'YES' : 'NO'));
-                
-                if ($is_password_hash && password_verify($password, $db_password)) {
-                    error_log("Login success - Password verified");
-                    // Set session
-                        $_SESSION['user_id'] = $user['id'];
-                        $_SESSION['username'] = $user['username'];
-                        $_SESSION['nama'] = $user['nama'];
-                        $_SESSION['role'] = $user['role'];
-                    $_SESSION['foto'] = $user['foto'] ?? 'default.png';
-                    
-                    
-                    // Catat aktivitas login
-                    try {
-                        // Buat tabel aktivitas_login jika belum ada
-                        $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_login` (
-                            `id` int(11) NOT NULL AUTO_INCREMENT,
-                            `user_id` int(11) NOT NULL,
-                            `nama` varchar(255) NOT NULL,
-                            `role` varchar(50) NOT NULL,
-                            `ip_address` varchar(50) DEFAULT NULL,
-                            `user_agent` text DEFAULT NULL,
-                            `waktu_login` datetime DEFAULT CURRENT_TIMESTAMP,
-                            PRIMARY KEY (`id`),
-                            KEY `idx_user_id` (`user_id`),
-                            KEY `idx_waktu_login` (`waktu_login`),
-                            KEY `idx_role` (`role`)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                        
-                        // Hapus aktivitas yang lebih dari 24 jam
-                        $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
-                        
-                        // Insert aktivitas login
-                        $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-                        $stmt_aktivitas = $conn->prepare("INSERT INTO aktivitas_login (user_id, nama, role, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)");
-                        $stmt_aktivitas->bind_param("issss", $user['id'], $user['nama'], $user['role'], $ip_address, $user_agent);
-                        $stmt_aktivitas->execute();
-                    } catch (Exception $e) {
-                        // Log error tapi jangan gagalkan login
-                        error_log("Error recording login activity: " . $e->getMessage());
+                // Validasi: Jika user adalah proktor, pastikan login menggunakan username
+                if ($user['role'] == 'proktor' && $check_nuptk) {
+                    // Proktor harus login dengan username, bukan NUPTK
+                    if ($user['username'] != $username) {
+                        $error = 'Admin/Proktor hanya bisa login menggunakan Username!';
+                        $user = null;
                     }
-                    
-                    // Set session untuk menampilkan sweet alert selamat datang
-                    $_SESSION['show_welcome'] = true;
-                    $_SESSION['welcome_name'] = $user['nama'];
-                    $_SESSION['welcome_role'] = $user['role'];
-                    
-                    // Redirect ke dashboard
-                    // Pastikan tidak ada output sebelum redirect
-                    if (ob_get_level() > 0) {
-                        ob_clean();
-                    }
-                    // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
-                    $redirect_url = '/index.php';
-                    if (isset($_SERVER['HTTP_HOST'])) {
-                        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-                        header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
-                    } else {
-                        header('Location: ' . $redirect_url);
-                    }
-                    exit();
-                } else {
-                    error_log("Login attempt - Password verify failed, checking old formats");
-                    // Cek apakah password menggunakan hash lama (md5 atau plain)
-                    if ($user['password'] === md5($password) || $user['password'] === $password) {
-                        error_log("Login attempt - Password matches old format (md5 or plain), updating to hash");
-                        // Update ke password_hash yang baru
-                        $new_hash = password_hash($password, PASSWORD_DEFAULT);
-                        $update_stmt = $conn->prepare("UPDATE pengguna SET password = ? WHERE id = ?");
-                        $update_stmt->bind_param("si", $new_hash, $user['id']);
-                        $update_stmt->execute();
-                        
-                        // Set session setelah update password
+                }
+                
+                if ($user) {
+                    // Verifikasi password
+                    if (password_verify($password, $user['password'])) {
+                        // Set session
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['username'] = $user['username'];
                         $_SESSION['nama'] = $user['nama'];
                         $_SESSION['role'] = $user['role'];
                         $_SESSION['foto'] = $user['foto'] ?? 'default.png';
+                        
                         
                         // Catat aktivitas login
                         try {
@@ -260,6 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_SESSION['welcome_name'] = $user['nama'];
                         $_SESSION['welcome_role'] = $user['role'];
                         
+                        // Redirect ke dashboard
                         // Pastikan tidak ada output sebelum redirect
                         if (ob_get_level() > 0) {
                             ob_clean();
@@ -274,7 +172,77 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }
                         exit();
                     } else {
-                        $error = 'Password salah! Silakan reset password di: <a href="reset_admin.php" style="color: #2d5016; text-decoration: underline;">reset_admin.php</a>';
+                        // Cek apakah password menggunakan hash lama (md5 atau plain)
+                        if ($user['password'] === md5($password) || $user['password'] === $password) {
+                            // Update ke password_hash yang baru
+                            $new_hash = password_hash($password, PASSWORD_DEFAULT);
+                            $update_stmt = $conn->prepare("UPDATE pengguna SET password = ? WHERE id = ?");
+                            $update_stmt->bind_param("si", $new_hash, $user['id']);
+                            $update_stmt->execute();
+                            
+                            // Set session setelah update password
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['nama'] = $user['nama'];
+                            $_SESSION['role'] = $user['role'];
+                            $_SESSION['foto'] = $user['foto'] ?? 'default.png';
+                            
+                            // Catat aktivitas login
+                            try {
+                                // Buat tabel aktivitas_login jika belum ada
+                                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_login` (
+                                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                                    `user_id` int(11) NOT NULL,
+                                    `nama` varchar(255) NOT NULL,
+                                    `role` varchar(50) NOT NULL,
+                                    `ip_address` varchar(50) DEFAULT NULL,
+                                    `user_agent` text DEFAULT NULL,
+                                    `waktu_login` datetime DEFAULT CURRENT_TIMESTAMP,
+                                    PRIMARY KEY (`id`),
+                                    KEY `idx_user_id` (`user_id`),
+                                    KEY `idx_waktu_login` (`waktu_login`),
+                                    KEY `idx_role` (`role`)
+                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                                
+                                // Hapus aktivitas yang lebih dari 24 jam
+                                $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+                                
+                                // Insert aktivitas login
+                                $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                                $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+                                $stmt_aktivitas = $conn->prepare("INSERT INTO aktivitas_login (user_id, nama, role, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)");
+                                $stmt_aktivitas->bind_param("issss", $user['id'], $user['nama'], $user['role'], $ip_address, $user_agent);
+                                $stmt_aktivitas->execute();
+                            } catch (Exception $e) {
+                                // Log error tapi jangan gagalkan login
+                                error_log("Error recording login activity: " . $e->getMessage());
+                            }
+                            
+                            // Set session untuk menampilkan sweet alert selamat datang
+                            $_SESSION['show_welcome'] = true;
+                            $_SESSION['welcome_name'] = $user['nama'];
+                            $_SESSION['welcome_role'] = $user['role'];
+                            
+                            // Pastikan tidak ada output sebelum redirect
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
+                            // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
+                            $redirect_url = '/index.php';
+                            if (isset($_SERVER['HTTP_HOST'])) {
+                                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                                header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+                            } else {
+                                header('Location: ' . $redirect_url);
+                            }
+                            exit();
+                        } else {
+                            $error = 'Password salah! Silakan reset password di: <a href="reset_admin.php" style="color: #2d5016; text-decoration: underline;">reset_admin.php</a>';
+                        }
+                    }
+                } else {
+                    if (empty($error)) {
+                        $error = 'Username/NUPTK tidak ditemukan! Pastikan database sudah diimport dengan benar.';
                     }
                 }
             } else {

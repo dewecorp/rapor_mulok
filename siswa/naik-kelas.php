@@ -308,19 +308,10 @@ if (!empty($kelas_tujuan_ids)) {
     </div>
     <div class="card-body">
         <?php if ($success): ?>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: '<?php echo addslashes($success); ?>',
-                        confirmButtonColor: '#2d5016',
-                        timer: 3000,
-                        timerProgressBar: true,
-                        showConfirmButton: false
-                    });
-                });
-            </script>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         <?php endif; ?>
         
         <?php if ($error): ?>
@@ -404,14 +395,6 @@ if (!empty($kelas_tujuan_ids)) {
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
-                            </div>
-                            <div class="mt-2 text-center">
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasAsal()">
-                                    <i class="fas fa-redo"></i> Reset
-                                </button>
-                                <button type="button" class="btn btn-primary btn-sm ms-2" id="btnNaikKelas" onclick="naikKelas()" style="display: none;">
-                                    <i class="fas fa-arrow-up"></i> Naik Kelas
-                                </button>
                             </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
@@ -611,14 +594,6 @@ if (!empty($kelas_tujuan_ids)) {
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="mt-2 text-center">
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
-                                    <i class="fas fa-redo"></i> Reset
-                                </button>
-                                <button type="button" class="btn btn-warning btn-sm ms-2" id="btnBatalNaik" onclick="batalNaik()" style="display: none;">
-                                    <i class="fas fa-undo"></i> Batal Naik
-                                </button>
-                            </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle"></i> Pilih kelas asal terlebih dahulu untuk melihat kelas tujuan.
@@ -642,6 +617,20 @@ if (!empty($kelas_tujuan_ids)) {
                         </form>
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Tombol Aksi -->
+        <div class="row mt-3">
+            <div class="col-md-6 text-center">
+                <button type="button" class="btn btn-primary btn-lg" onclick="naikKelas()">
+                    <i class="fas fa-arrow-up"></i> Naik Kelas
+                </button>
+            </div>
+            <div class="col-md-6 text-center">
+                <button type="button" class="btn btn-warning btn-lg" onclick="batalNaik()">
+                    <i class="fas fa-undo"></i> Batal Naik
+                </button>
             </div>
         </div>
     </div>
@@ -743,23 +732,12 @@ if (!empty($kelas_tujuan_ids)) {
         // Tabel siswa tujuan akan menampilkan semua siswa dari semua kelas dengan tingkat tujuan yang sesuai
     }
     
-    function resetKelasAsal() {
-        $('#kelasAsal').val('');
-        updateKelasAsal();
-    }
-    
-    function resetKelasTujuan() {
-        $('#kelasTujuan').val('');
-        updateKelasTujuan();
-    }
-    
     function toggleSelectAllAsal() {
         var selectAll = document.getElementById('selectAllAsal');
         var checkboxes = document.querySelectorAll('.siswa-checkbox-asal');
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = selectAll.checked;
         });
-        updateTombolNaik();
     }
     
     function toggleSelectAllTujuan() {
@@ -768,33 +746,6 @@ if (!empty($kelas_tujuan_ids)) {
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = selectAll.checked;
         });
-        updateTombolBatalNaik();
-    }
-    
-    // Fungsi untuk update visibility tombol Naik Kelas
-    function updateTombolNaik() {
-        var checkedBoxes = document.querySelectorAll('.siswa-checkbox-asal:checked');
-        var btnNaik = document.getElementById('btnNaikKelas');
-        if (btnNaik) {
-            if (checkedBoxes.length > 0) {
-                btnNaik.style.display = 'inline-block';
-            } else {
-                btnNaik.style.display = 'none';
-            }
-        }
-    }
-    
-    // Fungsi untuk update visibility tombol Batal Naik
-    function updateTombolBatalNaik() {
-        var checkedBoxes = document.querySelectorAll('.siswa-checkbox-tujuan:checked');
-        var btnBatal = document.getElementById('btnBatalNaik');
-        if (btnBatal) {
-            if (checkedBoxes.length > 0) {
-                btnBatal.style.display = 'inline-block';
-            } else {
-                btnBatal.style.display = 'none';
-            }
-        }
     }
     
     function naikKelas() {
@@ -895,20 +846,6 @@ if (!empty($kelas_tujuan_ids)) {
     }
     
     $(document).ready(function() {
-        // Event listener untuk checkbox siswa kelas asal
-        $(document).on('change', '.siswa-checkbox-asal', function() {
-            updateTombolNaik();
-        });
-        
-        // Event listener untuk checkbox siswa kelas tujuan
-        $(document).on('change', '.siswa-checkbox-tujuan', function() {
-            updateTombolBatalNaik();
-        });
-        
-        // Inisialisasi visibility tombol saat halaman dimuat
-        updateTombolNaik();
-        updateTombolBatalNaik();
-        
         // Inisialisasi DataTables
         <?php if (!empty($kelas_asal_filter) && count($siswa_asal_data) > 0): ?>
         if ($('#tableAsal').length > 0) {

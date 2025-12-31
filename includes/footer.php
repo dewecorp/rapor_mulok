@@ -2,19 +2,17 @@
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <!-- Cache busting version - menggunakan filemtime untuk file PHP ini -->
+    <?php 
+    $cache_version = defined('APP_VERSION') ? APP_VERSION . '.' . filemtime(__FILE__) : filemtime(__FILE__);
+    ?>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js?v=<?php echo $cache_version; ?>"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js?v=<?php echo $cache_version; ?>"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js?v=<?php echo $cache_version; ?>"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js?v=<?php echo $cache_version; ?>"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11?v=<?php echo $cache_version; ?>"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js?v=<?php echo $cache_version; ?>"></script>
     
     <!-- Script untuk Welcome Alert - dieksekusi setelah semua library dimuat -->
     <?php if (isset($_SESSION['show_welcome']) && $_SESSION['show_welcome']): ?>
@@ -124,63 +122,6 @@
         
         // Update datetime setiap detik (realtime)
         setInterval(updateDateTime, 1000);
-        
-        // Dropdown untuk user avatar - Pastikan berjalan setelah semua library dimuat
-        function initUserDropdown() {
-            var userDropdownBtn = document.getElementById('userDropdownBtn');
-            var userDropdownMenu = document.getElementById('userDropdownMenu');
-            
-            console.log('Init dropdown:', userDropdownBtn, userDropdownMenu);
-            
-            if (userDropdownBtn && userDropdownMenu) {
-                // Toggle dropdown saat avatar diklik
-                userDropdownBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    
-                    console.log('Avatar clicked, current display:', userDropdownMenu.style.display);
-                    
-                    // Toggle show class
-                    if (userDropdownMenu.style.display === 'none' || userDropdownMenu.style.display === '') {
-                        userDropdownMenu.style.display = 'block';
-                        userDropdownMenu.classList.add('show');
-                        console.log('Dropdown shown');
-                    } else {
-                        userDropdownMenu.style.display = 'none';
-                        userDropdownMenu.classList.remove('show');
-                        console.log('Dropdown hidden');
-                    }
-                });
-                
-                // Tutup dropdown saat klik di luar
-                document.addEventListener('click', function(e) {
-                    if (userDropdownBtn && userDropdownMenu) {
-                        if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
-                            userDropdownMenu.style.display = 'none';
-                            userDropdownMenu.classList.remove('show');
-                        }
-                    }
-                });
-                
-                console.log('Dropdown initialized successfully');
-            } else {
-                console.error('Dropdown elements not found!', userDropdownBtn, userDropdownMenu);
-            }
-        }
-        
-        // Jalankan setelah DOM ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initUserDropdown);
-        } else {
-            initUserDropdown();
-        }
-        
-        // Juga jalankan setelah jQuery ready (jika jQuery tersedia)
-        if (typeof jQuery !== 'undefined') {
-            jQuery(document).ready(function() {
-                setTimeout(initUserDropdown, 100);
-            });
-        }
         
         // Dropdown untuk proktor logo
         document.addEventListener('DOMContentLoaded', function() {

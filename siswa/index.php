@@ -130,8 +130,8 @@ if (isset($_GET['edit'])) {
     }
 }
 
-// Ambil data kelas (exclude kelas Alumni)
-$query_kelas = "SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%Alumni%' AND nama_kelas NOT LIKE '%Lulus%' ORDER BY nama_kelas";
+// Ambil data kelas
+$query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
 $kelas_list = $conn->query($query_kelas);
 
 // Query data siswa
@@ -201,19 +201,10 @@ try {
     </div>
     <div class="card-body">
         <?php if ($success): ?>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: '<?php echo addslashes($success); ?>',
-                        confirmButtonColor: '#2d5016',
-                        timer: 3000,
-                        timerProgressBar: true,
-                        showConfirmButton: false
-                    });
-                });
-            </script>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         <?php endif; ?>
         
         <?php if ($error): ?>
@@ -230,10 +221,6 @@ try {
                 <?php 
                 $kelas_list->data_seek(0);
                 while ($kelas = $kelas_list->fetch_assoc()): 
-                    // Skip kelas Alumni (double check untuk keamanan)
-                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
-                        continue;
-                    }
                 ?>
                     <option value="<?php echo $kelas['id']; ?>" <?php echo $kelas_filter == $kelas['id'] ? 'selected' : ''; ?>>
                         <?php echo htmlspecialchars($kelas['nama_kelas']); ?>

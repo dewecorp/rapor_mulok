@@ -116,13 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }
                         
                         if ($stmt->execute()) {
-                            // Redirect untuk mencegah resubmit dan form edit muncul
-                            $_SESSION['success_message'] = 'Kelas berhasil diperbarui!';
-                            if (ob_get_level() > 0) {
-                                ob_clean();
-                            }
-                            header('Location: kelas.php');
-                            exit();
+                            $success = 'Kelas berhasil diperbarui!';
                         } else {
                             $error_code = $stmt->errno;
                             $error_msg = $stmt->error;
@@ -165,9 +159,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Ambil data untuk edit (hanya jika tidak ada pesan sukses/error dari redirect)
+// Ambil data untuk edit
 $edit_data = null;
-if (isset($_GET['edit']) && empty($success) && empty($error)) {
+if (isset($_GET['edit'])) {
     $id = intval($_GET['edit']);
     try {
         $stmt = $conn->prepare("SELECT * FROM kelas WHERE id = ?");
@@ -180,7 +174,7 @@ if (isset($_GET['edit']) && empty($success) && empty($error)) {
     }
 }
 
-// Ambil semua data kelas dengan nama wali kelas dan jumlah siswa (exclude kelas Alumni)
+// Ambil semua data kelas dengan nama wali kelas dan jumlah siswa
 $result = null;
 $kelas_data = [];
 $guru_list = null;
@@ -189,8 +183,6 @@ try {
               (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id) as jumlah_siswa
               FROM kelas k 
               LEFT JOIN pengguna p ON k.wali_kelas_id = p.id 
-              WHERE k.nama_kelas NOT LIKE '%Alumni%' 
-              AND k.nama_kelas NOT LIKE '%Lulus%'
               ORDER BY k.nama_kelas";
     $result = $conn->query($query);
     if (!$result) {
@@ -238,19 +230,10 @@ try {
     </div>
     <div class="card-body">
         <?php if ($success): ?>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: '<?php echo addslashes($success); ?>',
-                        confirmButtonColor: '#2d5016',
-                        timer: 5000,
-                        timerProgressBar: true,
-                        showConfirmButton: true
-                    });
-                });
-            </script>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         <?php endif; ?>
         
         <?php if ($error): ?>
@@ -325,10 +308,9 @@ try {
                     
                     <div class="mb-3">
                         <label class="form-label">Wali Kelas</label>
-                        <select class="form-select" name="wali_kelas_id" id="waliKelasId" style="width: 100%;">
+                        <select class="form-select" name="wali_kelas_id" id="waliKelasId">
                             <option value="">-- Pilih Wali Kelas --</option>
                             <?php if ($guru_list): 
-                                $guru_list->data_seek(0);
                                 while ($guru = $guru_list->fetch_assoc()): ?>
                                 <option value="<?php echo $guru['id']; ?>"><?php echo htmlspecialchars($guru['nama']); ?></option>
                             <?php 
@@ -360,42 +342,6 @@ try {
             pageLength: 25
         });
         <?php endif; ?>
-        
-        // Fungsi untuk inisialisasi Select2
-        function initSelect2WaliKelas() {
-            // Destroy dulu jika sudah ada
-            if ($('#waliKelasId').hasClass('select2-hidden-accessible')) {
-                $('#waliKelasId').select2('destroy');
-            }
-            
-            // Inisialisasi Select2
-            $('#waliKelasId').select2({
-                theme: 'bootstrap-5',
-                placeholder: '-- Pilih Wali Kelas --',
-                allowClear: true,
-                dropdownParent: $('#modalKelas'),
-                language: {
-                    noResults: function() {
-                        return "Tidak ada data ditemukan";
-                    },
-                    searching: function() {
-                        return "Mencari...";
-                    }
-                }
-            });
-        }
-        
-        // Inisialisasi Select2 saat modal dibuka
-        $('#modalKelas').on('shown.bs.modal', function() {
-            initSelect2WaliKelas();
-        });
-        
-        // Destroy Select2 saat modal ditutup untuk menghindari konflik
-        $('#modalKelas').on('hidden.bs.modal', function() {
-            if ($('#waliKelasId').hasClass('select2-hidden-accessible')) {
-                $('#waliKelasId').select2('destroy');
-            }
-        });
     });
     
     function editKelas(id) {
@@ -447,22 +393,15 @@ try {
         $('#modalTitle').text('Tambah Kelas');
     });
     
-    // Load data untuk edit (hanya jika tidak ada pesan sukses/error)
-    <?php if ($edit_data && empty($success) && empty($error)): ?>
+    // Load data untuk edit
+    <?php if ($edit_data): ?>
     $(document).ready(function() {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
         $('#namaKelas').val('<?php echo addslashes($edit_data['nama_kelas']); ?>');
+        $('#waliKelasId').val(<?php echo $edit_data['wali_kelas_id'] ?? 'null'; ?>);
         $('#modalTitle').text('Edit Kelas');
         $('#modalKelas').modal('show');
-        
-        // Set nilai setelah modal dibuka dan Select2 diinisialisasi
-        $('#modalKelas').on('shown.bs.modal', function() {
-            var waliKelasId = <?php echo $edit_data['wali_kelas_id'] ?? 'null'; ?>;
-            if (waliKelasId) {
-                $('#waliKelasId').val(waliKelasId).trigger('change');
-            }
-        });
     });
     <?php endif; ?>
     
@@ -472,24 +411,11 @@ try {
         title: 'Berhasil',
         text: '<?php echo addslashes($success); ?>',
         confirmButtonColor: '#2d5016',
-        timer: 5000,
+        timer: 2000,
         timerProgressBar: true,
-        showConfirmButton: true
-    }).then((result) => {
-        if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-            // Tutup modal jika terbuka
-            var modalElement = document.getElementById('modalKelas');
-            if (modalElement) {
-                var modal = bootstrap.Modal.getInstance(modalElement);
-                if (modal) {
-                    modal.hide();
-                }
-            }
-            // Hapus parameter edit dari URL jika ada
-            if (window.location.search.includes('edit=')) {
-                window.location.href = 'kelas.php';
-            }
-        }
+        showConfirmButton: false
+    }).then(() => {
+        window.location.href = 'kelas.php';
     });
     <?php endif; ?>
     

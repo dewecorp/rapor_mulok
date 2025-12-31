@@ -14,7 +14,7 @@ $error = '';
 $kelas_list = null;
 $result = null;
 try {
-    $query_kelas = "SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%Alumni%' AND nama_kelas NOT LIKE '%Lulus%' ORDER BY nama_kelas";
+    $query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
     $kelas_list = $conn->query($query_kelas);
     if (!$kelas_list) {
         $kelas_list = null;
@@ -31,36 +31,24 @@ try {
     if (!empty($kelas_filter) && $kelas_filter !== '') {
         $kelas_id = intval($kelas_filter);
         
-        // Pastikan kelas_id valid
-        if ($kelas_id > 0) {
-            $query = "SELECT s.*, k.nama_kelas
-                      FROM siswa s
-                      LEFT JOIN kelas k ON s.kelas_id = k.id
-                      WHERE s.kelas_id = ?
-                      ORDER BY s.nama ASC";
-            
-            $stmt = $conn->prepare($query);
-            if ($stmt) {
-                $stmt->bind_param("i", $kelas_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                
-                if ($result) {
-                    while ($row = $result->fetch_assoc()) {
-                        // Pastikan data siswa valid sebelum ditambahkan
-                        if (isset($row['id']) && $row['id'] > 0) {
-                            $siswa_data[] = $row;
-                        }
-                    }
-                }
-                
-                $stmt->close();
-            } else {
-                $error = 'Error preparing statement: ' . $conn->error;
+        $query = "SELECT s.*, k.nama_kelas
+                  FROM siswa s
+                  LEFT JOIN kelas k ON s.kelas_id = k.id
+                  WHERE s.kelas_id = ?
+                  ORDER BY s.nama";
+        
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $kelas_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $siswa_data[] = $row;
             }
-        } else {
-            $error = 'Kelas ID tidak valid';
         }
+        
+        $stmt->close();
     } else {
         // Jika kelas belum dipilih, tidak tampilkan data (tabel kosong)
         $result = null;
@@ -93,6 +81,9 @@ try {
                 <button type="button" class="btn btn-secondary btn-sm" onclick="cetakSampul()">
                     <i class="fas fa-book"></i> Cetak Sampul
                 </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="cetakIdentitas()">
+                    <i class="fas fa-id-card"></i> Identitas
+                </button>
                 <button type="button" class="btn btn-success btn-sm" onclick="exportLeggerExcel()">
                     <i class="fas fa-file-excel"></i> Legger Excel
                 </button>
@@ -110,10 +101,6 @@ try {
                 <?php 
                 $kelas_list->data_seek(0);
                 while ($kelas = $kelas_list->fetch_assoc()): 
-                    // Skip kelas Alumni (double check untuk keamanan)
-                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
-                        continue;
-                    }
                 ?>
                     <option value="<?php echo $kelas['id']; ?>" <?php echo $kelas_filter == $kelas['id'] ? 'selected' : ''; ?>>
                         <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
@@ -138,7 +125,7 @@ try {
                         <th>Nama</th>
                         <th>L/P</th>
                         <th>TTL</th>
-                        <th width="130">Aksi</th>
+                        <th width="100">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -150,23 +137,15 @@ try {
                             $siswa_id = isset($row['id']) ? intval($row['id']) : 0;
                             $nama_siswa = trim($row['nama'] ?? '');
                             
-                            // Skip hanya jika ID tidak valid
-                            if ($siswa_id <= 0) {
+                            // Skip hanya jika ID tidak valid atau nama kosong
+                            if ($siswa_id <= 0 || empty($nama_siswa)) {
                                 continue;
                             }
                             
-                            // Skip jika nama kosong atau sama dengan Administrator, Admin, atau Proktor
-                            if (!empty($nama_siswa)) {
-                                $nama_lower = strtolower($nama_siswa);
-                                if ($nama_lower === 'administrator' || $nama_lower === 'admin' || $nama_lower === 'proktor') {
-                                    continue;
-                                }
-                            }
-                            
-                            // Tampilkan siswa meskipun nama kosong (untuk debugging)
-                            // Jika nama kosong, tampilkan placeholder
-                            if (empty($nama_siswa)) {
-                                $nama_siswa = '[Nama tidak tersedia]';
+                            // Skip jika nama persis sama dengan Administrator, Admin, atau Proktor
+                            $nama_lower = strtolower($nama_siswa);
+                            if ($nama_lower === 'administrator' || $nama_lower === 'admin' || $nama_lower === 'proktor') {
+                                continue;
                             }
                     ?>
                         <tr>
@@ -176,22 +155,9 @@ try {
                             <td><?php echo (($row['jenis_kelamin'] ?? '') == 'L') ? 'L' : 'P'; ?></td>
                             <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo !empty($row['tanggal_lahir']) ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
                             <td>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm btn-success" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
-                                        <i class="fas fa-print"></i> Rapor
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <span class="visually-hidden">Toggle Dropdown</span>
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="cetakSampulSiswa(<?php echo $siswa_id; ?>)">
-                                            <i class="fas fa-book"></i> Cetak Sampul
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="cetakNilaiSiswa(<?php echo $siswa_id; ?>)">
-                                            <i class="fas fa-file-alt"></i> Cetak Nilai
-                                        </a></li>
-                                    </ul>
-                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
+                                    <i class="fas fa-print"></i> Cetak
+                                </button>
                             </td>
                         </tr>
                     <?php 
@@ -244,14 +210,6 @@ try {
         window.open('cetak_rapor.php?siswa=' + siswaId, '_blank');
     }
     
-    function cetakSampulSiswa(siswaId) {
-        window.open('cetak_sampul.php?siswa=' + siswaId, '_blank');
-    }
-    
-    function cetakNilaiSiswa(siswaId) {
-        window.open('cetak_nilai.php?siswa=' + siswaId, '_blank');
-    }
-    
     function cetakSemuaRapor() {
         var kelasId = $('#filterKelas').val();
         window.open('cetak_rapor.php?kelas=' + kelasId + '&semua=1', '_blank');
@@ -265,6 +223,11 @@ try {
     function cetakSampul() {
         var kelasId = $('#filterKelas').val();
         window.open('cetak_sampul.php?kelas=' + kelasId, '_blank');
+    }
+    
+    function cetakIdentitas() {
+        var kelasId = $('#filterKelas').val();
+        window.open('cetak_identitas.php?kelas=' + kelasId, '_blank');
     }
     
     function exportLeggerExcel() {

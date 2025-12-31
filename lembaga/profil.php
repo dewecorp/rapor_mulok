@@ -40,11 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Logo berhasil diperbarui!';
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: profil.php');
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui logo!';
         }
@@ -54,33 +50,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $nsm = $_POST['nsm'] ?? '';
         $npsn = $_POST['npsn'] ?? '';
         $alamat = $_POST['alamat'] ?? '';
-        $email_madrasah = $_POST['email_madrasah'] ?? '';
-        $website_madrasah = $_POST['website_madrasah'] ?? '';
+        $kecamatan = $_POST['kecamatan'] ?? '';
+        $kabupaten = $_POST['kabupaten'] ?? '';
+        $provinsi = $_POST['provinsi'] ?? '';
         
-        // Pastikan kolom email_madrasah dan website_madrasah ada di database
-        try {
-            $check_email = $conn->query("SHOW COLUMNS FROM profil_madrasah LIKE 'email_madrasah'");
-            if ($check_email->num_rows == 0) {
-                $conn->query("ALTER TABLE profil_madrasah ADD COLUMN email_madrasah VARCHAR(255) DEFAULT NULL");
-            }
-            $check_website = $conn->query("SHOW COLUMNS FROM profil_madrasah LIKE 'website_madrasah'");
-            if ($check_website->num_rows == 0) {
-                $conn->query("ALTER TABLE profil_madrasah ADD COLUMN website_madrasah VARCHAR(255) DEFAULT NULL");
-            }
-        } catch (Exception $e) {
-            // Kolom mungkin sudah ada, lanjutkan
-        }
-        
-        $stmt = $conn->prepare("UPDATE profil_madrasah SET nama_madrasah=?, nsm=?, npsn=?, alamat=?, email_madrasah=?, website_madrasah=? WHERE id=?");
-        $stmt->bind_param("ssssssi", $nama_madrasah, $nsm, $npsn, $alamat, $email_madrasah, $website_madrasah, $profil['id']);
+        $stmt = $conn->prepare("UPDATE profil_madrasah SET nama_madrasah=?, nsm=?, npsn=?, alamat=?, kecamatan=?, kabupaten=?, provinsi=? WHERE id=?");
+        $stmt->bind_param("sssssssi", $nama_madrasah, $nsm, $npsn, $alamat, $kecamatan, $kabupaten, $provinsi, $profil['id']);
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Info madrasah berhasil diperbarui!';
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: profil.php');
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui info madrasah!';
         }
@@ -94,11 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Data pimpinan berhasil diperbarui!';
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: profil.php');
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui data pimpinan!';
         }
@@ -112,11 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Pengaturan akademik berhasil diperbarui!';
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: profil.php');
-            exit();
+            redirect(basename($_SERVER['PHP_SELF']), false);
         } else {
             $error = 'Gagal memperbarui pengaturan akademik!';
         }
@@ -230,12 +201,16 @@ $profil = $result->fetch_assoc();
                         <span class="ms-4"><?php echo nl2br(htmlspecialchars($profil['alamat'] ?? '-')); ?></span>
                     </div>
                     <div class="mb-3">
-                        <strong><i class="fas fa-envelope text-warning"></i> Email Madrasah:</strong><br>
-                        <span class="ms-4"><?php echo htmlspecialchars($profil['email_madrasah'] ?? '-'); ?></span>
+                        <strong><i class="fas fa-map text-warning"></i> Kecamatan:</strong><br>
+                        <span class="ms-4"><?php echo htmlspecialchars($profil['kecamatan'] ?? '-'); ?></span>
+                    </div>
+                    <div class="mb-3">
+                        <strong><i class="fas fa-city text-primary"></i> Kabupaten:</strong><br>
+                        <span class="ms-4"><?php echo htmlspecialchars($profil['kabupaten'] ?? '-'); ?></span>
                     </div>
                     <div class="mb-0">
-                        <strong><i class="fas fa-globe text-primary"></i> Website Madrasah:</strong><br>
-                        <span class="ms-4"><?php echo htmlspecialchars($profil['website_madrasah'] ?? '-'); ?></span>
+                        <strong><i class="fas fa-globe text-info"></i> Provinsi:</strong><br>
+                        <span class="ms-4"><?php echo htmlspecialchars($profil['provinsi'] ?? '-'); ?></span>
                     </div>
                 </div>
             </div>
@@ -333,17 +308,20 @@ $profil = $result->fetch_assoc();
                         <textarea class="form-control" name="alamat" rows="3"><?php echo htmlspecialchars($profil['alamat'] ?? ''); ?></textarea>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Email Madrasah</label>
-                            <input type="email" class="form-control" name="email_madrasah" 
-                                   value="<?php echo htmlspecialchars($profil['email_madrasah'] ?? ''); ?>"
-                                   placeholder="contoh@email.com">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Kecamatan</label>
+                            <input type="text" class="form-control" name="kecamatan" 
+                                   value="<?php echo htmlspecialchars($profil['kecamatan'] ?? ''); ?>">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Website Madrasah</label>
-                            <input type="text" class="form-control" name="website_madrasah" 
-                                   value="<?php echo htmlspecialchars($profil['website_madrasah'] ?? ''); ?>"
-                                   placeholder="https://www.example.com">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Kabupaten</label>
+                            <input type="text" class="form-control" name="kabupaten" 
+                                   value="<?php echo htmlspecialchars($profil['kabupaten'] ?? ''); ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Provinsi</label>
+                            <input type="text" class="form-control" name="provinsi" 
+                                   value="<?php echo htmlspecialchars($profil['provinsi'] ?? ''); ?>">
                         </div>
                     </div>
                 </div>

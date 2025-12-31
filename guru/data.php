@@ -119,21 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $tanggal_lahir = $_POST['tanggal_lahir'] ?? null;
             $pendidikan = trim($_POST['pendidikan'] ?? '');
             $nuptk = trim($_POST['nuptk'] ?? '');
-            // Role tidak bisa diubah dari form edit, ditentukan dari tabel kelas
-            // Cek apakah guru ini adalah wali_kelas_id di tabel kelas
-            $role = 'guru'; // Default
-            try {
-                $stmt_check_wali = $conn->prepare("SELECT id FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
-                $stmt_check_wali->bind_param("i", $id);
-                $stmt_check_wali->execute();
-                $result_check_wali = $stmt_check_wali->get_result();
-                if ($result_check_wali && $result_check_wali->num_rows > 0) {
-                    $role = 'wali_kelas';
-                }
-            } catch (Exception $e) {
-                // Jika error, tetap gunakan default 'guru'
-                $role = 'guru';
-            }
+            $role = $_POST['role'] ?? 'guru';
             
             // Validasi input
             if (empty($nama)) {
@@ -143,19 +129,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } elseif ($id <= 0) {
                 $error = 'ID tidak valid!';
             } else {
-                // Ambil data lama untuk cek role sebelumnya
-                $role_lama = null;
-                try {
-                    $stmt_role = $conn->prepare("SELECT role FROM pengguna WHERE id = ?");
-                    $stmt_role->bind_param("i", $id);
-                    $stmt_role->execute();
-                    $result_role = $stmt_role->get_result();
-                    $role_data = $result_role->fetch_assoc();
-                    $role_lama = $role_data ? $role_data['role'] : null;
-                } catch (Exception $e) {
-                    $role_lama = null;
-                }
-                
                 // Ambil foto lama
                 try {
                     $stmt_foto = $conn->prepare("SELECT foto FROM pengguna WHERE id = ?");
@@ -194,34 +167,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // Untuk guru: username = NUPTK (untuk login menggunakan NUPTK)
                     $username = $nuptk; // Username sama dengan NUPTK
                     
-                    // Handle password update - jika password diisi, update password
-                    $password_input = trim($_POST['password'] ?? '');
-                    if (!empty($password_input)) {
-                        $password = password_hash($password_input, PASSWORD_DEFAULT);
+                    if (!empty($_POST['password'])) {
+                        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, password=?, foto=?, role=? WHERE id=?");
                         $stmt->bind_param("ssssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $foto, $role, $id);
                     } else {
-                        // Jika password kosong, tidak update password
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, foto=?, role=? WHERE id=?");
                         $stmt->bind_param("sssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $foto, $role, $id);
                     }
                     
                     if ($stmt->execute()) {
-                        // Update role di tabel pengguna sesuai dengan status di tabel kelas
-                        // (Role sudah ditentukan sebelumnya berdasarkan tabel kelas)
-                        try {
-                            $stmt_update_role = $conn->prepare("UPDATE pengguna SET role = ? WHERE id = ?");
-                            $stmt_update_role->bind_param("si", $role, $id);
-                            $stmt_update_role->execute();
-                        } catch (Exception $e) {
-                            // Log error tapi jangan gagalkan update
-                            error_log("Error updating role: " . $e->getMessage());
-                        }
-                        
                         // Redirect untuk mencegah resubmit dan refresh data
                         $_SESSION['success_message'] = 'Data guru berhasil diperbarui!';
-                        header('Location: data.php');
-                        exit();
+                        redirect(basename($_SERVER['PHP_SELF']), false);
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -265,18 +223,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt->execute()) {
                 // Redirect untuk mencegah resubmit dan refresh data
                 $_SESSION['success_message'] = 'Data guru berhasil dihapus!';
-                if (ob_get_level() > 0) {
-                    ob_clean();
-                }
-                header('Location: data.php');
-                exit();
+                redirect(basename($_SERVER['PHP_SELF']), false);
             } else {
                 $_SESSION['error_message'] = 'Gagal menghapus data guru!';
-                if (ob_get_level() > 0) {
-                    ob_clean();
-                }
-                header('Location: data.php');
-                exit();
+                redirect(basename($_SERVER['PHP_SELF']), false);
             }
         }
     }
@@ -287,28 +237,11 @@ $edit_data = null;
 if (isset($_GET['edit'])) {
     $id = intval($_GET['edit']);
     try {
-        // Ambil data pengguna
         $stmt = $conn->prepare("SELECT * FROM pengguna WHERE id = ? AND role IN ('guru', 'wali_kelas')");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
         $edit_data = $result->fetch_assoc();
-        
-        // Tentukan role berdasarkan data kelas (jika ada di tabel kelas sebagai wali_kelas_id, maka wali_kelas, jika tidak maka guru)
-        if ($edit_data) {
-            $stmt_kelas = $conn->prepare("SELECT id FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
-            $stmt_kelas->bind_param("i", $id);
-            $stmt_kelas->execute();
-            $result_kelas = $stmt_kelas->get_result();
-            
-            if ($result_kelas && $result_kelas->num_rows > 0) {
-                // Jika ada di tabel kelas sebagai wali_kelas_id, maka role = wali_kelas
-                $edit_data['role'] = 'wali_kelas';
-            } else {
-                // Jika tidak ada, maka role = guru
-                $edit_data['role'] = 'guru';
-            }
-        }
     } catch (Exception $e) {
         $error = 'Error: ' . $e->getMessage();
     }
@@ -332,11 +265,9 @@ try {
         // Simpan data ke array untuk digunakan di view
         while ($row = $result->fetch_assoc()) {
             // Sanitize data dari database sebelum ditampilkan
-            // Jangan sanitize password karena mengandung karakter khusus untuk hash
             foreach ($row as $key => $value) {
-                if (is_string($value) && $key !== 'password') {
+                if (is_string($value)) {
                     // Hapus karakter kontrol dan karakter berbahaya
-                    // Skip password karena password hash mengandung karakter khusus
                     $row[$key] = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
                 }
             }
@@ -371,19 +302,10 @@ try {
     </div>
     <div class="card-body">
         <?php if ($success): ?>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: '<?php echo addslashes($success); ?>',
-                        confirmButtonColor: '#2d5016',
-                        timer: 5000,
-                        timerProgressBar: true,
-                        showConfirmButton: true
-                    });
-                });
-            </script>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         <?php endif; ?>
         
         <?php if ($error): ?>
@@ -427,36 +349,16 @@ try {
                             <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?><?php echo ($row['tempat_lahir'] ?? '') && ($row['tanggal_lahir'] ?? '') ? ', ' : ''; ?><?php echo $row['tanggal_lahir'] ? htmlspecialchars(date('d/m/Y', strtotime($row['tanggal_lahir']))) : ''; ?></td>
                             <td><?php echo htmlspecialchars($row['pendidikan'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($row['nuptk'] ?? $row['username'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo !empty($row['wali_kelas_nama']) ? htmlspecialchars($row['wali_kelas_nama'], ENT_QUOTES, 'UTF-8') : '-'; ?></td>
+                            <td><?php echo htmlspecialchars($row['wali_kelas_nama'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td>
-                                <?php 
-                                // Cek apakah password sudah diubah (bukan default)
-                                // Password yang sudah diubah akan ter-hash dengan password_hash()
-                                $password_hash = $row['password'] ?? '';
-                                
-                                // Cek apakah password adalah hash yang valid
-                                $is_valid_hash = !empty($password_hash) && (
-                                    (strlen($password_hash) == 60 && preg_match('/^\$2[ayb]\$.{56}$/', $password_hash)) || 
-                                    (strlen($password_hash) == 96 && preg_match('/^\$argon2i\$/', $password_hash)) ||
-                                    (strlen($password_hash) == 97 && preg_match('/^\$argon2id\$/', $password_hash))
-                                );
-                                
-                                if ($is_valid_hash) {
-                                    // Cek apakah password adalah hash dari "123456"
-                                    $is_default_password = password_verify('123456', $password_hash);
-                                    
-                                    if ($is_default_password) {
-                                        // Password masih default
-                                        echo '<span class="badge bg-secondary" title="Password default: 123456">123456</span>';
-                                    } else {
-                                        // Password sudah diubah
-                                        echo '<span class="badge bg-success" title="Password sudah diubah">••••••</span>';
-                                    }
-                                } else {
-                                    // Password tidak valid atau kosong
-                                    echo '<span class="badge bg-warning" title="Password tidak valid">-</span>';
-                                }
-                                ?>
+                                <span style="font-family: monospace; font-size: 0.9em; color: #333;">
+                                    <?php 
+                                    // Tampilkan password default sebagai teks
+                                    // Password default adalah "123456" untuk semua user baru
+                                    // Untuk user yang sudah ada, tampilkan "123456" (default reset)
+                                    echo htmlspecialchars('123456');
+                                    ?>
+                                </span>
                             </td>
                             <td>
                                 <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)" title="Reset Password">
@@ -530,17 +432,15 @@ try {
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Password <span class="text-danger" id="passwordRequired">*</span></label>
-                            <input type="password" class="form-control" name="password" id="password" placeholder="Masukkan password baru" autocomplete="new-password" value="">
+                            <input type="text" class="form-control" name="password" id="password" placeholder="Default: 123456">
                             <small class="text-muted" id="passwordHint">Kosongkan jika tidak ingin mengubah password (untuk edit)</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Role <span class="text-danger">*</span></label>
-                            <select class="form-select" name="role" id="role" required disabled>
+                            <select class="form-select" name="role" id="role" required>
                                 <option value="guru">Guru</option>
                                 <option value="wali_kelas">Wali Kelas</option>
                             </select>
-                            <input type="hidden" name="role" id="roleHidden">
-                            <small class="text-muted">Role ditentukan dari data kelas. Untuk mengubah role, edit di menu Data Kelas.</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Foto</label>
@@ -725,36 +625,6 @@ try {
         $('#modalTitle').text('Tambah Data Guru');
         $('#passwordRequired').show();
         $('#passwordHint').hide();
-        $('#password').val(''); // Clear password field
-        $('#password').removeAttr('disabled'); // Ensure password field is enabled
-        $('#password').removeAttr('readonly'); // Ensure password field is not readonly
-        $('#role').prop('disabled', false); // Enable untuk form add
-        $('#roleHidden').val('guru'); // Default untuk form add
-    });
-    
-    // Update hidden field saat role berubah (untuk form add)
-    $('#role').on('change', function() {
-        if (!$(this).prop('disabled')) {
-            $('#roleHidden').val($(this).val());
-        }
-    });
-    
-    // Update hidden field saat form submit (untuk form edit yang disabled)
-    $('#formGuru').on('submit', function(e) {
-        // Pastikan password field tidak disabled atau readonly
-        $('#password').removeAttr('disabled');
-        $('#password').removeAttr('readonly');
-        
-        // Jika role disabled (form edit), gunakan nilai dari select yang disabled
-        if ($('#role').prop('disabled')) {
-            $('#roleHidden').val($('#role').val());
-        } else {
-            // Jika role enabled (form add), gunakan nilai dari select
-            $('#roleHidden').val($('#role').val());
-        }
-        
-        // Debug: log password value sebelum submit
-        console.log('Password value before submit:', $('#password').val());
     });
     
     // Reset tabel import saat modal import ditutup
@@ -782,25 +652,10 @@ try {
         $('#pendidikan').val('<?php echo addslashes($edit_data['pendidikan'] ?? ''); ?>');
         $('#nuptk').val('<?php echo addslashes($edit_data['nuptk'] ?? $edit_data['username'] ?? ''); ?>');
         $('#role').val('<?php echo $edit_data['role']; ?>');
-        $('#roleHidden').val('<?php echo $edit_data['role']; ?>'); // Set hidden field untuk submit
         $('#modalTitle').text('Edit Data Guru');
         $('#passwordRequired').hide();
         $('#passwordHint').show();
         $('#password').removeAttr('required');
-        $('#password').val(''); // Clear password field saat edit
-        $('#password').removeAttr('disabled'); // Ensure password field is enabled
-        $('#password').removeAttr('readonly'); // Ensure password field is not readonly
-        $('#password').prop('disabled', false); // Explicitly enable password field
-        $('#password').prop('readonly', false); // Explicitly make password field editable
-        $('#password').attr('placeholder', 'Masukkan password baru (kosongkan jika tidak ingin mengubah)');
-        
-        // Ensure password field is focusable and editable after modal is shown
-        $('#modalGuru').on('shown.bs.modal', function() {
-            $('#password').prop('disabled', false);
-            $('#password').prop('readonly', false);
-            $('#password').focus(); // Optional: focus on password field
-        });
-        
         $('#modalGuru').modal('show');
     });
     <?php endif; ?>
@@ -811,13 +666,11 @@ try {
         title: 'Berhasil',
         text: '<?php echo addslashes($success); ?>',
         confirmButtonColor: '#2d5016',
-        timer: 5000,
+        timer: 2000,
         timerProgressBar: true,
-        showConfirmButton: true
-    }).then((result) => {
-        if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-            // Tidak perlu redirect karena sudah di halaman yang benar
-        }
+        showConfirmButton: false
+    }).then(() => {
+        window.location.href = 'data.php';
     });
     <?php endif; ?>
     

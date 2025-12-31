@@ -11,205 +11,8 @@ try {
     $stmt->execute();
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
-    
-    // Ambil foto user, jika tidak ada atau default, gunakan avatar
-    $user_foto = $user['foto'] ?? null;
-    $user_avatar = '';
-    if (empty($user_foto) || $user_foto == 'default.png' || !file_exists(__DIR__ . '/../uploads/' . $user_foto)) {
-        // Gunakan avatar dengan inisial nama
-        $nama = $user['nama'] ?? 'User';
-        $inisial = strtoupper(substr($nama, 0, 1));
-        $user_avatar = 'avatar'; // Flag untuk menggunakan avatar
-    } else {
-        $user_avatar = $user_foto;
-    }
 } catch (Exception $e) {
     $user = null;
-    $user_avatar = 'avatar';
-}
-
-// Ambil materi mulok yang diampu oleh wali kelas (jika role adalah wali_kelas)
-$materi_diampu_wali = [];
-if ($user && $user['role'] == 'wali_kelas') {
-    try {
-        // Cek kolom kategori
-        $use_kategori = false;
-        $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
-        $use_kategori = ($check_column && $check_column->num_rows > 0);
-        $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
-        
-        // Cek kolom kelas_id
-        $has_kelas_id = false;
-        $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
-        $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
-        
-        // Cek kolom semester
-        $has_semester = false;
-        try {
-            $check_semester = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'semester'");
-            $has_semester = ($check_semester && $check_semester->num_rows > 0);
-        } catch (Exception $e) {
-            $has_semester = false;
-        }
-        
-        // Ambil semester aktif dari profil
-        $semester_aktif = '1';
-        try {
-            $stmt_profil = $conn->query("SELECT semester_aktif FROM profil_madrasah LIMIT 1");
-            if ($stmt_profil && $stmt_profil->num_rows > 0) {
-                $profil_data = $stmt_profil->fetch_assoc();
-                $semester_aktif = $profil_data['semester_aktif'] ?? '1';
-            }
-        } catch (Exception $e) {
-            // Use default
-        }
-        
-        // Ambil semua kombinasi materi-kelas dengan GROUP BY untuk menghindari duplikasi
-        if ($has_kelas_id) {
-            if ($has_semester) {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND m.semester = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            } else {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            }
-        } else {
-            if ($has_semester) {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND m.semester = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            } else {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            }
-        }
-        $stmt_materi = $conn->prepare($query_materi);
-        if ($has_semester) {
-            $stmt_materi->bind_param("is", $user_id, $semester_aktif);
-        } else {
-            $stmt_materi->bind_param("i", $user_id);
-        }
-        $stmt_materi->execute();
-        $result_materi = $stmt_materi->get_result();
-        if ($result_materi) {
-            while ($row = $result_materi->fetch_assoc()) {
-                $materi_diampu_wali[] = $row;
-            }
-        }
-    } catch (Exception $e) {
-        $materi_diampu_wali = [];
-    }
-}
-
-// Ambil materi mulok yang diampu oleh guru (jika role adalah guru)
-$materi_diampu_guru = [];
-if ($user && $user['role'] == 'guru') {
-    try {
-        // Cek kolom kategori
-        $use_kategori = false;
-        $check_column = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
-        $use_kategori = ($check_column && $check_column->num_rows > 0);
-        $kolom_kategori = $use_kategori ? 'kategori_mulok' : 'kode_mulok';
-        
-        // Cek kolom kelas_id
-        $has_kelas_id = false;
-        $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
-        $has_kelas_id = ($check_kelas_id && $check_kelas_id->num_rows > 0);
-        
-        // Cek kolom semester
-        $has_semester = false;
-        try {
-            $check_semester = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'semester'");
-            $has_semester = ($check_semester && $check_semester->num_rows > 0);
-        } catch (Exception $e) {
-            $has_semester = false;
-        }
-        
-        // Ambil semester aktif dari profil
-        $semester_aktif = '1';
-        try {
-            $stmt_profil = $conn->query("SELECT semester_aktif FROM profil_madrasah LIMIT 1");
-            if ($stmt_profil && $stmt_profil->num_rows > 0) {
-                $profil_data = $stmt_profil->fetch_assoc();
-                $semester_aktif = $profil_data['semester_aktif'] ?? '1';
-            }
-        } catch (Exception $e) {
-            // Use default
-        }
-        
-        // Ambil semua kombinasi materi-kelas dengan GROUP BY untuk menghindari duplikasi
-        if ($has_kelas_id) {
-            if ($has_semester) {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND m.semester = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            } else {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            }
-        } else {
-            if ($has_semester) {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ? AND m.semester = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            } else {
-                $query_materi = "SELECT m.id, m.nama_mulok, m.$kolom_kategori as kategori, k.nama_kelas, mm.kelas_id
-                                FROM mengampu_materi mm
-                                INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
-                                INNER JOIN kelas k ON mm.kelas_id = k.id
-                                WHERE mm.guru_id = ?
-                                GROUP BY m.id, mm.kelas_id, k.nama_kelas
-                                ORDER BY k.nama_kelas, LOWER(m.$kolom_kategori) ASC, LOWER(m.nama_mulok) ASC";
-            }
-        }
-        $stmt_materi = $conn->prepare($query_materi);
-        if ($has_semester) {
-            $stmt_materi->bind_param("is", $user_id, $semester_aktif);
-        } else {
-            $stmt_materi->bind_param("i", $user_id);
-        }
-        $stmt_materi->execute();
-        $result_materi = $stmt_materi->get_result();
-        if ($result_materi) {
-            while ($row = $result_materi->fetch_assoc()) {
-                $materi_diampu_guru[] = $row;
-            }
-        }
-    } catch (Exception $e) {
-        $materi_diampu_guru = [];
-    }
 }
 
 // Ambil profil madrasah untuk logo
@@ -234,6 +37,10 @@ $basePath = getBasePath();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Prevent browser cache untuk development -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title><?php echo APP_NAME . ' - ' . APP_SHORT; ?></title>
     
     <!-- Favicon menggunakan logo sekolah -->
@@ -246,20 +53,22 @@ $basePath = getBasePath();
         <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
     <?php endif; ?>
     
+    <!-- Cache busting version - menggunakan filemtime untuk file PHP ini -->
+    <?php 
+    $cache_version = APP_VERSION . '.' . filemtime(__FILE__); // Gunakan filemtime untuk cache busting yang lebih stabil
+    ?>
+    
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css?v=<?php echo $cache_version; ?>" rel="stylesheet">
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css?v=<?php echo $cache_version; ?>">
     <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css?v=<?php echo $cache_version; ?>">
     <!-- SweetAlert2 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css?v=<?php echo $cache_version; ?>">
     
     <!-- Toastr -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-    <!-- Select2 -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css?v=<?php echo $cache_version; ?>">
     
     <style>
         :root {
@@ -348,10 +157,8 @@ $basePath = getBasePath();
         .user-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px;
             min-width: 200px;
-            position: relative;
-            z-index: 1000;
         }
         
         .user-avatar {
@@ -359,184 +166,19 @@ $basePath = getBasePath();
             height: 40px;
             border-radius: 50%;
             object-fit: cover;
-            border: none;
-            flex-shrink: 0;
-            pointer-events: none;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            display: block;
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-        
-        .user-avatar[style*="display: flex"] {
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        
-        .user-avatar-dropdown button {
-            cursor: pointer !important;
-            pointer-events: auto !important;
-        }
-        
-        #userDropdownBtn {
-            cursor: pointer !important;
-            pointer-events: auto !important;
-        }
-        
-        .user-avatar-dropdown button:hover .user-avatar {
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-        
-        .user-avatar-dropdown button:hover {
-            cursor: pointer !important;
-        }
-        
-        .user-avatar-dropdown {
-            position: relative;
-        }
-        
-        .user-avatar-dropdown .btn,
-        .user-avatar-dropdown button,
-        #userDropdownBtn,
-        button#userDropdownBtn {
-            background: transparent !important;
-            border: 2px solid white !important;
-            border-radius: 50% !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            cursor: pointer !important;
-            display: inline-block !important;
-            position: relative !important;
-            z-index: 1000 !important;
-            pointer-events: auto !important;
-            overflow: hidden !important;
-        }
-        
-        .user-avatar-dropdown .btn:hover,
-        .user-avatar-dropdown button:hover,
-        #userDropdownBtn:hover,
-        button#userDropdownBtn:hover {
-            background: transparent !important;
-            opacity: 0.9;
-            cursor: pointer !important;
-        }
-        
-        .user-avatar-dropdown .btn:focus,
-        .user-avatar-dropdown button:focus,
-        #userDropdownBtn:focus,
-        button#userDropdownBtn:focus {
-            box-shadow: none !important;
-            outline: 2px solid rgba(255, 255, 255, 0.5) !important;
-            outline-offset: 2px !important;
-            cursor: pointer !important;
-        }
-        
-        .user-avatar-dropdown .btn:active,
-        .user-avatar-dropdown button:active,
-        #userDropdownBtn:active,
-        button#userDropdownBtn:active {
-            background: transparent !important;
-            border: none !important;
-            opacity: 0.8;
-            cursor: pointer !important;
-        }
-        
-        #userDropdownBtn {
-            cursor: pointer !important;
-            pointer-events: auto !important;
-        }
-        
-        /* Force cursor pointer untuk semua elemen di dalam dropdown */
-        .user-avatar-dropdown * {
-            cursor: pointer !important;
-        }
-        
-        .user-avatar-dropdown img {
-            cursor: pointer !important;
-            pointer-events: none !important;
-        }
-        
-        .dropdown-menu-user {
-            min-width: 200px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            border: 1px solid #dee2e6;
-            margin-top: 10px;
-            z-index: 1050;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background: white;
-        }
-        
-        .dropdown-menu-user.show {
-            display: block !important;
-        }
-        
-        .dropdown-menu-user .dropdown-header {
-            padding: 10px 15px;
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .dropdown-menu-user .dropdown-header .fw-bold {
-            font-size: 14px;
-            color: #2d5016;
-        }
-        
-        .dropdown-menu-user .dropdown-header small {
-            font-size: 12px;
-            color: #6c757d;
-        }
-        
-        .dropdown-menu-user .dropdown-item {
-            padding: 10px 15px;
-            font-size: 14px;
-            transition: background-color 0.2s ease;
-        }
-        
-        .dropdown-menu-user .dropdown-item:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .dropdown-menu-user .dropdown-item.logout-item {
-            color: #dc3545;
-        }
-        
-        .dropdown-menu-user .dropdown-item.logout-item:hover {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        
-        .dropdown-menu-user .dropdown-item i {
-            width: 20px;
-            margin-right: 8px;
+            border: 2px solid white;
         }
         
         .user-details {
             color: white;
             text-align: right;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            flex: 1;
-            min-width: 0;
-            align-items: flex-end;
         }
         
         .user-details .user-name {
             font-weight: 600;
             font-size: 14px;
             margin: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: right;
+            margin-bottom: 5px;
         }
         
         .user-details .user-role {
@@ -546,16 +188,23 @@ $basePath = getBasePath();
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            gap: 8px;
-            white-space: nowrap;
-            text-align: right;
+            gap: 10px;
         }
         
         .user-role-text {
             white-space: nowrap;
-            flex-shrink: 0;
         }
         
+        .madrasah-logo-small {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            background-color: white;
+            padding: 2px;
+            flex-shrink: 0;
+        }
         
         .datetime-info {
             color: white;
@@ -915,26 +564,7 @@ $basePath = getBasePath();
         .text-muted {
             font-size: 14px;
         }
-        
-        /* Force cursor pointer - CSS paling akhir untuk override semua */
-        button#userDropdownBtn,
-        #userDropdownBtn.btn,
-        #userDropdownBtn.btn-link,
-        .user-avatar-dropdown > button,
-        .user-info .dropdown button,
-        .user-info button {
-            cursor: pointer !important;
-            pointer-events: auto !important;
-        }
     </style>
-    <script>
-        // Set cursor pointer secara langsung via JavaScript sebelum DOM ready
-        (function() {
-            var style = document.createElement('style');
-            style.textContent = '#userDropdownBtn { cursor: pointer !important; pointer-events: auto !important; }';
-            document.head.appendChild(style);
-        })();
-    </script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
@@ -962,38 +592,10 @@ $basePath = getBasePath();
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
                         <div class="user-role">
                             <span class="user-role-text"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></span>
+                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                     </div>
-                    <div class="dropdown user-avatar-dropdown">
-                        <button type="button" class="btn btn-link p-0 border-0" id="userDropdownBtn" onclick="toggleUserDropdown(event)" title="Klik untuk logout" style="background: transparent !important; border: 2px solid white !important; border-radius: 50% !important; padding: 0 !important; line-height: 1; cursor: pointer !important; display: inline-block !important; position: relative; z-index: 1000; width: 40px; height: 40px; min-width: 40px; min-height: 40px; overflow: hidden;">
-                            <?php if ($user_avatar == 'avatar' || empty($user_avatar)): ?>
-                                <!-- Avatar dengan inisial -->
-                                <div class="user-avatar" style="display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 16px; width: 100%; height: 100%; border-radius: 50%;">
-                                    <?php echo htmlspecialchars(strtoupper(substr($user['nama'] ?? 'U', 0, 1))); ?>
-                                </div>
-                            <?php else: ?>
-                                <!-- Foto user -->
-                                <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($user_avatar); ?>" alt="User Avatar" class="user-avatar" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';" style="pointer-events: none; width: 100%; height: 100%; object-fit: cover;">
-                                <div class="user-avatar" style="display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 16px; width: 100%; height: 100%; border-radius: 50%;">
-                                    <?php echo htmlspecialchars(strtoupper(substr($user['nama'] ?? 'U', 0, 1))); ?>
-                                </div>
-                            <?php endif; ?>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-user" id="userDropdownMenu" style="display: none;">
-                            <li>
-                                <h6 class="dropdown-header">
-                                    <div class="fw-bold"><?php echo htmlspecialchars($user['nama']); ?></div>
-                                    <small class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></small>
-                                </h6>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item logout-item" href="<?php echo $basePath; ?>logout.php">
-                                    <i class="fas fa-sign-out-alt"></i> Logout
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+                    <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
                 </div>
             </div>
         </div>
@@ -1001,7 +603,7 @@ $basePath = getBasePath();
     
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-3 col-lg-2 sidebar p-0" style="max-width: 220px;">
+            <div class="col-md-3 col-lg-2 sidebar p-0">
                 <nav class="nav flex-column mt-3">
                     <?php if ($user['role'] == 'proktor'): ?>
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
@@ -1073,40 +675,9 @@ $basePath = getBasePath();
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <?php if (count($materi_diampu_wali) > 0): ?>
-                            <?php 
-                            // Group by kombinasi materi_id dan kelas_id untuk menghindari duplikasi
-                            $materi_grouped = [];
-                            foreach ($materi_diampu_wali as $materi) {
-                                // Gunakan kombinasi materi_id dan kelas_id sebagai key
-                                $key = intval($materi['id']) . '_' . intval($materi['kelas_id'] ?? 0);
-                                if (!isset($materi_grouped[$key])) {
-                                    $materi_grouped[$key] = $materi;
-                                }
-                            }
-                            // Sort by kelas, then by nama materi
-                            usort($materi_grouped, function($a, $b) {
-                                $kelas_a = $a['nama_kelas'] ?? '';
-                                $kelas_b = $b['nama_kelas'] ?? '';
-                                if ($kelas_a != $kelas_b) {
-                                    return strcmp($kelas_a, $kelas_b);
-                                }
-                                return strcmp($a['nama_mulok'] ?? '', $b['nama_mulok'] ?? '');
-                            });
-                            foreach ($materi_grouped as $materi): 
-                                $materi_id_safe = htmlspecialchars($materi['id']);
-                                $materi_nama_safe = htmlspecialchars($materi['nama_mulok']);
-                                $kelas_nama_safe = htmlspecialchars($materi['nama_kelas'] ?? '');
-                            ?>
-                                <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php?materi_id=<?php echo $materi_id_safe; ?>&kelas_nama=<?php echo urlencode($kelas_nama_safe); ?>" style="font-size: 0.85rem;">
-                                    <i class="fas fa-book"></i> <span style="font-size: 0.9em;"><?php echo $materi_nama_safe; ?><?php if ($kelas_nama_safe): ?><span class="badge bg-info ms-1" style="font-size: 0.7em; padding: 0.2em 0.5em; vertical-align: middle; font-weight: 600;"><?php echo $kelas_nama_safe; ?></span><?php endif; ?></span>
-                                </a>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
-                                <i class="fas fa-book"></i> Materi Mulok
-                            </a>
-                        <?php endif; ?>
+                        <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
+                            <i class="fas fa-book"></i> Materi Mulok
+                        </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#waliMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-user-tie"></i> Wali Kelas <i class="fas fa-chevron-down float-end"></i>
                         </a>
@@ -1125,40 +696,9 @@ $basePath = getBasePath();
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <?php if (count($materi_diampu_guru) > 0): ?>
-                            <?php 
-                            // Group by kombinasi materi_id dan kelas_id untuk menghindari duplikasi
-                            $materi_grouped_guru = [];
-                            foreach ($materi_diampu_guru as $materi) {
-                                // Gunakan kombinasi materi_id dan kelas_id sebagai key
-                                $key = intval($materi['id']) . '_' . intval($materi['kelas_id'] ?? 0);
-                                if (!isset($materi_grouped_guru[$key])) {
-                                    $materi_grouped_guru[$key] = $materi;
-                                }
-                            }
-                            // Sort by kelas, then by nama materi
-                            usort($materi_grouped_guru, function($a, $b) {
-                                $kelas_a = $a['nama_kelas'] ?? '';
-                                $kelas_b = $b['nama_kelas'] ?? '';
-                                if ($kelas_a != $kelas_b) {
-                                    return strcmp($kelas_a, $kelas_b);
-                                }
-                                return strcmp($a['nama_mulok'] ?? '', $b['nama_mulok'] ?? '');
-                            });
-                            foreach ($materi_grouped_guru as $materi): 
-                                $materi_id_safe = htmlspecialchars($materi['id']);
-                                $materi_nama_safe = htmlspecialchars($materi['nama_mulok']);
-                                $kelas_nama_safe = htmlspecialchars($materi['nama_kelas'] ?? '');
-                            ?>
-                                <a class="nav-link" href="<?php echo $basePath; ?>guru/materi.php?materi_id=<?php echo $materi_id_safe; ?>&kelas_nama=<?php echo urlencode($kelas_nama_safe); ?>" style="font-size: 0.85rem;">
-                                    <i class="fas fa-book"></i> <span style="font-size: 0.9em;"><?php echo $materi_nama_safe; ?><?php if ($kelas_nama_safe): ?><span class="badge bg-info ms-1" style="font-size: 0.7em; padding: 0.2em 0.5em; vertical-align: middle; font-weight: 600;"><?php echo $kelas_nama_safe; ?></span><?php endif; ?></span>
-                                </a>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
-                                <i class="fas fa-book"></i> Materi yang Diampu
-                            </a>
-                        <?php endif; ?>
+                        <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
+                            <i class="fas fa-book"></i> Materi yang Diampu
+                        </a>
                     <?php endif; ?>
                     <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout
@@ -1166,35 +706,4 @@ $basePath = getBasePath();
                 </nav>
             </div>
             <div class="col-md-9 col-lg-10 content-wrapper">
-    <script>
-        // Fungsi untuk toggle dropdown user avatar
-        function toggleUserDropdown(event) {
-            event.stopPropagation();
-            event.preventDefault();
-            
-            var dropdownMenu = document.getElementById('userDropdownMenu');
-            if (dropdownMenu) {
-                if (dropdownMenu.style.display === 'none' || dropdownMenu.style.display === '') {
-                    dropdownMenu.style.display = 'block';
-                    dropdownMenu.classList.add('show');
-                } else {
-                    dropdownMenu.style.display = 'none';
-                    dropdownMenu.classList.remove('show');
-                }
-            }
-        }
-        
-        // Tutup dropdown saat klik di luar
-        document.addEventListener('click', function(e) {
-            var dropdownBtn = document.getElementById('userDropdownBtn');
-            var dropdownMenu = document.getElementById('userDropdownMenu');
-            
-            if (dropdownBtn && dropdownMenu) {
-                if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
-                    dropdownMenu.style.display = 'none';
-                    dropdownMenu.classList.remove('show');
-                }
-            }
-        });
-    </script>
 
