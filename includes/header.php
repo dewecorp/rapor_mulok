@@ -319,6 +319,11 @@ $basePath = getBasePath();
         
         .user-info {
             flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            min-width: 300px;
+            position: relative;
         }
         
         .sidebar {
