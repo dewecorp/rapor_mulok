@@ -141,21 +141,6 @@ $profil = $result->fetch_assoc();
 ?>
 <?php include '../includes/header.php'; ?>
 
-<?php if ($success): ?>
-    <script>
-        setTimeout(function() {
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil!',
-                text: '<?php echo addslashes($success); ?>',
-                confirmButtonColor: '#2d5016',
-                timer: 3000,
-                timerProgressBar: true,
-                showConfirmButton: false
-            });
-        }, 100);
-    </script>
-<?php endif; ?>
 
 <?php if ($error): ?>
     <script>
@@ -439,3 +424,32 @@ $profil = $result->fetch_assoc();
 </style>
 
 <?php include '../includes/footer.php'; ?>
+
+<?php if ($success): ?>
+<script>
+    // Script toastr ditempatkan setelah footer untuk memastikan toastr sudah ter-load
+    // Gunakan window.onload untuk memastikan semua library sudah ter-load
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            if (typeof toastr !== 'undefined') {
+                toastr.success('<?php echo addslashes($success); ?>', 'Berhasil!', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 5000
+                });
+            } else {
+                // Fallback: coba lagi setelah 500ms jika toastr belum ter-load
+                setTimeout(function() {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success('<?php echo addslashes($success); ?>', 'Berhasil!', {
+                            closeButton: true,
+                            progressBar: true,
+                            timeOut: 5000
+                        });
+                    }
+                }, 500);
+            }
+        }, 100);
+    });
+</script>
+<?php endif; ?>

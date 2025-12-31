@@ -184,7 +184,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 }
                             }
                             
-                            $success = 'Kelas berhasil diperbarui!';
+                            // Redirect untuk mencegah resubmit dan refresh data
+                            $_SESSION['success_message'] = 'Kelas berhasil diperbarui!';
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
+                            header('Location: kelas.php');
+                            exit();
                         } else {
                             $error_code = $stmt->errno;
                             $error_msg = $stmt->error;
@@ -335,19 +341,6 @@ try {
         </div>
     </div>
     <div class="card-body">
-        <?php if ($success): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($error): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
         
         <div class="table-responsive">
             <table class="table table-bordered table-striped" id="tableKelas">
@@ -499,8 +492,8 @@ try {
         $('#modalTitle').text('Tambah Kelas');
     });
     
-    // Load data untuk edit
-    <?php if ($edit_data): ?>
+    // Load data untuk edit (hanya jika ada parameter edit di URL dan tidak ada success message)
+    <?php if ($edit_data && empty($success)): ?>
     $(document).ready(function() {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
@@ -512,16 +505,26 @@ try {
     <?php endif; ?>
     
     <?php if ($success): ?>
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: '<?php echo addslashes($success); ?>',
-        confirmButtonColor: '#2d5016',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false
-    }).then(() => {
-        window.location.href = 'kelas.php';
+    $(document).ready(function() {
+        // Tutup modal jika sedang terbuka
+        $('#modalKelas').modal('hide');
+        
+        // Hapus parameter edit dari URL untuk mencegah modal terbuka lagi
+        if (window.location.href.indexOf('edit=') !== -1) {
+            var url = window.location.pathname;
+            window.history.replaceState({}, document.title, url);
+        }
+        
+        // Tampilkan toastr setelah modal tertutup
+        setTimeout(function() {
+            if (typeof toastr !== 'undefined') {
+                toastr.success('<?php echo addslashes($success); ?>', 'Berhasil!', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 5000
+                });
+            }
+        }, 300);
     });
     <?php endif; ?>
     

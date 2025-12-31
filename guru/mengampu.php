@@ -66,14 +66,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if (ob_get_level() > 0) {
                         ob_clean();
                     }
-                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    // Gunakan path relatif yang benar (file ada di folder guru/)
+                    $redirect_url = 'mengampu.php?kelas=' . intval($kelas_id);
+                    header('Location: ' . $redirect_url);
                     exit();
                 } else {
                     $_SESSION['error_message'] = 'Gagal menambahkan data mengampu!';
                     if (ob_get_level() > 0) {
                         ob_clean();
                     }
-                    header('Location: mengampu.php?kelas=' . $kelas_id);
+                    // Gunakan path relatif yang benar (file ada di folder guru/)
+                    $redirect_url = 'mengampu.php?kelas=' . intval($kelas_id);
+                    header('Location: ' . $redirect_url);
                     exit();
                 }
             }
@@ -101,22 +105,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt->execute()) {
                 // Redirect untuk mencegah resubmit dan refresh data
                 $_SESSION['success_message'] = 'Data mengampu berhasil dihapus!';
-                $redirect_url = basename($_SERVER['PHP_SELF']);
-                if ($kelas_id_for_redirect) {
-                    $redirect_url .= '?kelas=' . $kelas_id_for_redirect;
-                } elseif ($kelas_filter) {
-                    $redirect_url .= '?kelas=' . $kelas_filter;
+                if (ob_get_level() > 0) {
+                    ob_clean();
                 }
-                redirect($redirect_url, false);
+                // Gunakan kelas_id yang sudah diambil sebelum delete
+                $redirect_kelas_id = $kelas_id_for_redirect ? intval($kelas_id_for_redirect) : ($kelas_filter ? intval($kelas_filter) : '');
+                $redirect_url = 'mengampu.php';
+                if ($redirect_kelas_id) {
+                    $redirect_url .= '?kelas=' . $redirect_kelas_id;
+                }
+                header('Location: ' . $redirect_url);
+                exit();
             } else {
                 $_SESSION['error_message'] = 'Gagal menghapus data mengampu!';
-                $redirect_url = basename($_SERVER['PHP_SELF']);
-                if ($kelas_id_for_redirect) {
-                    $redirect_url .= '?kelas=' . $kelas_id_for_redirect;
-                } elseif ($kelas_filter) {
-                    $redirect_url .= '?kelas=' . $kelas_filter;
+                if (ob_get_level() > 0) {
+                    ob_clean();
                 }
-                redirect($redirect_url, false);
+                // Gunakan kelas_id yang sudah diambil sebelum delete
+                $redirect_kelas_id = $kelas_id_for_redirect ? intval($kelas_id_for_redirect) : ($kelas_filter ? intval($kelas_filter) : '');
+                $redirect_url = 'mengampu.php';
+                if ($redirect_kelas_id) {
+                    $redirect_url .= '?kelas=' . $redirect_kelas_id;
+                }
+                header('Location: ' . $redirect_url);
+                exit();
             }
         }
     }
@@ -466,8 +478,14 @@ try {
         }
         
         // Submit form untuk menambahkan data mengampu
+        // Gunakan path dari window.location untuk memastikan path yang benar
+        var currentPath = window.location.pathname;
+        var basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+        var actionUrl = basePath + 'mengampu.php';
+        
         var form = document.createElement('form');
         form.method = 'POST';
+        form.action = actionUrl;
         form.innerHTML = '<input type="hidden" name="action" value="add">' +
                         '<input type="hidden" name="materi_mulok_id" value="' + materiId + '">' +
                         '<input type="hidden" name="guru_id" value="' + guruId + '">' +
@@ -545,8 +563,18 @@ try {
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
+                // Gunakan path dari window.location untuk memastikan path yang benar
+                var currentPath = window.location.pathname;
+                var basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+                var actionUrl = basePath + 'mengampu.php';
+                
+                // Ambil kelas_id dari URL saat ini untuk redirect
+                var urlParams = new URLSearchParams(window.location.search);
+                var kelasId = urlParams.get('kelas') || '';
+                
                 var form = document.createElement('form');
                 form.method = 'POST';
+                form.action = actionUrl;
                 form.innerHTML = '<input type="hidden" name="action" value="delete">' +
                                 '<input type="hidden" name="id" value="' + id + '">';
                 document.body.appendChild(form);
@@ -572,16 +600,14 @@ try {
     });
     
     <?php if ($success): ?>
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: '<?php echo addslashes($success); ?>',
-        confirmButtonColor: '#2d5016',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false
-    }).then(() => {
-        window.location.reload();
+    $(document).ready(function() {
+        if (typeof toastr !== 'undefined') {
+            toastr.success('<?php echo addslashes($success); ?>', 'Berhasil!', {
+                closeButton: true,
+                progressBar: true,
+                timeOut: 5000
+            });
+        }
     });
     <?php endif; ?>
     
