@@ -343,12 +343,12 @@ if (!empty($kelas_tujuan_ids)) {
                                 </table>
                             </div>
                             <!-- Tombol Pindah Kelas -->
-                            <div class="mt-3 text-center" id="btnPindahContainer" style="display: none;">
-                                <button type="button" class="btn btn-primary btn-lg" onclick="pindahKelas()">
+                            <div class="mt-3 mb-2" id="btnPindahContainer" style="display: none;">
+                                <button type="button" class="btn btn-primary btn-lg w-100" onclick="pindahKelas()">
                                     <i class="fas fa-exchange-alt"></i> Pindah Kelas
                                 </button>
                             </div>
-                            <div class="mt-2 text-center">
+                            <div class="text-center">
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasAsal()">
                                     <i class="fas fa-redo"></i> Reset
                                 </button>
@@ -492,12 +492,12 @@ if (!empty($kelas_tujuan_ids)) {
                                     </table>
                                 </div>
                                 <!-- Tombol Batal Pindah -->
-                                <div class="mt-3 text-center" id="btnBatalContainer" style="display: none;">
-                                    <button type="button" class="btn btn-warning btn-lg" onclick="batalPindah()">
+                                <div class="mt-3 mb-2" id="btnBatalContainer" style="display: none;">
+                                    <button type="button" class="btn btn-warning btn-lg w-100" onclick="batalPindah()">
                                         <i class="fas fa-undo"></i> Batal Pindah
                                     </button>
                                 </div>
-                                <div class="mt-2 text-center">
+                                <div class="text-center">
                                     <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
                                         <i class="fas fa-redo"></i> Reset
                                     </button>
@@ -838,6 +838,10 @@ if (!empty($kelas_tujuan_ids)) {
         
         $('#warningBoxAsal').hide();
         
+        // Pastikan hidden field terisi sebelum submit
+        $('#kelasLamaId').val(kelasAsalId);
+        $('#kelasBaruId').val(kelasTujuanId);
+        
         Swal.fire({
             title: 'Apakah Anda yakin?',
             text: 'Anda akan memindahkan ' + checkedBoxes.length + ' siswa ke kelas tujuan.',
@@ -849,6 +853,9 @@ if (!empty($kelas_tujuan_ids)) {
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
+                // Pastikan sekali lagi sebelum submit
+                $('#kelasLamaId').val(kelasAsalId);
+                $('#kelasBaruId').val(kelasTujuanId);
                 document.getElementById('formPindahKelas').submit();
             }
         });
