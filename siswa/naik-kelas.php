@@ -906,7 +906,11 @@ if (!empty($kelas_tujuan_ids)) {
                 pageLength: 10,
                 columnDefs: [
                     { orderable: false, targets: [0] }
-                ]
+                ],
+                drawCallback: function() {
+                    // Update visibility tombol setelah DataTables redraw
+                    updateButtonVisibility();
+                }
             });
         }
         <?php endif; ?>
@@ -921,9 +925,16 @@ if (!empty($kelas_tujuan_ids)) {
                 pageLength: 10,
                 columnDefs: [
                     { orderable: false, targets: [0] }
-                ]
+                ],
+                drawCallback: function() {
+                    // Update visibility tombol setelah DataTables redraw
+                    updateButtonVisibility();
+                }
             });
         }
         <?php endif; ?>
+        
+        // Inisialisasi visibility tombol saat halaman dimuat
+        updateButtonVisibility();
     });
 </script>
