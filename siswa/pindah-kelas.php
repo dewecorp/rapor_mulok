@@ -114,15 +114,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 }
 
 // Filter kelas asal dan tujuan (ambil dari POST jika ada, jika tidak dari GET, jika tidak dari SESSION)
-$kelas_asal_filter = $_POST['kelas_asal'] ?? $_GET['kelas_asal'] ?? ($_SESSION['pindah_kelas_asal'] ?? '');
-$kelas_tujuan_filter = $_POST['kelas_tujuan'] ?? $_GET['kelas_tujuan'] ?? ($_SESSION['pindah_kelas_tujuan'] ?? '');
+$kelas_asal_filter = $_POST['kelas_asal'] ?? $_GET['kelas_asal'] ?? '';
+$kelas_tujuan_filter = $_POST['kelas_tujuan'] ?? $_GET['kelas_tujuan'] ?? '';
 $status_tingkat_filter = $_POST['status_tingkat'] ?? $_GET['status_tingkat'] ?? 'sama'; // Default: tingkat sama
 
-// Hapus session filter setelah digunakan (untuk refresh berikutnya tidak menggunakan session)
-if (isset($_SESSION['pindah_kelas_asal'])) {
+// Jika tidak ada di POST/GET, coba ambil dari session (hanya sekali)
+if (empty($kelas_asal_filter) && isset($_SESSION['pindah_kelas_asal'])) {
+    $kelas_asal_filter = $_SESSION['pindah_kelas_asal'];
     unset($_SESSION['pindah_kelas_asal']);
 }
-if (isset($_SESSION['pindah_kelas_tujuan'])) {
+if (empty($kelas_tujuan_filter) && isset($_SESSION['pindah_kelas_tujuan'])) {
+    $kelas_tujuan_filter = $_SESSION['pindah_kelas_tujuan'];
     unset($_SESSION['pindah_kelas_tujuan']);
 }
 
