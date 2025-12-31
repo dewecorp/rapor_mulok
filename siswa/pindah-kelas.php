@@ -956,21 +956,16 @@ if (!empty($kelas_tujuan_ids)) {
         }).then(() => {
             // Refresh halaman untuk update data setelah alert ditutup dengan mempertahankan filter
             <?php if ($refresh_after_alert): ?>
-            // Hapus session terlebih dahulu sebelum refresh
-            $.post('pindah-kelas.php', {
-                clear_session: true
-            }, function() {
-                var kelasAsal = $('#kelasAsal').val() || '<?php echo $kelas_asal_filter; ?>';
-                var kelasTujuan = $('#kelasTujuan').val() || '<?php echo $kelas_tujuan_filter; ?>';
-                var statusTingkat = $('#statusTingkat').val() || '<?php echo $status_tingkat_filter; ?>';
-                var url = 'pindah-kelas.php';
-                var params = [];
-                if (kelasAsal) params.push('kelas_asal=' + kelasAsal);
-                if (kelasTujuan) params.push('kelas_tujuan=' + kelasTujuan);
-                if (statusTingkat) params.push('status_tingkat=' + statusTingkat);
-                if (params.length > 0) url += '?' + params.join('&');
-                window.location.href = url;
-            });
+            var kelasAsal = $('#kelasAsal').val() || '<?php echo $kelas_asal_filter; ?>';
+            var kelasTujuan = $('#kelasTujuan').val() || '<?php echo $kelas_tujuan_filter; ?>';
+            var statusTingkat = $('#statusTingkat').val() || '<?php echo $status_tingkat_filter; ?>';
+            var url = 'pindah-kelas.php';
+            var params = [];
+            if (kelasAsal) params.push('kelas_asal=' + kelasAsal);
+            if (kelasTujuan) params.push('kelas_tujuan=' + kelasTujuan);
+            if (statusTingkat) params.push('status_tingkat=' + statusTingkat);
+            if (params.length > 0) url += '?' + params.join('&');
+            window.location.href = url;
             <?php endif; ?>
         });
         <?php endif; ?>
