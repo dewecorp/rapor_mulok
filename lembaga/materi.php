@@ -385,7 +385,12 @@ include '../includes/header.php';
                             <label class="form-label">Kelas <span class="text-danger">*</span></label>
                             <select class="form-select" name="kelas_id" id="kelasId" required>
                                 <option value="">Pilih Kelas</option>
-                                <?php foreach ($kelas_data as $kelas): ?>
+                                <?php foreach ($kelas_data as $kelas): 
+                                    // Skip kelas Alumni dari dropdown
+                                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
+                                        continue;
+                                    }
+                                ?>
                                     <option value="<?php echo $kelas['id']; ?>"><?php echo htmlspecialchars($kelas['nama_kelas']); ?></option>
                                 <?php endforeach; ?>
                             </select>
