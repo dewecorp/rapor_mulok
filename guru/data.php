@@ -273,6 +273,16 @@ if (isset($_GET['edit'])) {
     }
 }
 
+// Cek dan tambahkan kolom password_plain jika belum ada
+try {
+    $check_password_plain = $conn->query("SHOW COLUMNS FROM pengguna LIKE 'password_plain'");
+    if ($check_password_plain->num_rows == 0) {
+        $conn->query("ALTER TABLE pengguna ADD COLUMN password_plain VARCHAR(255) NULL AFTER password");
+    }
+} catch (Exception $e) {
+    // Kolom mungkin sudah ada atau error, lanjutkan saja
+}
+
 // Ambil semua data guru
 $result = null;
 $guru_data = [];
@@ -290,6 +300,17 @@ try {
     } else {
         // Simpan data ke array untuk digunakan di view
         while ($row = $result->fetch_assoc()) {
+            // Jika password_plain kosong, cek apakah password masih default dan isi jika perlu
+            if (empty($row['password_plain']) && !empty($row['password'])) {
+                if (password_verify('123456', $row['password'])) {
+                    // Update password_plain untuk data lama yang masih menggunakan password default
+                    $update_stmt = $conn->prepare("UPDATE pengguna SET password_plain = '123456' WHERE id = ?");
+                    $update_stmt->bind_param("i", $row['id']);
+                    $update_stmt->execute();
+                    $row['password_plain'] = '123456';
+                }
+            }
+            
             // Sanitize data dari database sebelum ditampilkan
             foreach ($row as $key => $value) {
                 if (is_string($value)) {
