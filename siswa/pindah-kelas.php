@@ -509,20 +509,6 @@ if (!empty($kelas_tujuan_ids)) {
                     </div>
                 </div>
             </div>
-            
-            <!-- Warning Box -->
-            <div class="alert alert-danger mt-3" id="warningBoxAsal" style="display: none;">
-                <strong>Perhatikan:</strong>
-                <ul class="mb-0" id="warningListAsal">
-                </ul>
-            </div>
-            
-            <!-- Warning Box Tujuan -->
-            <div class="alert alert-danger mt-3" id="warningBoxTujuan" style="display: none;">
-                <strong>Perhatikan:</strong>
-                <ul class="mb-0" id="warningListTujuan">
-                </ul>
-            </div>
         </form>
     </div>
 </div>
