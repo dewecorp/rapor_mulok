@@ -21,6 +21,32 @@ if (isset($_SESSION['error_message'])) {
 // Filter kelas
 $kelas_filter = $_GET['kelas'] ?? '';
 
+// Ambil semester aktif dari profil
+$semester_aktif = '1';
+try {
+    $query_profil = "SELECT semester_aktif FROM profil_madrasah LIMIT 1";
+    $result_profil = $conn->query($query_profil);
+    $profil = $result_profil ? $result_profil->fetch_assoc() : null;
+    $semester_aktif = $profil['semester_aktif'] ?? '1';
+} catch (Exception $e) {
+    $semester_aktif = '1';
+}
+
+// Cek struktur database materi_mulok
+$has_kelas_id = false;
+$has_semester = false;
+try {
+    $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
+    if ($columns) {
+        while ($col = $columns->fetch_assoc()) {
+            if ($col['Field'] == 'kelas_id') $has_kelas_id = true;
+            if ($col['Field'] == 'semester') $has_semester = true;
+        }
+    }
+} catch (Exception $e) {
+    // Ignore error
+}
+
 // Handle CRUD
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['action'])) {
@@ -123,19 +149,37 @@ try {
         $kelas_info = $result_kelas->fetch_assoc();
         $nama_kelas = $kelas_info ? $kelas_info['nama_kelas'] : '';
         
-        // Tampilkan semua materi mulok dengan LEFT JOIN ke mengampu_materi untuk melihat status
-        $query = "SELECT m.*, 
-                  mm.id as mengampu_id,
-                  mm.guru_id,
-                  p.nama as nama_guru,
-                  k.nama_kelas
-                  FROM materi_mulok m
-                  LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
-                  LEFT JOIN pengguna p ON mm.guru_id = p.id
-                  LEFT JOIN kelas k ON mm.kelas_id = k.id
-                  ORDER BY m.nama_mulok";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $kelas_id);
+        // Tampilkan materi mulok yang sesuai dengan kelas terpilih dan semester aktif
+        if ($has_kelas_id && $has_semester) {
+            // Struktur baru: filter berdasarkan kelas_id dan semester
+            $query = "SELECT m.*, 
+                      mm.id as mengampu_id,
+                      mm.guru_id,
+                      p.nama as nama_guru,
+                      k.nama_kelas
+                      FROM materi_mulok m
+                      LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                      LEFT JOIN pengguna p ON mm.guru_id = p.id
+                      LEFT JOIN kelas k ON mm.kelas_id = k.id
+                      WHERE m.kelas_id = ? AND m.semester = ?
+                      ORDER BY m.nama_mulok";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("iis", $kelas_id, $kelas_id, $semester_aktif);
+        } else {
+            // Struktur lama: tampilkan semua materi (tanpa filter kelas dan semester)
+            $query = "SELECT m.*, 
+                      mm.id as mengampu_id,
+                      mm.guru_id,
+                      p.nama as nama_guru,
+                      k.nama_kelas
+                      FROM materi_mulok m
+                      LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                      LEFT JOIN pengguna p ON mm.guru_id = p.id
+                      LEFT JOIN kelas k ON mm.kelas_id = k.id
+                      ORDER BY m.nama_mulok";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("i", $kelas_id);
+        }
         $stmt->execute();
         $result = $stmt->get_result();
         if ($result) {
