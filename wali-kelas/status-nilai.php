@@ -56,8 +56,11 @@ $materi_terkirim = 0;
 
 if ($kelas_id && !empty($semester)) {
     // Ambil semua materi untuk kelas ini dan semester aktif beserta gurunya (sama persis dengan dashboard proktor)
+    // Gunakan array untuk menyimpan materi yang sudah diproses (untuk menghindari duplikat)
+    $materi_map = [];
+    
     if ($has_kelas_id && $has_semester) {
-        // Struktur baru: ambil semua materi berdasarkan kelas_id dan semester
+        // Struktur baru: ambil semua materi berdasarkan kelas_id dan semester dari materi_mulok
         $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
@@ -66,29 +69,69 @@ if ($kelas_id && !empty($semester)) {
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
-    } else {
-        // Struktur lama: ambil semua materi untuk kelas ini
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
-                         FROM materi_mulok m
-                         LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+        $stmt_materi->execute();
+        $materi_result = $stmt_materi->get_result();
+        
+        if ($materi_result) {
+            while ($materi = $materi_result->fetch_assoc()) {
+                $materi_map[$materi['materi_id']] = $materi;
+            }
+        }
+        $stmt_materi->close();
+        
+        // Juga ambil materi yang diampu di kelas ini melalui mengampu_materi (jika belum ada di map)
+        $query_materi2 = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+                         FROM mengampu_materi mm
+                         INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
+                         WHERE mm.kelas_id = ? AND m.semester = ?
+                         ORDER BY m.nama_mulok";
+        $stmt_materi2 = $conn->prepare($query_materi2);
+        $stmt_materi2->bind_param("is", $kelas_id, $semester);
+        $stmt_materi2->execute();
+        $materi_result2 = $stmt_materi2->get_result();
+        
+        if ($materi_result2) {
+            while ($materi = $materi_result2->fetch_assoc()) {
+                // Hanya tambahkan jika belum ada di map
+                if (!isset($materi_map[$materi['materi_id']])) {
+                    $materi_map[$materi['materi_id']] = $materi;
+                }
+            }
+        }
+        $stmt_materi2->close();
+    } else {
+        // Struktur lama: ambil semua materi yang diampu di kelas ini
+        $query_materi = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+                         FROM mengampu_materi mm
+                         INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                         LEFT JOIN pengguna p ON mm.guru_id = p.id
+                         WHERE mm.kelas_id = ?
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("i", $kelas_id);
+        $stmt_materi->execute();
+        $materi_result = $stmt_materi->get_result();
+        
+        if ($materi_result) {
+            while ($materi = $materi_result->fetch_assoc()) {
+                $materi_map[$materi['materi_id']] = $materi;
+            }
+        }
+        $stmt_materi->close();
     }
-    $stmt_materi->execute();
-    $materi_result = $stmt_materi->get_result();
     
     // Hitung total materi dan materi yang sudah dikirim
     $total_materi = 0;
     $materi_terkirim = 0;
     
-    if ($materi_result) {
-        while ($materi = $materi_result->fetch_assoc()) {
-            $total_materi++;
-            $materi_id = $materi['materi_id'];
-            
-            // Cek apakah ada nilai yang sudah dikirim untuk materi ini
+    foreach ($materi_map as $materi) {
+        $total_materi++;
+        $materi_id = $materi['materi_id'];
+        
+        // Cek apakah ada nilai yang sudah dikirim untuk materi ini
+        $ada_nilai = false;
+        if (!empty($tahun_ajaran)) {
             $query_cek_nilai = "SELECT status FROM nilai_kirim_status 
                                WHERE materi_mulok_id = ? 
                                AND kelas_id = ? 
@@ -100,22 +143,20 @@ if ($kelas_id && !empty($semester)) {
             $stmt_cek->execute();
             $result_cek = $stmt_cek->get_result();
             $ada_nilai = ($result_cek && $result_cek->num_rows > 0);
-            
-            if ($ada_nilai) {
-                $materi_terkirim++;
-            }
-            
-            $materi_list[] = [
-                'materi_id' => $materi_id,
-                'nama_mulok' => $materi['nama_mulok'],
-                'guru_id' => $materi['guru_id'],
-                'nama_guru' => $materi['nama_guru'] ?? '-',
-                'status' => $ada_nilai ? 'terkirim' : 'belum'
-            ];
-            
             $stmt_cek->close();
         }
-        $stmt_materi->close();
+        
+        if ($ada_nilai) {
+            $materi_terkirim++;
+        }
+        
+        $materi_list[] = [
+            'materi_id' => $materi_id,
+            'nama_mulok' => $materi['nama_mulok'] ?? '',
+            'guru_id' => $materi['guru_id'] ?? null,
+            'nama_guru' => (!empty($materi['nama_guru'])) ? $materi['nama_guru'] : '-',
+            'status' => $ada_nilai ? 'terkirim' : 'belum'
+        ];
     }
     
     // Hitung persentase progress
@@ -165,10 +206,10 @@ if ($kelas_id && !empty($semester)) {
                         ?>
                             <tr>
                                 <td><?php echo $no++; ?></td>
-                                <td><?php echo htmlspecialchars($materi['nama_mulok']); ?></td>
-                                <td><?php echo htmlspecialchars($materi['nama_guru']); ?></td>
+                                <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($materi['nama_guru'] ?? '-'); ?></td>
                                 <td>
-                                    <?php if ($materi['status'] == 'terkirim'): ?>
+                                    <?php if (isset($materi['status']) && $materi['status'] == 'terkirim'): ?>
                                         <span class="badge bg-success">Terkirim</span>
                                     <?php else: ?>
                                         <span class="badge bg-danger">Belum</span>
