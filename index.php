@@ -220,6 +220,9 @@ if ($role == 'proktor') {
         $materi_diampu = (object)['num_rows' => count($materi_data)];
     }
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Dashboard';
 ?>
 <?php include 'includes/header.php'; ?>
 

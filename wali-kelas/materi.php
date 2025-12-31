@@ -538,6 +538,13 @@ if ($materi_id > 0 && $kelas_id > 0) {
         }
     }
 }
+
+// Set page title dinamis (variabel lokal)
+if ($materi_id > 0 && isset($materi_data) && $materi_data) {
+    $page_title = htmlspecialchars($materi_data['nama_mulok'] ?? 'Materi Mulok');
+} else {
+    $page_title = 'Materi Mulok';
+}
 ?>
 <?php include '../includes/header.php'; ?>
 

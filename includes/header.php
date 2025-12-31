@@ -118,6 +118,21 @@ function getBasePath() {
     return getRelativePath();
 }
 $basePath = getBasePath();
+
+// Ambil page title - prioritas: variabel lokal $page_title > session > default
+// Variabel lokal $page_title harus di-set sebelum include header.php
+if (isset($page_title) && !empty($page_title)) {
+    $page_title_value = $page_title;
+} elseif (isset($_SESSION['page_title']) && !empty($_SESSION['page_title'])) {
+    $page_title_value = $_SESSION['page_title'];
+    // Clear session setelah digunakan
+    unset($_SESSION['page_title']);
+} else {
+    $page_title_value = APP_SHORT;
+}
+
+// Format title: Page Title - APP_NAME
+$full_title = $page_title_value . ' - ' . APP_NAME;
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -128,7 +143,7 @@ $basePath = getBasePath();
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title><?php echo APP_NAME . ' - ' . APP_SHORT; ?></title>
+    <title><?php echo htmlspecialchars($full_title); ?></title>
     
     <!-- Favicon menggunakan logo sekolah -->
     <?php if (!empty($profil['logo'])): ?>
@@ -197,6 +212,7 @@ $basePath = getBasePath();
         .navbar {
             background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1030;
         }
         
         .navbar-brand {
@@ -791,7 +807,7 @@ $basePath = getBasePath();
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="<?php echo $basePath; ?>index.php">
                 <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">

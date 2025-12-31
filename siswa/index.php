@@ -176,6 +176,9 @@ try {
     $result = null;
     $siswa_data = [];
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Data Siswa';
 ?>
 <?php include '../includes/header.php'; ?>
 

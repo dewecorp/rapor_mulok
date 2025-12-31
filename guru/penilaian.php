@@ -737,6 +737,13 @@ if ($materi_id > 0) {
 } else {
     $status_kirim = 'belum';
 }
+
+// Set page title dinamis (variabel lokal)
+if (isset($materi_data) && $materi_data && isset($materi_data['nama_mulok'])) {
+    $page_title = 'Penilaian - ' . htmlspecialchars($materi_data['nama_mulok']);
+} else {
+    $page_title = 'Penilaian';
+}
 ?>
 <?php include '../includes/header.php'; ?>
 

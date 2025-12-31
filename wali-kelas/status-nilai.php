@@ -162,6 +162,9 @@ if ($kelas_id && !empty($semester)) {
     // Hitung persentase progress
     $persentase_progress = $total_materi > 0 ? round(($materi_terkirim / $total_materi) * 100, 2) : 0;
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Status Nilai';
 ?>
 <?php include '../includes/header.php'; ?>
 

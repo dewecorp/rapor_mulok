@@ -47,6 +47,9 @@ try {
     $kelas_id = 0;
     $siswa_data = [];
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Rapor';
 ?>
 <?php include '../includes/header.php'; ?>
 

@@ -128,6 +128,9 @@ if ($kelas_filter) {
         'materi_list' => $materi_status_list
     ];
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Status Nilai';
 ?>
 <?php include '../includes/header.php'; ?>
 

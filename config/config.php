@@ -238,3 +238,21 @@ function tglWaktuIndo($datetime) {
     $hariIndex = date('w', strtotime($pecah[0]));
     return $hari[$hariIndex] . ', ' . $tgl[2] . ' ' . $bulan[(int)$tgl[1]] . ' ' . $tgl[0] . ' ' . $waktu;
 }
+
+// Fungsi untuk set page title (disimpan di session)
+function setPageTitle($title) {
+    // Pastikan session sudah aktif
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    // Pastikan title tidak kosong
+    if (empty($title)) {
+        $title = APP_SHORT;
+    }
+    $_SESSION['page_title'] = trim($title);
+}
+
+// Fungsi untuk get page title
+function getPageTitle() {
+    return $_SESSION['page_title'] ?? APP_SHORT;
+}
