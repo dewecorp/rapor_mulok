@@ -477,6 +477,49 @@ try {
     }
     
     $(document).ready(function() {
+        // Inisialisasi Select2 untuk dropdown guru di tabel
+        $('.select2-guru').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('body'),
+            dropdownPosition: 'below',
+            width: '200px',
+            placeholder: '-- Pilih Guru --',
+            allowClear: true,
+            language: {
+                noResults: function() {
+                    return "Tidak ada hasil";
+                },
+                searching: function() {
+                    return "Mencari...";
+                }
+            }
+        });
+        
+        // Handle perubahan pada select2 di tabel
+        $('.select2-guru').on('change', function() {
+            var materiId = $(this).data('materi-id');
+            var kelasId = $(this).data('kelas-id');
+            var guruId = $(this).val();
+            setGuru(materiId, guruId, kelasId);
+        });
+        
+        // Inisialisasi Select2 untuk dropdown guru di modal
+        $('#guruId').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#modalMengampu'),
+            dropdownPosition: 'below',
+            placeholder: '-- Pilih Guru --',
+            allowClear: true,
+            language: {
+                noResults: function() {
+                    return "Tidak ada hasil";
+                },
+                searching: function() {
+                    return "Mencari...";
+                }
+            }
+        });
+        
         // Inisialisasi DataTables hanya jika kelas sudah dipilih DAN ada data
         <?php if (!empty($kelas_filter) && count($mengampu_data) > 0): ?>
         // Pastikan tabel ada sebelum inisialisasi DataTables
