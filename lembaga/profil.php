@@ -43,7 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (ob_get_level() > 0) {
                 ob_clean();
             }
-            header('Location: profil.php');
+            // Gunakan path relatif yang benar untuk redirect
+            $basePath = getRelativePath();
+            header('Location: ' . $basePath . 'lembaga/profil.php');
             exit();
         } else {
             $error = 'Gagal memperbarui logo!';
@@ -66,7 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (ob_get_level() > 0) {
                 ob_clean();
             }
-            header('Location: profil.php');
+            // Gunakan path relatif yang benar untuk redirect
+            $basePath = getRelativePath();
+            header('Location: ' . $basePath . 'lembaga/profil.php');
             exit();
         } else {
             $error = 'Gagal memperbarui info madrasah!';
@@ -84,7 +88,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (ob_get_level() > 0) {
                 ob_clean();
             }
-            header('Location: profil.php');
+            // Gunakan path relatif yang benar untuk redirect
+            $basePath = getRelativePath();
+            header('Location: ' . $basePath . 'lembaga/profil.php');
             exit();
         } else {
             $error = 'Gagal memperbarui data pimpinan!';
@@ -102,7 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (ob_get_level() > 0) {
                 ob_clean();
             }
-            header('Location: profil.php');
+            // Gunakan path relatif yang benar untuk redirect
+            $basePath = getRelativePath();
+            header('Location: ' . $basePath . 'lembaga/profil.php');
             exit();
         } else {
             $error = 'Gagal memperbarui pengaturan akademik!';
