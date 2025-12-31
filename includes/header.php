@@ -161,23 +161,21 @@ $basePath = getBasePath();
         .user-info {
             display: flex !important;
             align-items: center !important;
+            justify-content: flex-end !important;
             gap: 20px !important;
-            min-width: 380px !important;
+            min-width: 400px !important;
             position: relative;
-            flex-wrap: nowrap !important;
         }
         
         .user-details {
-            text-align: right !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: flex-end !important;
+            gap: 5px !important;
+            margin: 0 !important;
+            padding: 0 !important;
             flex: 0 1 auto !important;
-            min-width: 0;
-            max-width: 250px;
-            padding-right: 0 !important;
-            gap: 6px !important;
-            margin-right: 0 !important;
+            max-width: 280px;
         }
         
         .user-name {
@@ -187,24 +185,19 @@ $basePath = getBasePath();
             margin: 0 !important;
             padding: 0 !important;
             white-space: nowrap !important;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            width: 100%;
-            line-height: 1.5 !important;
-            display: block !important;
+            text-align: right !important;
+            line-height: 1.4 !important;
         }
         
         .user-role {
-            display: flex !important;
+            display: inline-flex !important;
             align-items: center !important;
             gap: 10px !important;
             justify-content: flex-end !important;
             white-space: nowrap !important;
-            line-height: 1.5 !important;
-            flex-wrap: nowrap !important;
             margin: 0 !important;
             padding: 0 !important;
-            width: 100%;
+            line-height: 1.4 !important;
         }
         
         .user-role-text {
@@ -212,10 +205,8 @@ $basePath = getBasePath();
             color: white !important;
             opacity: 0.9;
             white-space: nowrap !important;
-            display: inline-block !important;
             margin: 0 !important;
             padding: 0 !important;
-            flex-shrink: 0;
         }
         
         .madrasah-logo-small {
@@ -227,15 +218,15 @@ $basePath = getBasePath();
             background-color: white !important;
             padding: 2px !important;
             flex-shrink: 0 !important;
-            display: inline-block !important;
             margin: 0 !important;
-            vertical-align: middle !important;
+            display: block !important;
         }
         
         .user-avatar-wrapper {
             flex-shrink: 0 !important;
-            width: 40px;
-            height: 40px;
+            width: 40px !important;
+            height: 40px !important;
+            position: relative !important;
         }
         
         .user-avatar {
