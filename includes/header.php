@@ -159,79 +159,77 @@ $basePath = getBasePath();
         }
         
         .user-info {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 15px !important;
-            min-width: 300px !important;
-            position: relative;
-            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            min-width: 350px;
+            max-width: 100%;
         }
         
         .user-details {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 5px !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            flex: 0 1 auto !important;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 6px;
+            flex: 0 1 auto;
             min-width: 0;
             max-width: calc(100% - 60px);
         }
         
         .user-name {
-            font-weight: 600 !important;
-            font-size: 15px !important;
-            color: white !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            white-space: nowrap !important;
-            text-align: left !important;
-            line-height: 1.4 !important;
+            font-weight: 600;
+            font-size: 15px;
+            color: white;
+            margin: 0;
+            padding: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            line-height: 1.5;
+            display: block;
         }
         
         .user-role {
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-            justify-content: flex-start !important;
-            white-space: nowrap !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            line-height: 1.4 !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+            flex-wrap: nowrap;
         }
         
         .user-role-text {
-            font-size: 13px !important;
-            color: white !important;
+            font-size: 13px;
+            color: white;
             opacity: 0.9;
-            white-space: nowrap !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            white-space: nowrap;
+            margin: 0;
+            padding: 0;
+            flex-shrink: 0;
         }
         
         .madrasah-logo-small {
-            width: 26px !important;
-            height: 26px !important;
-            border-radius: 50% !important;
-            object-fit: cover !important;
-            border: 2px solid white !important;
-            background-color: white !important;
-            padding: 2px !important;
-            flex-shrink: 0 !important;
-            margin: 0 !important;
-            display: inline-block !important;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            background-color: white;
+            padding: 2px;
+            flex-shrink: 0;
+            margin: 0;
+            display: block;
         }
         
         .user-avatar-wrapper {
-            flex-shrink: 0 !important;
-            width: 40px !important;
-            height: 40px !important;
-            position: relative !important;
-            margin-left: auto !important;
-            order: 999 !important;
-            align-self: flex-end !important;
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            position: relative;
+            margin-left: auto;
         }
         
         .user-avatar {
