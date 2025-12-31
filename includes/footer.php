@@ -51,10 +51,7 @@
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = '<?php 
-                $basePath = defined("getRelativePath") ? getRelativePath() : "";
-                echo $basePath; 
-                ?>logout.php';
+                window.location.href = 'logout.php';
             }
         });
     }
