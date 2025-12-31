@@ -14,6 +14,8 @@
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js?v=<?php echo $cache_version; ?>"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11?v=<?php echo $cache_version; ?>"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js?v=<?php echo $cache_version; ?>"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js?v=<?php echo $cache_version; ?>"></script>
     
     <!-- Script untuk Welcome Alert - dieksekusi setelah semua library dimuat -->
     <?php if (isset($_SESSION['show_welcome']) && $_SESSION['show_welcome']): ?>

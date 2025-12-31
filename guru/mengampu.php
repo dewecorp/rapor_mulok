@@ -297,7 +297,10 @@ try {
                                 <?php if ($nama_guru): ?>
                                     <span class="badge bg-success"><?php echo htmlspecialchars($nama_guru); ?></span>
                                 <?php else: ?>
-                                    <select class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="setGuru(<?php echo $materi_id; ?>, this.value, <?php echo $kelas_filter; ?>)">
+                                    <select class="form-select form-select-sm select2-guru" 
+                                            style="width: 200px; display: inline-block;" 
+                                            data-materi-id="<?php echo $materi_id; ?>" 
+                                            data-kelas-id="<?php echo $kelas_filter; ?>">
                                         <option value="">-- Pilih Guru --</option>
                                         <?php 
                                         $guru_list->data_seek(0);
@@ -393,7 +396,7 @@ try {
                     
                     <div class="mb-3">
                         <label class="form-label">Guru <span class="text-danger">*</span></label>
-                        <select class="form-select" name="guru_id" id="guruId" required>
+                        <select class="form-select select2-guru-modal" name="guru_id" id="guruId" required>
                             <option value="">-- Pilih Guru --</option>
                             <?php 
                             $guru_list->data_seek(0);
