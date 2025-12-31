@@ -233,9 +233,6 @@ include '../includes/header.php';
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-book"></i> Materi Mulok</h5>
         <div>
-            <a href="check_structure.php" class="btn btn-info btn-sm" target="_blank">
-                <i class="fas fa-info-circle"></i> Cek Struktur DB
-            </a>
             <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMateri">
                 <i class="fas fa-plus"></i> Tambah
             </button>
@@ -281,7 +278,21 @@ include '../includes/header.php';
                     ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
-                            <td><?php echo htmlspecialchars($kategori_value); ?></td>
+                            <td>
+                                <?php 
+                                $kategori_lower = strtolower($kategori_value);
+                                $badge_class = 'badge-secondary'; // default
+                                
+                                if (strpos($kategori_lower, 'hafalan') !== false) {
+                                    $badge_class = 'badge-info'; // biru
+                                } elseif (strpos($kategori_lower, 'membaca') !== false) {
+                                    $badge_class = 'badge-success'; // hijau
+                                } elseif (strpos($kategori_lower, 'praktik ibadah') !== false || strpos($kategori_lower, 'praktik') !== false) {
+                                    $badge_class = 'badge-primary'; // primary
+                                }
+                                ?>
+                                <span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars($kategori_value); ?></span>
+                            </td>
                             <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
                             <?php if ($use_kelas_semester): ?>
                                 <td>
