@@ -304,7 +304,7 @@ if (!empty($kelas_tujuan_ids)) {
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0"><i class="fas fa-arrow-up"></i> Kenaikan Kelas</h5>
-        <p class="mb-0 text-muted" style="font-size: 14px;">Menu ini digunakan untuk menaikkan siswa dari tingkatan sebelumnya.</p>
+        <p class="mb-0 text-white" style="font-size: 14px;">Menu ini digunakan untuk menaikkan siswa dari tingkatan sebelumnya.</p>
     </div>
     <div class="card-body">
         <?php if ($success): ?>
@@ -380,7 +380,7 @@ if (!empty($kelas_tujuan_ids)) {
                                             <?php $no = 1; foreach ($siswa_asal_data as $row): ?>
                                             <tr>
                                                 <td>
-                                                    <input type="checkbox" name="siswa_ids[]" value="<?php echo $row['id']; ?>" class="siswa-checkbox-asal">
+                                                    <input type="checkbox" name="siswa_ids[]" value="<?php echo $row['id']; ?>" class="siswa-checkbox-asal" onchange="updateButtonVisibility()">
                                                 </td>
                                                 <td><?php echo $no++; ?></td>
                                                 <td><?php echo htmlspecialchars($row['nisn'] ?? '-'); ?></td>
@@ -395,6 +395,19 @@ if (!empty($kelas_tujuan_ids)) {
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
+                            </div>
+                            <!-- Tombol Naik Kelas dan Reset -->
+                            <div class="mt-3 d-flex gap-2">
+                                <div id="btnNaikContainer" style="display: none;">
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="naikKelas()">
+                                        <i class="fas fa-arrow-up"></i> Naik Kelas
+                                    </button>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasAsal()">
+                                        <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                </div>
                             </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
@@ -577,7 +590,7 @@ if (!empty($kelas_tujuan_ids)) {
                                             <?php $no = 1; foreach ($siswa_tujuan_data as $row): ?>
                                             <tr>
                                                 <td>
-                                                    <input type="checkbox" name="siswa_ids_batal[]" value="<?php echo $row['id']; ?>" class="siswa-checkbox-tujuan">
+                                                    <input type="checkbox" name="siswa_ids_batal[]" value="<?php echo $row['id']; ?>" class="siswa-checkbox-tujuan" onchange="updateButtonVisibility()">
                                                 </td>
                                                 <td><?php echo $no++; ?></td>
                                                 <td><?php echo htmlspecialchars($row['nisn'] ?? '-'); ?></td>
@@ -593,6 +606,19 @@ if (!empty($kelas_tujuan_ids)) {
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
+                            </div>
+                            <!-- Tombol Batal Naik dan Reset -->
+                            <div class="mt-3 d-flex gap-2">
+                                <div id="btnBatalContainer" style="display: none;">
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="batalNaik()">
+                                        <i class="fas fa-undo"></i> Batal Naik
+                                    </button>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
+                                        <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                </div>
                             </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
@@ -617,20 +643,6 @@ if (!empty($kelas_tujuan_ids)) {
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Tombol Aksi -->
-        <div class="row mt-3">
-            <div class="col-md-6 text-center">
-                <button type="button" class="btn btn-primary btn-lg" onclick="naikKelas()">
-                    <i class="fas fa-arrow-up"></i> Naik Kelas
-                </button>
-            </div>
-            <div class="col-md-6 text-center">
-                <button type="button" class="btn btn-warning btn-lg" onclick="batalNaik()">
-                    <i class="fas fa-undo"></i> Batal Naik
-                </button>
             </div>
         </div>
     </div>
@@ -738,6 +750,7 @@ if (!empty($kelas_tujuan_ids)) {
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = selectAll.checked;
         });
+        updateButtonVisibility();
     }
     
     function toggleSelectAllTujuan() {
@@ -746,6 +759,42 @@ if (!empty($kelas_tujuan_ids)) {
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = selectAll.checked;
         });
+        updateButtonVisibility();
+    }
+    
+    // Fungsi untuk menampilkan/menyembunyikan tombol berdasarkan checkbox yang dipilih
+    function updateButtonVisibility() {
+        // Cek checkbox siswa asal
+        var checkedAsal = document.querySelectorAll('.siswa-checkbox-asal:checked');
+        var btnNaikContainer = document.getElementById('btnNaikContainer');
+        if (btnNaikContainer) {
+            if (checkedAsal.length > 0) {
+                btnNaikContainer.style.display = 'block';
+            } else {
+                btnNaikContainer.style.display = 'none';
+            }
+        }
+        
+        // Cek checkbox siswa tujuan
+        var checkedTujuan = document.querySelectorAll('.siswa-checkbox-tujuan:checked');
+        var btnBatalContainer = document.getElementById('btnBatalContainer');
+        if (btnBatalContainer) {
+            if (checkedTujuan.length > 0) {
+                btnBatalContainer.style.display = 'block';
+            } else {
+                btnBatalContainer.style.display = 'none';
+            }
+        }
+    }
+    
+    function resetKelasAsal() {
+        $('#kelasAsal').val('');
+        updateKelasAsal();
+    }
+    
+    function resetKelasTujuan() {
+        $('#kelasTujuan').val('');
+        updateKelasTujuan();
     }
     
     function naikKelas() {
