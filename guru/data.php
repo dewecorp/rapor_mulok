@@ -432,8 +432,14 @@ try {
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Password <span class="text-danger" id="passwordRequired">*</span></label>
-                            <input type="text" class="form-control" name="password" id="password" placeholder="Default: 123456">
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="password" id="password" placeholder="Masukkan password baru" autocomplete="new-password">
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword" onclick="togglePasswordVisibility()">
+                                    <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                                </button>
+                            </div>
                             <small class="text-muted" id="passwordHint">Kosongkan jika tidak ingin mengubah password (untuk edit)</small>
+                            <small class="text-info d-block mt-1" id="passwordInfo">Default: 123456 (untuk tambah baru)</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Role <span class="text-danger">*</span></label>
@@ -655,7 +661,10 @@ try {
         $('#modalTitle').text('Edit Data Guru');
         $('#passwordRequired').hide();
         $('#passwordHint').show();
+        $('#passwordInfo').hide();
         $('#password').removeAttr('required');
+        $('#password').attr('placeholder', 'Masukkan password baru (kosongkan jika tidak ingin mengubah)');
+        $('#password').val(''); // Kosongkan password field saat edit
         $('#modalGuru').modal('show');
     });
     <?php endif; ?>
