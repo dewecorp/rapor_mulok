@@ -40,13 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_baru_id) WHERE id = $kelas_baru_id");
             
             $conn->commit();
-            // Redirect untuk mencegah resubmit dan refresh data
-            $_SESSION['success_message'] = "Berhasil memindahkan $pindah_count siswa!";
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: pindah-kelas.php?kelas_asal=' . $kelas_lama_id . '&kelas_tujuan=' . $kelas_baru_id);
-            exit();
+            $success_message = "Berhasil memindahkan $pindah_count siswa!";
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal memindahkan siswa: ' . $e->getMessage();
