@@ -35,72 +35,98 @@ try {
     $tahun_ajaran = '';
 }
 
-// Query status nilai per kelas dan materi
-if ($kelas_filter) {
-    // Ambil siswa di kelas
-    $stmt_siswa = $conn->prepare("SELECT id FROM siswa WHERE kelas_id = ?");
-    $stmt_siswa->bind_param("i", $kelas_filter);
-    $stmt_siswa->execute();
-    $siswa_list = $stmt_siswa->get_result();
-    $siswa_ids = [];
-    if ($siswa_list) {
-        while ($s = $siswa_list->fetch_assoc()) {
-            $siswa_ids[] = $s['id'];
+// Cek struktur database materi_mulok
+$has_kelas_id = false;
+$has_semester = false;
+try {
+    $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
+    if ($columns) {
+        while ($col = $columns->fetch_assoc()) {
+            if ($col['Field'] == 'kelas_id') $has_kelas_id = true;
+            if ($col['Field'] == 'semester') $has_semester = true;
         }
     }
+} catch (Exception $e) {
+    // Ignore error
+}
+
+// Query status nilai per kelas dan materi
+$status_data = [];
+$materi_status_list = [];
+if ($kelas_filter) {
+    $kelas_id = intval($kelas_filter);
     
-    // Ambil semua materi mulok (tampilkan semua materi walaupun belum ada di mengampu_materi untuk kelas ini)
-    $stmt_materi = $conn->prepare("SELECT m.id as materi_mulok_id, m.nama_mulok,
-                     CASE WHEN mm.id IS NOT NULL THEN 1 ELSE 0 END as sudah_diampu
-                     FROM materi_mulok m
-                     LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
-                     ORDER BY m.nama_mulok");
-    $stmt_materi->bind_param("i", $kelas_filter);
+    // Ambil materi yang diampu untuk kelas ini dan semester aktif
+    if ($has_kelas_id && $has_semester) {
+        // Struktur baru: ambil materi berdasarkan kelas_id dan semester
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+                         FROM materi_mulok m
+                         INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                         LEFT JOIN pengguna p ON mm.guru_id = p.id
+                         WHERE m.kelas_id = ? AND m.semester = ?
+                         ORDER BY m.nama_mulok";
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
+    } else {
+        // Struktur lama: ambil semua materi yang diampu untuk kelas ini
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+                         FROM materi_mulok m
+                         INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                         LEFT JOIN pengguna p ON mm.guru_id = p.id
+                         ORDER BY m.nama_mulok";
+        $stmt_materi = $conn->prepare($query_materi);
+        $stmt_materi->bind_param("i", $kelas_id);
+    }
     $stmt_materi->execute();
-    $materi_list = $stmt_materi->get_result();
+    $materi_result = $stmt_materi->get_result();
     
-    // Hitung progres
-    $status_data = [];
-    if ($materi_list) {
-        while ($materi = $materi_list->fetch_assoc()) {
-            $materi_id = $materi['materi_mulok_id'];
-            $total_siswa = count($siswa_ids);
-            $sudah_nilai = 0;
+    // Hitung total materi dan materi yang sudah dikirim
+    $total_materi = 0;
+    $materi_terkirim = 0;
+    
+    if ($materi_result) {
+        while ($materi = $materi_result->fetch_assoc()) {
+            $total_materi++;
+            $materi_id = $materi['materi_id'];
             
-            // Hitung siswa yang sudah dinilai untuk materi ini
-            if ($total_siswa > 0 && count($siswa_ids) > 0) {
-                $placeholders = str_repeat('?,', count($siswa_ids) - 1) . '?';
-                $query_nilai = "SELECT COUNT(DISTINCT siswa_id) as total 
+            // Cek apakah ada nilai yang sudah dikirim untuk materi ini
+            $query_cek_nilai = "SELECT COUNT(*) as total 
                                FROM nilai_siswa 
-                               WHERE siswa_id IN ($placeholders) 
-                               AND materi_mulok_id = ? 
+                               WHERE materi_mulok_id = ? 
+                               AND kelas_id = ? 
                                AND semester = ? 
                                AND tahun_ajaran = ?";
-                $stmt_nilai = $conn->prepare($query_nilai);
-                $params = array_merge($siswa_ids, [$materi_id, $semester, $tahun_ajaran]);
-                $types = str_repeat('i', count($siswa_ids)) . 'iss';
-                $stmt_nilai->bind_param($types, ...$params);
-                $stmt_nilai->execute();
-                $result_nilai = $stmt_nilai->get_result();
-                if ($result_nilai) {
-                    $row = $result_nilai->fetch_assoc();
-                    $sudah_nilai = $row['total'] ?? 0;
-                }
+            $stmt_cek = $conn->prepare($query_cek_nilai);
+            $stmt_cek->bind_param("iiss", $materi_id, $kelas_id, $semester, $tahun_ajaran);
+            $stmt_cek->execute();
+            $result_cek = $stmt_cek->get_result();
+            $cek_data = $result_cek->fetch_assoc();
+            $ada_nilai = ($cek_data['total'] ?? 0) > 0;
+            
+            if ($ada_nilai) {
+                $materi_terkirim++;
             }
             
-            // Hitung persentase (jika tidak ada siswa, persentase = 0)
-            $persentase = $total_siswa > 0 ? round(($sudah_nilai / $total_siswa) * 100, 2) : 0;
-            
-            $status_data[] = [
-                'materi' => $materi['nama_mulok'],
-                'total_siswa' => $total_siswa,
-                'sudah_nilai' => $sudah_nilai,
-                'belum_nilai' => $total_siswa - $sudah_nilai,
-                'persentase' => $persentase,
-                'sudah_diampu' => $materi['sudah_diampu']
+            $materi_status_list[] = [
+                'materi_id' => $materi_id,
+                'nama_mulok' => $materi['nama_mulok'],
+                'guru_id' => $materi['guru_id'],
+                'nama_guru' => $materi['nama_guru'] ?? '-',
+                'status' => $ada_nilai ? 'terkirim' : 'belum'
             ];
         }
     }
+    
+    // Hitung persentase progress
+    $persentase_progress = $total_materi > 0 ? round(($materi_terkirim / $total_materi) * 100, 2) : 0;
+    
+    $status_data = [
+        'total_materi' => $total_materi,
+        'materi_terkirim' => $materi_terkirim,
+        'materi_belum' => $total_materi - $materi_terkirim,
+        'persentase' => $persentase_progress,
+        'materi_list' => $materi_status_list
+    ];
 }
 ?>
 <?php include '../includes/header.php'; ?>
@@ -131,36 +157,50 @@ if ($kelas_filter) {
             </select>
         </div>
         
-        <?php if ($kelas_filter && isset($status_data)): ?>
+        <?php if ($kelas_filter && isset($status_data) && !empty($status_data['materi_list'])): ?>
+            <!-- Progress Bar Materi Mulok -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h6 class="mb-3">Materi Mulok</h6>
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar <?php echo $status_data['persentase'] == 100 ? 'bg-success' : ($status_data['persentase'] >= 50 ? 'bg-warning' : 'bg-danger'); ?>" 
+                             role="progressbar" 
+                             style="width: <?php echo $status_data['persentase']; ?>%;" 
+                             aria-valuenow="<?php echo $status_data['persentase']; ?>" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            <?php echo $status_data['persentase']; ?>% (<?php echo $status_data['materi_terkirim']; ?> dari <?php echo $status_data['total_materi']; ?>)
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tabel Status Nilai -->
             <div class="table-responsive">
-                <table class="table table-bordered">
+                <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
+                            <th width="50">No</th>
                             <th>Materi Mulok</th>
-                            <th>Total Siswa</th>
-                            <th>Sudah Dinilai</th>
-                            <th>Belum Dinilai</th>
-                            <th>Progres</th>
+                            <th>Nama Guru</th>
+                            <th>Status Nilai</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($status_data as $status): ?>
+                        <?php 
+                        $no = 1;
+                        foreach ($status_data['materi_list'] as $materi): 
+                        ?>
                             <tr>
-                                <td><?php echo htmlspecialchars($status['materi']); ?></td>
-                                <td><?php echo $status['total_siswa']; ?></td>
-                                <td><span class="badge bg-success"><?php echo $status['sudah_nilai']; ?></span></td>
-                                <td><span class="badge bg-danger"><?php echo $status['belum_nilai']; ?></span></td>
+                                <td><?php echo $no++; ?></td>
+                                <td><?php echo htmlspecialchars($materi['nama_mulok']); ?></td>
+                                <td><?php echo htmlspecialchars($materi['nama_guru']); ?></td>
                                 <td>
-                                    <div class="progress" style="height: 25px;">
-                                        <div class="progress-bar <?php echo $status['persentase'] == 100 ? 'bg-success' : ($status['persentase'] >= 50 ? 'bg-warning' : 'bg-danger'); ?>" 
-                                             role="progressbar" 
-                                             style="width: <?php echo $status['persentase']; ?>%;" 
-                                             aria-valuenow="<?php echo $status['persentase']; ?>" 
-                                             aria-valuemin="0" 
-                                             aria-valuemax="100">
-                                            <?php echo $status['persentase']; ?>%
-                                        </div>
-                                    </div>
+                                    <?php if ($materi['status'] == 'terkirim'): ?>
+                                        <span class="badge bg-success">Terkirim</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger">Belum</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
