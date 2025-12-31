@@ -495,8 +495,8 @@ if (!empty($kelas_tujuan_ids)) {
                                 </div>
                                 <!-- Tombol Batal Pindah dan Reset -->
                                 <div class="mt-3 d-flex gap-2">
-                                    <div class="flex-grow-1" id="btnBatalContainer" style="display: none;">
-                                        <button type="button" class="btn btn-warning btn-lg w-100" onclick="batalPindah()">
+                                    <div id="btnBatalContainer" style="display: none;">
+                                        <button type="button" class="btn btn-warning btn-sm" onclick="batalPindah()">
                                             <i class="fas fa-undo"></i> Batal Pindah
                                         </button>
                                     </div>
