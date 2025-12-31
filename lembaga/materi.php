@@ -280,18 +280,18 @@ include '../includes/header.php';
                             <td><?php echo $no++; ?></td>
                             <td>
                                 <?php 
-                                $kategori_lower = strtolower($kategori_value);
-                                $badge_class = 'badge-secondary'; // default
+                                $kategori_lower = strtolower(trim($kategori_value));
+                                $badge_class = 'bg-secondary'; // default abu-abu
                                 
                                 if (strpos($kategori_lower, 'hafalan') !== false) {
-                                    $badge_class = 'badge-info'; // biru
+                                    $badge_class = 'bg-info'; // biru
                                 } elseif (strpos($kategori_lower, 'membaca') !== false) {
-                                    $badge_class = 'badge-success'; // hijau
+                                    $badge_class = 'bg-success'; // hijau
                                 } elseif (strpos($kategori_lower, 'praktik ibadah') !== false || strpos($kategori_lower, 'praktik') !== false) {
-                                    $badge_class = 'badge-primary'; // primary
+                                    $badge_class = 'bg-primary'; // primary
                                 }
                                 ?>
-                                <span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars($kategori_value); ?></span>
+                                <span class="badge <?php echo $badge_class; ?> text-white"><?php echo htmlspecialchars($kategori_value); ?></span>
                             </td>
                             <td><?php echo htmlspecialchars($row['nama_mulok']); ?></td>
                             <?php if ($use_kelas_semester): ?>
