@@ -344,8 +344,8 @@ if (!empty($kelas_tujuan_ids)) {
                             </div>
                             <!-- Tombol Pindah Kelas dan Reset -->
                             <div class="mt-3 d-flex gap-2">
-                                <div class="flex-grow-1" id="btnPindahContainer" style="display: none;">
-                                    <button type="button" class="btn btn-primary btn-lg w-100" onclick="pindahKelas()">
+                                <div id="btnPindahContainer" style="display: none;">
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="pindahKelas()">
                                         <i class="fas fa-exchange-alt"></i> Pindah Kelas
                                     </button>
                                 </div>
