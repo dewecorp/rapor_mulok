@@ -49,13 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     }
 }
 
-// Ambil success message dari session jika ada
-if (isset($_SESSION['success_message'])) {
-    $success_message = $_SESSION['success_message'];
-    unset($_SESSION['success_message']);
-}
-
-
 // Handle batal pindah
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'batal_pindah') {
     $siswa_ids_batal = $_POST['siswa_ids_batal'] ?? [];
@@ -922,7 +915,7 @@ if (!empty($kelas_tujuan_ids)) {
         updateButtonVisibility();
         
         // Tampilkan SweetAlert jika ada success message
-        <?php if (isset($success_message)): ?>
+        <?php if (!empty($success_message)): ?>
         Swal.fire({
             icon: 'success',
             title: 'Berhasil!',
@@ -931,6 +924,9 @@ if (!empty($kelas_tujuan_ids)) {
             timer: 3000,
             timerProgressBar: true,
             showConfirmButton: true
+        }).then(() => {
+            // Reload halaman untuk refresh data setelah alert ditutup
+            location.reload();
         });
         <?php endif; ?>
     });
