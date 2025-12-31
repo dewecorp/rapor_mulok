@@ -820,15 +820,6 @@ if (!empty($kelas_tujuan_ids)) {
             warnings.push('Silahkan klik pada siswa yang akan dipindah');
         }
         
-        // Cek apakah kelas tujuan sudah kosong
-        if (kelasTujuanId) {
-            var siswaTujuanRows = $('#tableTujuan tbody tr').not(':has(.text-muted)');
-            var jumlahSiswaTujuan = siswaTujuanRows.length;
-            if (jumlahSiswaTujuan > 0) {
-                warnings.push('Kelas tujuan masih memiliki ' + jumlahSiswaTujuan + ' siswa. Pastikan kelas tujuan sudah kosong sebelum melakukan pindah kelas.');
-            }
-        }
-        
         if (warnings.length > 0) {
             $('#warningListAsal').empty();
             warnings.forEach(function(warning) {
