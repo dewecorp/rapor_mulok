@@ -177,6 +177,7 @@ $basePath = getBasePath();
             padding: 0 !important;
             flex: 0 1 auto !important;
             min-width: 0;
+            max-width: calc(100% - 60px);
         }
         
         .user-name {
@@ -230,6 +231,7 @@ $basePath = getBasePath();
             position: relative !important;
             margin-left: auto !important;
             order: 999 !important;
+            align-self: flex-end !important;
         }
         
         .user-avatar {
