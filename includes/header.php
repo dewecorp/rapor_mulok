@@ -159,71 +159,73 @@ $basePath = getBasePath();
         }
         
         .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            min-width: 320px;
+            display: flex !important;
+            align-items: center !important;
+            gap: 18px !important;
+            min-width: 350px !important;
             position: relative;
         }
         
         .user-details {
-            text-align: right;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            flex: 1;
+            text-align: right !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-end !important;
+            flex: 1 1 auto !important;
             min-width: 0;
-            padding-right: 0;
-            gap: 4px;
+            padding-right: 0 !important;
+            gap: 5px !important;
+            margin-right: 0 !important;
         }
         
         .user-name {
-            font-weight: 600;
-            font-size: 15px;
-            color: white;
-            margin: 0;
-            padding: 0;
-            white-space: nowrap;
+            font-weight: 600 !important;
+            font-size: 15px !important;
+            color: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            white-space: nowrap !important;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 220px;
-            line-height: 1.4;
-            display: block;
+            max-width: 240px;
+            line-height: 1.5 !important;
+            display: block !important;
         }
         
         .user-role {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            justify-content: flex-end;
-            white-space: nowrap;
-            line-height: 1.4;
-            flex-wrap: nowrap;
-            margin: 0;
-            padding: 0;
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            justify-content: flex-end !important;
+            white-space: nowrap !important;
+            line-height: 1.5 !important;
+            flex-wrap: nowrap !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
         .user-role-text {
-            font-size: 13px;
-            color: white;
+            font-size: 13px !important;
+            color: white !important;
             opacity: 0.9;
-            white-space: nowrap;
-            display: inline-block;
-            margin: 0;
-            padding: 0;
+            white-space: nowrap !important;
+            display: inline-block !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
         .madrasah-logo-small {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid white;
-            background-color: white;
-            padding: 2px;
-            flex-shrink: 0;
-            display: inline-block;
-            margin: 0;
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 50% !important;
+            object-fit: cover !important;
+            border: 2px solid white !important;
+            background-color: white !important;
+            padding: 2px !important;
+            flex-shrink: 0 !important;
+            display: inline-block !important;
+            margin: 0 !important;
+            vertical-align: middle !important;
         }
         
         .user-avatar {
