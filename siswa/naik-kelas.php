@@ -557,18 +557,15 @@ if (!empty($kelas_tujuan_ids)) {
                             }
                             ?>
                             <?php if ($jumlah_siswa_tujuan > 0): ?>
-                                <div class="alert alert-warning mb-3">
-                                    <i class="fas fa-exclamation-triangle"></i> 
-                                    <strong>Peringatan:</strong> Kelas tujuan masih memiliki <?php echo $jumlah_siswa_tujuan; ?> siswa. 
-                                    Pastikan kelas tujuan sudah kosong sebelum melakukan naik kelas, atau lakukan naik kelas dari kelas 6 terlebih dahulu agar kelas di bawahnya sudah kosong.
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Info:</strong> Kelas tujuan memiliki <?php echo $jumlah_siswa_tujuan; ?> siswa. 
+                                    Siswa yang akan naik kelas akan ditambahkan ke kelas tujuan ini.
                                 </div>
                             <?php else: ?>
-                                <div class="alert alert-success mb-3">
-                                    <i class="fas fa-check-circle"></i> 
-                                    <strong>Kelas tujuan sudah kosong.</strong> 
-                                    <?php if (!$is_kelas_6): ?>
-                                        Pastikan kelas di atasnya sudah melakukan naik kelas terlebih dahulu.
-                                    <?php endif; ?>
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Info:</strong> Kelas tujuan saat ini kosong.
                                 </div>
                             <?php endif; ?>
                             <div class="table-responsive" style="max-height: 400px;">
@@ -629,8 +626,7 @@ if (!empty($kelas_tujuan_ids)) {
                             <?php if (!empty($kelas_asal_filter) && !empty($tingkat_tujuan) && empty($kelas_tujuan_filter)): ?>
                                 <div class="alert alert-info mt-3">
                                     <i class="fas fa-info-circle"></i> 
-                                    <strong>Info:</strong> Tabel di atas menampilkan siswa dari kelas tujuan yang sesuai dengan tingkat berikutnya. 
-                                    Pastikan kelas tujuan sudah kosong sebelum melakukan naik kelas, atau lakukan naik kelas dari kelas 6 terlebih dahulu agar kelas di bawahnya sudah kosong.
+                                    <strong>Info:</strong> Tabel di atas menampilkan siswa dari kelas tujuan yang sesuai dengan tingkat berikutnya.
                                 </div>
                             <?php endif; ?>
                             
@@ -812,15 +808,6 @@ if (!empty($kelas_tujuan_ids)) {
         }
         if (checkedBoxes.length === 0) {
             warnings.push('Silahkan klik pada siswa yang akan di naikkan');
-        }
-        
-        // Cek apakah kelas tujuan sudah kosong
-        if (kelasTujuanId) {
-            var siswaTujuanRows = $('#tableTujuan tbody tr').not(':has(.text-muted)');
-            var jumlahSiswaTujuan = siswaTujuanRows.length;
-            if (jumlahSiswaTujuan > 0) {
-                warnings.push('Kelas tujuan masih memiliki ' + jumlahSiswaTujuan + ' siswa. Pastikan kelas tujuan sudah kosong sebelum melakukan naik kelas, atau lakukan naik kelas dari kelas 6 terlebih dahulu agar kelas di bawahnya sudah kosong.');
-            }
         }
         
         if (warnings.length > 0) {

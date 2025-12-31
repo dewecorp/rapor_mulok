@@ -162,13 +162,20 @@ $basePath = getBasePath();
             display: flex;
             align-items: center;
             flex: 0 0 auto;
+            margin-right: 15px;
+            min-width: 0;
+            max-width: 200px;
         }
         
         .user-details {
             display: flex;
             flex-direction: column;
             gap: 4px;
-            text-align: left;
+            text-align: right;
+            min-width: 0;
+            flex: 0 0 auto;
+            max-width: 100%;
+            overflow: hidden;
         }
         
         .user-name {
@@ -178,7 +185,9 @@ $basePath = getBasePath();
             margin: 0;
             padding: 0;
             white-space: nowrap;
-            text-align: left;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .user-role {
@@ -187,7 +196,8 @@ $basePath = getBasePath();
             gap: 8px;
             margin: 0;
             padding: 0;
-            justify-content: flex-start;
+            justify-content: flex-end;
+            min-width: 0;
         }
         
         .user-role-text {
@@ -197,35 +207,30 @@ $basePath = getBasePath();
             white-space: nowrap;
             margin: 0;
             padding: 0;
-        }
-        
-        .madrasah-logo-small {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid white;
-            background-color: white;
-            padding: 2px;
-            flex-shrink: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .user-avatar-wrapper {
-            flex-shrink: 0;
-            width: 40px;
-            height: 40px;
-            position: relative;
-            margin-left: auto;
+            flex-shrink: 0 !important;
+            width: 40px !important;
+            height: 40px !important;
+            position: relative !important;
+            margin-left: auto !important;
+            flex: 0 0 40px !important;
+            order: 999 !important;
+            overflow: visible !important;
         }
         
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 40px !important;
+            height: 40px !important;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid white;
             cursor: pointer;
             flex-shrink: 0;
+            display: block !important;
         }
         
         .user-avatar:hover {
@@ -283,12 +288,14 @@ $basePath = getBasePath();
             color: white;
             text-align: center;
             font-size: 14px;
-            margin: 0 auto;
+            margin: 0;
             padding: 0;
-            flex: 1;
             position: absolute;
             left: 50%;
-            transform: translateX(-50%);
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 0;
         }
         
         .datetime-info #datetime {
@@ -300,18 +307,26 @@ $basePath = getBasePath();
             align-items: center;
             width: 100%;
             position: relative;
+            justify-content: space-between;
+            padding-right: 15px;
         }
         
         .navbar-brand {
             flex: 0 0 auto;
+            z-index: 1;
         }
         
         .navbar .ms-auto {
             margin-left: auto !important;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            width: auto;
+            display: flex !important;
+            align-items: center !important;
+            gap: 15px !important;
+            width: auto !important;
+            flex-wrap: nowrap !important;
+            flex-shrink: 0 !important;
+            z-index: 1 !important;
+            justify-content: flex-end !important;
+            min-width: fit-content !important;
         }
         
         .sidebar {
@@ -634,6 +649,58 @@ $basePath = getBasePath();
         .text-muted {
             font-size: 14px;
         }
+        
+        /* Responsive untuk navbar user info */
+        @media (max-width: 991px) {
+            .user-info {
+                margin-right: 10px;
+                max-width: 150px;
+            }
+            
+            .user-name {
+                font-size: 14px;
+            }
+            
+            .user-role-text {
+                font-size: 12px;
+            }
+            
+            .user-avatar-wrapper {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .user-avatar {
+                width: 36px;
+                height: 36px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .user-details {
+                display: none;
+            }
+            
+            .user-info {
+                margin-right: 10px;
+                max-width: none;
+            }
+        }
+        
+        /* Pastikan tidak ada overlap */
+        .navbar .ms-auto > * {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .user-avatar-wrapper {
+            z-index: 2 !important;
+        }
+        
+        /* Pastikan user-info dan avatar tidak overlap */
+        .navbar .ms-auto {
+            min-width: 0;
+        }
     </style>
 </head>
 <body>
@@ -662,12 +729,11 @@ $basePath = getBasePath();
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
                         <div class="user-role">
                             <span class="user-role-text"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></span>
-                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                     </div>
                 </div>
                 <div class="user-avatar-wrapper">
-                    <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" id="userAvatarDropdown" onerror="this.onerror=null; this.style.display='none';">
+                    <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="user-avatar" id="userAvatarDropdown" onerror="this.onerror=null; this.style.display='none';">
                     <div class="user-dropdown-menu" id="userDropdownMenu">
                         <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">
                             <i class="fas fa-sign-out-alt"></i> Logout
