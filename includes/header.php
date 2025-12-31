@@ -161,9 +161,11 @@ $basePath = getBasePath();
         .user-info {
             display: flex !important;
             align-items: center !important;
+            justify-content: space-between !important;
             gap: 15px !important;
             min-width: 300px !important;
             position: relative;
+            width: 100%;
         }
         
         .user-details {
@@ -173,7 +175,7 @@ $basePath = getBasePath();
             gap: 5px !important;
             margin: 0 !important;
             padding: 0 !important;
-            flex: 1 1 auto !important;
+            flex: 0 1 auto !important;
             min-width: 0;
         }
         
@@ -227,6 +229,7 @@ $basePath = getBasePath();
             height: 40px !important;
             position: relative !important;
             margin-left: auto !important;
+            order: 999 !important;
         }
         
         .user-avatar {
