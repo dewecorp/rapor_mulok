@@ -287,12 +287,6 @@ $basePath = getBasePath();
             color: #c82333;
         }
         
-        .user-details {
-            color: white;
-            text-align: right;
-        }
-        
-        
         .datetime-info {
             color: white;
             text-align: center;
@@ -327,14 +321,6 @@ $basePath = getBasePath();
             gap: 20px;
         }
         
-        .user-info {
-            flex: 0 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            min-width: 300px;
-            position: relative;
-        }
         
         .sidebar {
             min-height: calc(100vh - 56px);
