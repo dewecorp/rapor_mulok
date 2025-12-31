@@ -33,6 +33,21 @@ try {
     $tahun_ajaran = '';
 }
 
+// Cek struktur database materi_mulok
+$has_kelas_id = false;
+$has_semester = false;
+try {
+    $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
+    if ($columns) {
+        while ($col = $columns->fetch_assoc()) {
+            if ($col['Field'] == 'kelas_id') $has_kelas_id = true;
+            if ($col['Field'] == 'semester') $has_semester = true;
+        }
+    }
+} catch (Exception $e) {
+    // Ignore error
+}
+
 // Query status nilai per materi
 $materi_list = [];
 $total_materi = 0;
@@ -40,95 +55,111 @@ $materi_terkirim = 0;
 $persentase_progress = 0;
 
 if ($kelas_id && !empty($semester) && !empty($tahun_ajaran)) {
-    try {
-        // Cek struktur tabel materi_mulok apakah ada kolom kelas_id dan semester
-        $check_kelas_id = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kelas_id'");
-        $has_kelas_id = $check_kelas_id && $check_kelas_id->num_rows > 0;
-        
-        $check_semester = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'semester'");
-        $has_semester = $check_semester && $check_semester->num_rows > 0;
-        
-        // Ambil semua materi dari mengampu_materi untuk kelas ini
-        // Tanpa filter semester dulu untuk memastikan semua materi terambil
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru, m.semester
+    // Ambil SEMUA materi di kelas ini dan semester aktif, beserta guru pengampunya
+    // Mulai dari materi_mulok untuk mengambil SEMUA materi, lalu LEFT JOIN dengan mengampu_materi
+    if ($has_kelas_id && $has_semester) {
+        // Struktur baru: ambil semua materi berdasarkan kelas_id dan semester
+        $query_materi = "SELECT m.id as materi_id, 
+                                m.nama_mulok, 
+                                mm.guru_id, 
+                                p.nama as nama_guru
+                         FROM materi_mulok m
+                         LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                         LEFT JOIN pengguna p ON mm.guru_id = p.id
+                         WHERE m.kelas_id = ? AND m.semester = ?
+                         ORDER BY m.nama_mulok";
+        $stmt_materi = $conn->prepare($query_materi);
+        if ($stmt_materi) {
+            $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
+            $stmt_materi->execute();
+            $materi_result = $stmt_materi->get_result();
+        } else {
+            $materi_result = null;
+        }
+    } else {
+        // Struktur lama: ambil semua materi yang diampu untuk kelas ini
+        $query_materi = "SELECT m.id as materi_id, 
+                                m.nama_mulok, 
+                                mm.guru_id, 
+                                p.nama as nama_guru
                          FROM mengampu_materi mm
                          INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
                          WHERE mm.kelas_id = ?
                          ORDER BY m.nama_mulok";
-        
         $stmt_materi = $conn->prepare($query_materi);
-        $stmt_materi->bind_param("i", $kelas_id);
-        $stmt_materi->execute();
-        $result_materi = $stmt_materi->get_result();
-        
-        if ($result_materi) {
-            while ($materi = $result_materi->fetch_assoc()) {
-                // Filter semester di PHP jika ada kolom semester
-                if ($has_semester) {
-                    $materi_semester = isset($materi['semester']) ? $materi['semester'] : '';
-                    if ($materi_semester != $semester) {
-                        continue; // Skip jika semester tidak sesuai
-                    }
-                }
-                
-                $total_materi++;
-                $materi_id = $materi['materi_id'];
-                
-                // Cek apakah ada nilai yang sudah dikirim untuk materi ini (sama seperti di dashboard proktor)
-                $query_cek_nilai = "SELECT status FROM nilai_kirim_status 
-                                   WHERE materi_mulok_id = ? 
-                                   AND kelas_id = ? 
-                                   AND semester = ? 
-                                   AND tahun_ajaran = ? 
-                                   AND status = 'terkirim'";
-                $stmt_cek = $conn->prepare($query_cek_nilai);
-                $stmt_cek->bind_param("iiss", $materi_id, $kelas_id, $semester, $tahun_ajaran);
-                $stmt_cek->execute();
-                $result_cek = $stmt_cek->get_result();
-                $ada_nilai = ($result_cek && $result_cek->num_rows > 0);
-                $stmt_cek->close();
-                
-                if ($ada_nilai) {
-                    $materi_terkirim++;
-                }
-                
-                // Pastikan nama_guru tidak null
-                $nama_guru = isset($materi['nama_guru']) && !empty(trim($materi['nama_guru'])) ? trim($materi['nama_guru']) : '-';
-                
-                // Jika nama_guru masih kosong tapi ada guru_id, ambil dari database
-                if ($nama_guru == '-' && isset($materi['guru_id']) && !empty($materi['guru_id'])) {
-                    $guru_id_check = intval($materi['guru_id']);
-                    if ($guru_id_check > 0) {
-                        $stmt_guru = $conn->prepare("SELECT nama FROM pengguna WHERE id = ?");
-                        $stmt_guru->bind_param("i", $guru_id_check);
-                        $stmt_guru->execute();
-                        $result_guru = $stmt_guru->get_result();
-                        if ($result_guru && $result_guru->num_rows > 0) {
-                            $guru_data = $result_guru->fetch_assoc();
-                            $nama_guru = isset($guru_data['nama']) && !empty(trim($guru_data['nama'])) ? trim($guru_data['nama']) : '-';
-                        }
-                        $stmt_guru->close();
-                    }
-                }
-                
-                $materi_list[] = [
-                    'materi_id' => $materi_id,
-                    'nama_mulok' => isset($materi['nama_mulok']) ? $materi['nama_mulok'] : '-',
-                    'guru_id' => isset($materi['guru_id']) ? intval($materi['guru_id']) : 0,
-                    'nama_guru' => $nama_guru,
-                    'status' => $ada_nilai ? 'terkirim' : 'belum'
-                ];
-            }
+        if ($stmt_materi) {
+            $stmt_materi->bind_param("i", $kelas_id);
+            $stmt_materi->execute();
+            $materi_result = $stmt_materi->get_result();
+        } else {
+            $materi_result = null;
         }
-        $stmt_materi->close();
-        
-        // Hitung persentase progress
-        $persentase_progress = $total_materi > 0 ? round(($materi_terkirim / $total_materi) * 100, 2) : 0;
-        
-    } catch (Exception $e) {
-        $materi_list = [];
     }
+    
+    // Hitung total materi dan materi yang sudah dikirim
+    if ($materi_result) {
+        while ($materi = $materi_result->fetch_assoc()) {
+            $total_materi++;
+            $materi_id = $materi['materi_id'];
+            
+            // Cek apakah ada nilai yang sudah dikirim untuk materi ini
+            $query_cek_nilai = "SELECT status FROM nilai_kirim_status 
+                               WHERE materi_mulok_id = ? 
+                               AND kelas_id = ? 
+                               AND semester = ? 
+                               AND tahun_ajaran = ? 
+                               AND status = 'terkirim'";
+            $stmt_cek = $conn->prepare($query_cek_nilai);
+            $stmt_cek->bind_param("iiss", $materi_id, $kelas_id, $semester, $tahun_ajaran);
+            $stmt_cek->execute();
+            $result_cek = $stmt_cek->get_result();
+            $ada_nilai = ($result_cek && $result_cek->num_rows > 0);
+            $stmt_cek->close();
+            
+            if ($ada_nilai) {
+                $materi_terkirim++;
+            }
+            
+            // Pastikan nama_guru tidak null
+            $nama_guru = isset($materi['nama_guru']) && !empty(trim($materi['nama_guru'])) ? trim($materi['nama_guru']) : '';
+            $guru_id = isset($materi['guru_id']) && !empty($materi['guru_id']) ? intval($materi['guru_id']) : 0;
+            
+            // Jika nama_guru kosong tapi ada guru_id, ambil dari database
+            if (empty($nama_guru) && $guru_id > 0) {
+                $stmt_guru = $conn->prepare("SELECT nama FROM pengguna WHERE id = ?");
+                if ($stmt_guru) {
+                    $stmt_guru->bind_param("i", $guru_id);
+                    $stmt_guru->execute();
+                    $result_guru = $stmt_guru->get_result();
+                    if ($result_guru && $result_guru->num_rows > 0) {
+                        $guru_data = $result_guru->fetch_assoc();
+                        $nama_guru = isset($guru_data['nama']) ? trim($guru_data['nama']) : '';
+                    }
+                    $stmt_guru->close();
+                }
+            }
+            
+            // Set default jika masih kosong
+            if (empty($nama_guru)) {
+                $nama_guru = '-';
+            }
+            
+            $materi_list[] = [
+                'materi_id' => $materi_id,
+                'nama_mulok' => $materi['nama_mulok'],
+                'guru_id' => $guru_id,
+                'nama_guru' => $nama_guru,
+                'status' => $ada_nilai ? 'terkirim' : 'belum'
+            ];
+        }
+        if (isset($stmt_materi)) {
+            $stmt_materi->close();
+        }
+    }
+    
+    // Hitung persentase progress
+    $persentase_progress = $total_materi > 0 ? round(($materi_terkirim / $total_materi) * 100, 2) : 0;
 }
 ?>
 <?php include '../includes/header.php'; ?>
@@ -220,4 +251,3 @@ if ($kelas_id && !empty($semester) && !empty($tahun_ajaran)) {
         <?php endif; ?>
     });
 </script>
-
