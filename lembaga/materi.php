@@ -179,7 +179,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             } catch (Exception $e) {
                 $_SESSION['error_message'] = 'Gagal menghapus materi mulok! Error: ' . $e->getMessage();
-                redirect(basename($_SERVER['PHP_SELF']), false);
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: materi.php');
+                exit();
             }
         }
     }
