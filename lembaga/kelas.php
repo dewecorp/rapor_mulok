@@ -175,6 +175,7 @@ if (isset($_GET['edit'])) {
 }
 
 // Ambil semua data kelas dengan nama wali kelas dan jumlah siswa
+// Kecualikan kelas "Alumni" karena hanya untuk filter di naik kelas
 $result = null;
 $kelas_data = [];
 $guru_list = null;
@@ -183,6 +184,7 @@ try {
               (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id) as jumlah_siswa
               FROM kelas k 
               LEFT JOIN pengguna p ON k.wali_kelas_id = p.id 
+              WHERE LOWER(TRIM(k.nama_kelas)) != 'alumni'
               ORDER BY k.nama_kelas";
     $result = $conn->query($query);
     if (!$result) {
