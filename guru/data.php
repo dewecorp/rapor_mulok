@@ -340,7 +340,7 @@ try {
                         <th>Pendidikan</th>
                         <th>NUPTK</th>
                         <th>Wali Kelas</th>
-                        <th>Password</th>
+                        <th>Status Password</th>
                         <th width="200">Aksi</th>
                     </tr>
                 </thead>
