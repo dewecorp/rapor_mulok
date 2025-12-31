@@ -612,6 +612,47 @@ try {
         });
     }
     
+    // Fungsi untuk copy password ke clipboard
+    function copyPassword(id, password) {
+        navigator.clipboard.writeText(password).then(function() {
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: 'Password berhasil disalin ke clipboard',
+                confirmButtonColor: '#2d5016',
+                timer: 2000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+        }).catch(function(err) {
+            // Fallback untuk browser lama
+            var textArea = document.createElement("textarea");
+            textArea.value = password;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Password berhasil disalin ke clipboard',
+                    confirmButtonColor: '#2d5016',
+                    timer: 2000,
+                    timerProgressBar: true,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: 'Gagal menyalin password. Password: ' + password,
+                    confirmButtonColor: '#2d5016'
+                });
+            }
+            document.body.removeChild(textArea);
+        });
+    }
+    
     function resetPassword(id) {
         Swal.fire({
             title: 'Reset Password',
