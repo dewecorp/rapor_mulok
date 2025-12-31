@@ -8,6 +8,12 @@ $success = '';
 $error = '';
 $success_message = '';
 
+// Ambil success message dari session jika ada (hanya sekali)
+if (isset($_SESSION['success_message'])) {
+    $success_message = $_SESSION['success_message'];
+    unset($_SESSION['success_message']); // Hapus setelah digunakan agar tidak muncul lagi
+}
+
 // Handle pindah kelas
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'pindah') {
     $kelas_lama_id = $_POST['kelas_lama_id'] ?? 0;
@@ -41,7 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_baru_id) WHERE id = $kelas_baru_id");
             
             $conn->commit();
-            $success_message = "Berhasil memindahkan $pindah_count siswa!";
+            // Set session message untuk ditampilkan sekali setelah redirect
+            $_SESSION['success_message'] = "Berhasil memindahkan $pindah_count siswa!";
+            // Redirect dengan parameter untuk mempertahankan filter
+            header('Location: pindah-kelas.php?kelas_asal=' . $kelas_lama_id . '&kelas_tujuan=' . $kelas_baru_id);
+            exit();
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal memindahkan siswa: ' . $e->getMessage();
@@ -84,7 +94,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             }
             
             $conn->commit();
-            $success_message = "Berhasil membatalkan pindah $batal_count siswa!";
+            // Set session message untuk ditampilkan sekali setelah redirect
+            $_SESSION['success_message'] = "Berhasil membatalkan pindah $batal_count siswa!";
+            // Redirect dengan parameter untuk mempertahankan filter
+            header('Location: pindah-kelas.php?kelas_asal=' . $kelas_asal_id . '&kelas_tujuan=' . $kelas_tujuan_id);
+            exit();
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal membatalkan pindah siswa: ' . $e->getMessage();
@@ -924,9 +938,6 @@ if (!empty($kelas_tujuan_ids)) {
             timer: 3000,
             timerProgressBar: true,
             showConfirmButton: true
-        }).then(() => {
-            // Reload halaman untuk refresh data setelah alert ditutup
-            location.reload();
         });
         <?php endif; ?>
     });
