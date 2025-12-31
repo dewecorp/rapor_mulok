@@ -846,6 +846,13 @@ if (!empty($kelas_tujuan_ids)) {
         $('#kelasLamaId').val(kelasAsalId);
         $('#kelasBaruId').val(kelasTujuanId);
         
+        // Pastikan semua checkbox yang tercentang memiliki name yang benar
+        checkedBoxes.forEach(function(cb) {
+            if (!cb.name || cb.name !== 'siswa_ids[]') {
+                cb.name = 'siswa_ids[]';
+            }
+        });
+        
         Swal.fire({
             title: 'Apakah Anda yakin?',
             text: 'Anda akan memindahkan ' + checkedBoxes.length + ' siswa ke kelas tujuan.',
@@ -860,7 +867,28 @@ if (!empty($kelas_tujuan_ids)) {
                 // Pastikan sekali lagi sebelum submit
                 $('#kelasLamaId').val(kelasAsalId);
                 $('#kelasBaruId').val(kelasTujuanId);
-                document.getElementById('formPindahKelas').submit();
+                
+                // Debug: log data yang akan dikirim
+                var siswaIds = [];
+                checkedBoxes.forEach(function(cb) {
+                    siswaIds.push(cb.value);
+                });
+                console.log('Kelas Asal ID:', kelasAsalId);
+                console.log('Kelas Tujuan ID:', kelasTujuanId);
+                console.log('Siswa IDs:', siswaIds);
+                
+                // Submit form
+                var form = document.getElementById('formPindahKelas');
+                if (form) {
+                    form.submit();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Form tidak ditemukan!',
+                        confirmButtonColor: '#2d5016'
+                    });
+                }
             }
         });
     }
