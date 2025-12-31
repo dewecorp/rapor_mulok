@@ -342,16 +342,18 @@ if (!empty($kelas_tujuan_ids)) {
                                     </tbody>
                                 </table>
                             </div>
-                            <!-- Tombol Pindah Kelas -->
-                            <div class="mt-3" id="btnPindahContainer" style="display: none;">
-                                <button type="button" class="btn btn-primary btn-lg w-100" onclick="pindahKelas()">
-                                    <i class="fas fa-exchange-alt"></i> Pindah Kelas
-                                </button>
-                            </div>
-                            <div class="mt-2 text-center">
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasAsal()">
-                                    <i class="fas fa-redo"></i> Reset
-                                </button>
+                            <!-- Tombol Pindah Kelas dan Reset -->
+                            <div class="mt-3 d-flex gap-2">
+                                <div class="flex-grow-1" id="btnPindahContainer" style="display: none;">
+                                    <button type="button" class="btn btn-primary btn-lg w-100" onclick="pindahKelas()">
+                                        <i class="fas fa-exchange-alt"></i> Pindah Kelas
+                                    </button>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasAsal()">
+                                        <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                </div>
                             </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
@@ -491,16 +493,18 @@ if (!empty($kelas_tujuan_ids)) {
                                         </tbody>
                                     </table>
                                 </div>
-                                <!-- Tombol Batal Pindah -->
-                                <div class="mt-3" id="btnBatalContainer" style="display: none;">
-                                    <button type="button" class="btn btn-warning btn-lg w-100" onclick="batalPindah()">
-                                        <i class="fas fa-undo"></i> Batal Pindah
-                                    </button>
-                                </div>
-                                <div class="mt-2 text-center">
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
-                                        <i class="fas fa-redo"></i> Reset
-                                    </button>
+                                <!-- Tombol Batal Pindah dan Reset -->
+                                <div class="mt-3 d-flex gap-2">
+                                    <div class="flex-grow-1" id="btnBatalContainer" style="display: none;">
+                                        <button type="button" class="btn btn-warning btn-lg w-100" onclick="batalPindah()">
+                                            <i class="fas fa-undo"></i> Batal Pindah
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
+                                            <i class="fas fa-redo"></i> Reset
+                                        </button>
+                                    </div>
                                 </div>
                                 <?php else: ?>
                                     <div class="alert alert-info">
