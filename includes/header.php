@@ -27,20 +27,27 @@ try {
 // Ambil materi yang diampu oleh wali kelas di semester aktif
 $materi_wali_kelas = [];
 $materi_wali_kelas_by_kategori = [];
-if ($user && $user['role'] == 'wali_kelas') {
-    try {
-        // Cek apakah kolom kategori_mulok ada
-        $has_kategori_mulok = false;
-        $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
-        if ($columns) {
-            while ($col = $columns->fetch_assoc()) {
-                if ($col['Field'] == 'kategori_mulok') {
-                    $has_kategori_mulok = true;
-                    break;
-                }
+$materi_guru = [];
+$materi_guru_by_kategori = [];
+
+// Cek apakah kolom kategori_mulok ada (untuk semua role)
+$has_kategori_mulok = false;
+try {
+    $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
+    if ($columns) {
+        while ($col = $columns->fetch_assoc()) {
+            if ($col['Field'] == 'kategori_mulok') {
+                $has_kategori_mulok = true;
+                break;
             }
         }
-        
+    }
+} catch (Exception $e) {
+    // Ignore
+}
+
+if ($user && $user['role'] == 'wali_kelas') {
+    try {
         $semester_aktif = $profil['semester_aktif'] ?? '1';
         // Ambil materi yang diampu oleh wali kelas di semester aktif
         // Filter berdasarkan kelas yang diampu oleh wali kelas tersebut
@@ -70,6 +77,37 @@ if ($user && $user['role'] == 'wali_kelas') {
     } catch (Exception $e) {
         $materi_wali_kelas = [];
         $materi_wali_kelas_by_kategori = [];
+    }
+} elseif ($user && $user['role'] == 'guru') {
+    try {
+        $semester_aktif = $profil['semester_aktif'] ?? '1';
+        // Ambil materi yang diampu oleh guru di semester aktif
+        $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
+        $stmt_materi = $conn->prepare("SELECT DISTINCT m.id, m.nama_mulok, k.nama_kelas, k.id as kelas_id, $kolom_kategori as kategori
+                      FROM mengampu_materi mm
+                      INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                      INNER JOIN kelas k ON mm.kelas_id = k.id
+                      WHERE mm.guru_id = ? AND m.semester = ?
+                      ORDER BY kategori, m.nama_mulok");
+        $stmt_materi->bind_param("is", $user_id, $semester_aktif);
+        $stmt_materi->execute();
+        $result_materi = $stmt_materi->get_result();
+        if ($result_materi) {
+            while ($row_materi = $result_materi->fetch_assoc()) {
+                $materi_guru[] = $row_materi;
+                
+                // Kelompokkan berdasarkan kategori
+                $kategori = $row_materi['kategori'] ?? 'Lainnya';
+                if (!isset($materi_guru_by_kategori[$kategori])) {
+                    $materi_guru_by_kategori[$kategori] = [];
+                }
+                $materi_guru_by_kategori[$kategori][] = $row_materi;
+            }
+        }
+        $stmt_materi->close();
+    } catch (Exception $e) {
+        $materi_guru = [];
+        $materi_guru_by_kategori = [];
     }
 }
 
@@ -919,9 +957,40 @@ $basePath = getBasePath();
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
-                            <i class="fas fa-book"></i> Materi yang Diampu
-                        </a>
+                        <?php if (!empty($materi_guru_by_kategori)): ?>
+                            <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenuGuru" onclick="event.stopPropagation();">
+                                <i class="fas fa-book"></i> Materi Mulok <i class="fas fa-chevron-down float-end"></i>
+                            </a>
+                            <div class="collapse" id="materiMenuGuru" data-bs-parent=".sidebar">
+                                <?php foreach ($materi_guru_by_kategori as $kategori => $materi_list): ?>
+                                    <a class="nav-link ps-5" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#kategoriMenuGuru<?php echo md5($kategori); ?>" onclick="event.stopPropagation();">
+                                        <i class="fas fa-folder"></i> <?php echo htmlspecialchars($kategori); ?> <i class="fas fa-chevron-down float-end"></i>
+                                    </a>
+                                    <div class="collapse" id="kategoriMenuGuru<?php echo md5($kategori); ?>">
+                                        <?php foreach ($materi_list as $materi): ?>
+                                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi=<?php echo $materi['id']; ?>&kelas=<?php echo $materi['kelas_id'] ?? ''; ?>" style="padding-left: 3rem !important;">
+                                                <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php elseif (!empty($materi_guru)): ?>
+                            <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenuGuru" onclick="event.stopPropagation();">
+                                <i class="fas fa-book"></i> Materi Mulok <i class="fas fa-chevron-down float-end"></i>
+                            </a>
+                            <div class="collapse" id="materiMenuGuru" data-bs-parent=".sidebar">
+                                <?php foreach ($materi_guru as $materi): ?>
+                                    <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi=<?php echo $materi['id']; ?>&kelas=<?php echo $materi['kelas_id'] ?? ''; ?>">
+                                        <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
+                                <i class="fas fa-book"></i> Materi yang Diampu
+                            </a>
+                        <?php endif; ?>
                     <?php endif; ?>
                     <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout

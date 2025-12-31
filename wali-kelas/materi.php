@@ -474,13 +474,13 @@ if ($materi_id > 0 && $kelas_id > 0) {
     if ($kelas_id > 0) {
         try {
             $stmt = $conn->prepare("SELECT DISTINCT m.id, m.nama_mulok, m.kode_mulok, m.jumlah_jam
-                      FROM mengampu_materi mm
-                      INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+              FROM mengampu_materi mm
+              INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                       WHERE mm.guru_id = ? AND mm.kelas_id = ? AND m.semester = ?
                       ORDER BY m.nama_mulok");
             $stmt->bind_param("iis", $user_id, $kelas_id, $semester_aktif);
-            $stmt->execute();
-            $result = $stmt->get_result();
+    $stmt->execute();
+    $result = $stmt->get_result();
             
             if ($result) {
                 while ($row = $result->fetch_assoc()) {
@@ -538,14 +538,14 @@ if ($materi_id > 0 && $kelas_id > 0) {
 
 <?php if ($materi_id > 0 && $materi_data): ?>
     <!-- Tampilkan tabel nilai siswa untuk materi tertentu -->
-    <div class="card">
-        <div class="card-header">
+<div class="card">
+    <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-book"></i> 
                 <?php echo htmlspecialchars($materi_data['kategori'] ?? '-'); ?> - <?php echo htmlspecialchars($materi_data['nama_mulok']); ?>
             </h5>
-        </div>
-        <div class="card-body">
+    </div>
+    <div class="card-body">
             <div class="mb-3 d-flex gap-2">
                 <button type="button" class="btn btn-primary" id="btnTambahNilai" onclick="tambahNilai()" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
                     <i class="fas fa-plus"></i> Tambah Nilai
@@ -579,8 +579,8 @@ if ($materi_id > 0 && $kelas_id > 0) {
                     </thead>
                     <tbody>
                         <?php if (!empty($siswa_data)): ?>
-                            <?php 
-                            $no = 1;
+                        <?php 
+                        $no = 1;
                             foreach ($siswa_data as $siswa): 
                                 $nilai = $nilai_data[$siswa['id']] ?? null;
                                 $nilai_value = $nilai ? ($nilai['nilai_pengetahuan'] ?? $nilai['harian'] ?? '') : '';
@@ -596,9 +596,9 @@ if ($materi_id > 0 && $kelas_id > 0) {
                                 if (empty($deskripsi) && !empty($predikat) && $predikat != '-' && !empty($materi_data['nama_mulok'])) {
                                     $deskripsi = hitungDeskripsi($predikat, $materi_data['nama_mulok']);
                                 }
-                            ?>
-                                <tr>
-                                    <td><?php echo $no++; ?></td>
+                        ?>
+                            <tr>
+                                <td><?php echo $no++; ?></td>
                                     <td><?php echo htmlspecialchars($siswa['nisn'] ?? '-'); ?></td>
                                     <td><?php echo htmlspecialchars($siswa['nama'] ?? '-'); ?></td>
                                     <td><?php echo (($siswa['jenis_kelamin'] ?? '') == 'L') ? 'L' : 'P'; ?></td>
@@ -659,15 +659,15 @@ if ($materi_id > 0 && $kelas_id > 0) {
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php else: ?>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> Belum ada materi yang diampu.
-                </div>
-            <?php endif; ?>
-        </div>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Belum ada materi yang diampu.
+            </div>
+        <?php endif; ?>
+    </div>
     </div>
 <?php endif; ?>
 
@@ -759,7 +759,7 @@ if ($materi_id > 0 && $kelas_id > 0) {
                     <p class="mb-0" style="color: #6c757d; font-size: 16px;">
                         Letakkan File atau Klik Disini untuk upload
                     </p>
-                </div>
+</div>
                 
                 <!-- File List Table -->
                 <div class="mt-4">
@@ -806,10 +806,10 @@ if ($materi_id > 0 && $kelas_id > 0) {
                 pageLength: 25
             });
         <?php else: ?>
-            $('#tableMateri').DataTable({
-                language: {
-                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
-                }
+        $('#tableMateri').DataTable({
+            language: {
+                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+            }
             });
         <?php endif; ?>
         

@@ -149,14 +149,75 @@ if ($role == 'proktor') {
         $is_wali_kelas = false;
     }
 } elseif ($role == 'guru') {
-    // Dashboard Guru
+    // Dashboard Guru - sama dengan wali kelas tapi tanpa menu wali kelas
+    // Ambil semester aktif dan tahun ajaran aktif
+    $semester_aktif = '1';
+    $tahun_ajaran = '';
     try {
-        $query_materi = "SELECT mm.*, m.nama_mulok FROM mengampu_materi mm 
-                         INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id 
-                         WHERE mm.guru_id = $user_id";
-        $materi_diampu = $conn->query($query_materi);
+        $query_profil = "SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1";
+        $result_profil = $conn->query($query_profil);
+        $profil = $result_profil ? $result_profil->fetch_assoc() : null;
+        $semester_aktif = $profil['semester_aktif'] ?? '1';
+        $tahun_ajaran = $profil['tahun_ajaran_aktif'] ?? '';
     } catch (Exception $e) {
-        $materi_diampu = null;
+        $semester_aktif = '1';
+        $tahun_ajaran = '';
+    }
+    
+    // Ambil materi yang diampu di semester aktif
+    $materi_data = [];
+    try {
+        $stmt = $conn->prepare("SELECT DISTINCT m.id, m.nama_mulok, k.nama_kelas, k.id as kelas_id
+                      FROM mengampu_materi mm
+                      INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                      INNER JOIN kelas k ON mm.kelas_id = k.id
+                      WHERE mm.guru_id = ? AND m.semester = ?
+                      ORDER BY m.nama_mulok");
+        $stmt->bind_param("is", $user_id, $semester_aktif);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $materi_id = $row['id'];
+                $kelas_id_materi = $row['kelas_id'];
+                
+                // Cek apakah nilai sudah dikirim untuk materi ini
+                $status_nilai = 'belum';
+                if (!empty($tahun_ajaran)) {
+                    $stmt_cek = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                               WHERE materi_mulok_id = ? 
+                                               AND kelas_id = ? 
+                                               AND semester = ? 
+                                               AND tahun_ajaran = ? 
+                                               AND status = 'terkirim'");
+                    $stmt_cek->bind_param("iiss", $materi_id, $kelas_id_materi, $semester_aktif, $tahun_ajaran);
+                    $stmt_cek->execute();
+                    $result_cek = $stmt_cek->get_result();
+                    if ($result_cek && $result_cek->num_rows > 0) {
+                        $status_nilai = 'terkirim';
+                    }
+                    $stmt_cek->close();
+                }
+                
+                $materi_data[] = [
+                    'id' => $row['id'],
+                    'nama_mulok' => $row['nama_mulok'],
+                    'nama_kelas' => $row['nama_kelas'],
+                    'status_nilai' => $status_nilai
+                ];
+            }
+        }
+        $stmt->close();
+    } catch (Exception $e) {
+        $materi_data = [];
+    }
+    
+    // Untuk kompatibilitas dengan kode lama
+    $materi_diampu = null;
+    if (!empty($materi_data)) {
+        // Buat object result dummy untuk kompatibilitas
+        $materi_diampu = (object)['num_rows' => count($materi_data)];
     }
 }
 ?>
@@ -492,7 +553,7 @@ if ($role == 'proktor') {
             
         <?php elseif ($role == 'guru'): ?>
             <div class="row mb-4">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="card">
                         <div class="card-body text-center">
                             <div class="position-relative d-inline-block">
@@ -511,13 +572,13 @@ if ($role == 'proktor') {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="card bg-info text-white">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h6 class="card-subtitle mb-2">Materi yang Diampu</h6>
-                                    <h2 class="mb-0"><?php echo $materi_diampu ? $materi_diampu->num_rows : 0; ?></h2>
+                                    <h2 class="mb-0"><?php echo !empty($materi_data) ? count($materi_data) : 0; ?></h2>
                                 </div>
                                 <i class="fas fa-book fa-3x opacity-50"></i>
                             </div>
@@ -531,7 +592,7 @@ if ($role == 'proktor') {
                     <h6 class="mb-0">Materi yang Diampu</h6>
                 </div>
                 <div class="card-body">
-                    <?php if ($materi_diampu && $materi_diampu->num_rows > 0): ?>
+                    <?php if (!empty($materi_data)): ?>
                         <div class="table-responsive">
                             <table class="table table-bordered">
                                 <thead>
@@ -539,25 +600,27 @@ if ($role == 'proktor') {
                                         <th>No</th>
                                         <th>Materi Mulok</th>
                                         <th>Kelas</th>
+                                        <th>Status Nilai</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php 
                                     $no = 1;
-                                    while ($materi = $materi_diampu->fetch_assoc()): 
-                                        try {
-                                            $kelas_result = $conn->query("SELECT nama_kelas FROM kelas WHERE id = " . $materi['kelas_id']);
-                                            $kelas = $kelas_result ? $kelas_result->fetch_assoc() : ['nama_kelas' => '-'];
-                                        } catch (Exception $e) {
-                                            $kelas = ['nama_kelas' => '-'];
-                                        }
+                                    foreach ($materi_data as $materi): 
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
-                                            <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($kelas['nama_kelas'] ?? '-'); ?></td>
+                                            <td><?php echo htmlspecialchars($materi['nama_mulok']); ?></td>
+                                            <td><?php echo htmlspecialchars($materi['nama_kelas']); ?></td>
+                                            <td>
+                                                <?php if ($materi['status_nilai'] == 'terkirim'): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
+                                            </td>
                                         </tr>
-                                    <?php endwhile; ?>
+                                    <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>

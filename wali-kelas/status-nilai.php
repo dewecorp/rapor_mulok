@@ -48,56 +48,37 @@ try {
     // Ignore error
 }
 
-// Query status nilai per materi
+// Query status nilai per materi (sama persis dengan dashboard proktor)
 $materi_list = [];
+$persentase_progress = 0;
 $total_materi = 0;
 $materi_terkirim = 0;
-$persentase_progress = 0;
 
-if ($kelas_id && !empty($semester) && !empty($tahun_ajaran)) {
-    // Ambil SEMUA materi di kelas ini dan semester aktif, beserta guru pengampunya
-    // Mulai dari materi_mulok untuk mengambil SEMUA materi, lalu LEFT JOIN dengan mengampu_materi
+if ($kelas_id && !empty($semester)) {
+    // Ambil semua materi untuk kelas ini dan semester aktif beserta gurunya
     if ($has_kelas_id && $has_semester) {
         // Struktur baru: ambil semua materi berdasarkan kelas_id dan semester
-        $query_materi = "SELECT m.id as materi_id, 
-                                m.nama_mulok, 
-                                mm.guru_id, 
-                                p.nama as nama_guru
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
                          WHERE m.kelas_id = ? AND m.semester = ?
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
-        if ($stmt_materi) {
-            $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
-            $stmt_materi->execute();
-            $materi_result = $stmt_materi->get_result();
-        } else {
-            $materi_result = null;
-        }
+        $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
     } else {
-        // Struktur lama: ambil semua materi yang diampu untuk kelas ini
-        $query_materi = "SELECT m.id as materi_id, 
-                                m.nama_mulok, 
-                                mm.guru_id, 
-                                p.nama as nama_guru
-                         FROM mengampu_materi mm
-                         INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+        // Struktur lama: ambil semua materi untuk kelas ini
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+                         FROM materi_mulok m
+                         LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
-                         WHERE mm.kelas_id = ?
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
-        if ($stmt_materi) {
-            $stmt_materi->bind_param("i", $kelas_id);
-            $stmt_materi->execute();
-            $materi_result = $stmt_materi->get_result();
-        } else {
-            $materi_result = null;
-        }
+        $stmt_materi->bind_param("i", $kelas_id);
     }
+    $stmt_materi->execute();
+    $materi_result = $stmt_materi->get_result();
     
-    // Hitung total materi dan materi yang sudah dikirim
     if ($materi_result) {
         while ($materi = $materi_result->fetch_assoc()) {
             $total_materi++;
@@ -115,47 +96,20 @@ if ($kelas_id && !empty($semester) && !empty($tahun_ajaran)) {
             $stmt_cek->execute();
             $result_cek = $stmt_cek->get_result();
             $ada_nilai = ($result_cek && $result_cek->num_rows > 0);
-            $stmt_cek->close();
             
             if ($ada_nilai) {
                 $materi_terkirim++;
             }
             
-            // Pastikan nama_guru tidak null
-            $nama_guru = isset($materi['nama_guru']) && !empty(trim($materi['nama_guru'])) ? trim($materi['nama_guru']) : '';
-            $guru_id = isset($materi['guru_id']) && !empty($materi['guru_id']) ? intval($materi['guru_id']) : 0;
-            
-            // Jika nama_guru kosong tapi ada guru_id, ambil dari database
-            if (empty($nama_guru) && $guru_id > 0) {
-                $stmt_guru = $conn->prepare("SELECT nama FROM pengguna WHERE id = ?");
-                if ($stmt_guru) {
-                    $stmt_guru->bind_param("i", $guru_id);
-                    $stmt_guru->execute();
-                    $result_guru = $stmt_guru->get_result();
-                    if ($result_guru && $result_guru->num_rows > 0) {
-                        $guru_data = $result_guru->fetch_assoc();
-                        $nama_guru = isset($guru_data['nama']) ? trim($guru_data['nama']) : '';
-                    }
-                    $stmt_guru->close();
-                }
-            }
-            
-            // Set default jika masih kosong
-            if (empty($nama_guru)) {
-                $nama_guru = '-';
-            }
-            
             $materi_list[] = [
                 'materi_id' => $materi_id,
                 'nama_mulok' => $materi['nama_mulok'],
-                'guru_id' => $guru_id,
-                'nama_guru' => $nama_guru,
+                'guru_id' => $materi['guru_id'],
+                'nama_guru' => $materi['nama_guru'] ?? '-',
                 'status' => $ada_nilai ? 'terkirim' : 'belum'
             ];
         }
-        if (isset($stmt_materi)) {
-            $stmt_materi->close();
-        }
+        $stmt_materi->close();
     }
     
     // Hitung persentase progress
@@ -193,8 +147,8 @@ if ($kelas_id && !empty($semester) && !empty($tahun_ajaran)) {
                     <thead>
                         <tr>
                             <th width="50">No</th>
-                            <th>Nama Materi</th>
-                            <th>Guru Pengampu</th>
+                            <th>Materi Mulok</th>
+                            <th>Nama Guru</th>
                             <th>Status Nilai</th>
                         </tr>
                     </thead>
@@ -205,10 +159,13 @@ if ($kelas_id && !empty($semester) && !empty($tahun_ajaran)) {
                         ?>
                             <tr>
                                 <td><?php echo $no++; ?></td>
-                                <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($materi['nama_guru'] ?? '-'); ?></td>
                                 <td>
-                                    <?php if (isset($materi['status']) && $materi['status'] == 'terkirim'): ?>
+                                    <?php 
+                                    $status_materi = isset($materi['status']) ? $materi['status'] : 'belum';
+                                    if ($status_materi == 'terkirim'): 
+                                    ?>
                                         <span class="badge bg-success">Terkirim</span>
                                     <?php else: ?>
                                         <span class="badge bg-danger">Belum</span>

@@ -56,22 +56,22 @@ $materi_status_list = [];
 if ($kelas_filter) {
     $kelas_id = intval($kelas_filter);
     
-    // Ambil materi yang diampu untuk kelas ini dan semester aktif
+    // Ambil semua materi untuk kelas ini dan semester aktif beserta gurunya
     if ($has_kelas_id && $has_semester) {
-        // Struktur baru: ambil materi berdasarkan kelas_id dan semester
+        // Struktur baru: ambil semua materi berdasarkan kelas_id dan semester
         $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
-                         INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                         LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
                          WHERE m.kelas_id = ? AND m.semester = ?
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
     } else {
-        // Struktur lama: ambil semua materi yang diampu untuk kelas ini
+        // Struktur lama: ambil semua materi untuk kelas ini
         $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
-                         INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
+                         LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
@@ -114,6 +114,7 @@ if ($kelas_filter) {
                 'status' => $ada_nilai ? 'terkirim' : 'belum'
             ];
         }
+        $stmt_materi->close();
     }
     
     // Hitung persentase progress
