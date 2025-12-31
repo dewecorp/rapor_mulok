@@ -204,7 +204,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             }
             
             // Redirect untuk mencegah resubmit
-            redirect(basename($_SERVER['PHP_SELF']) . '?success=restore_done', false);
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            header('Location: index.php?success=restore_done');
+            exit();
         } catch (Exception $e) {
             if (ob_get_level() > 0) {
             ob_clean();
@@ -266,7 +270,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             exit();
         }
     } catch (Exception $e) {
-        redirect(basename($_SERVER['PHP_SELF']) . '?error=delete_failed', false);
+        if (ob_get_level() > 0) {
+            ob_clean();
+        }
+        header('Location: index.php?error=delete_failed');
+        exit();
     }
 }
 
