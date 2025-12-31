@@ -677,6 +677,7 @@ $basePath = getBasePath();
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
                         <div class="user-role">
                             <span class="user-role-text"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></span>
+                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                     </div>
                     <div style="position: relative;">
