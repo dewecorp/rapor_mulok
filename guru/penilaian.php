@@ -1,7 +1,7 @@
 <?php
 require_once '../config/config.php';
 require_once '../config/database.php';
-requireRole('wali_kelas');
+requireRole('guru');
 
 $conn = getConnection();
 $user_id = $_SESSION['user_id'];
@@ -31,20 +31,26 @@ function hitungPredikat($nilai) {
     return '-';
 }
 
-// Fungsi untuk menghitung deskripsi berdasarkan predikat dan nama materi
-function hitungDeskripsi($predikat, $nama_materi) {
+// Fungsi untuk menghitung deskripsi berdasarkan predikat, kategori, dan nama materi
+function hitungDeskripsi($predikat, $nama_materi, $kategori = '') {
     if (empty($predikat) || $predikat == '-') return '-';
+    
+    // Gabungkan kategori dan nama materi jika kategori ada
+    $materi_full = $nama_materi;
+    if (!empty($kategori)) {
+        $materi_full = $kategori . ' ' . $nama_materi;
+    }
     
     // Gunakan nama materi sesuai dengan data (tidak lowercase)
     switch ($predikat) {
         case 'A':
-            return 'Sangat baik dalam ' . $nama_materi;
+            return 'Sangat baik dalam ' . $materi_full;
         case 'B':
-            return 'Baik dalam ' . $nama_materi;
+            return 'Baik dalam ' . $materi_full;
         case 'C':
-            return 'Cukup dalam ' . $nama_materi;
+            return 'Cukup dalam ' . $materi_full;
         case 'D':
-            return 'Kurang dalam ' . $nama_materi;
+            return 'Kurang dalam ' . $materi_full;
         default:
             return '-';
     }
@@ -69,9 +75,12 @@ try {
 
 // Handle simpan nilai (inline editing)
 $success_message = $_SESSION['success_message'] ?? '';
-$error_message = '';
+$error_message = $_SESSION['error_message'] ?? '';
 if (isset($_SESSION['success_message'])) {
     unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    unset($_SESSION['error_message']);
 }
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'simpan_nilai') {
     $materi_id_post = $_POST['materi_id'] ?? 0;
@@ -80,6 +89,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $tahun_ajaran_post = $_POST['tahun_ajaran'] ?? '';
     $harian_array = $_POST['harian'] ?? [];
     $pas_pat_array = $_POST['pas_pat'] ?? [];
+    
+    // Cek apakah nilai sudah dikirim
+    $status_kirim_check = 'belum';
+    try {
+        $stmt_check_kirim = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                           WHERE materi_mulok_id = ? 
+                                           AND kelas_id = ? 
+                                           AND semester = ? 
+                                           AND tahun_ajaran = ? 
+                                           AND status = 'terkirim'");
+        $stmt_check_kirim->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+        $stmt_check_kirim->execute();
+        $result_check_kirim = $stmt_check_kirim->get_result();
+        if ($result_check_kirim && $result_check_kirim->num_rows > 0) {
+            $status_kirim_check = 'terkirim';
+        }
+        $stmt_check_kirim->close();
+    } catch (Exception $e) {
+        // Ignore error
+    }
+    
+    if ($status_kirim_check == 'terkirim') {
+        $_SESSION['error_message'] = 'Nilai sudah dikirim. Silakan batalkan pengiriman terlebih dahulu untuk mengubah nilai.';
+        $redirect_url = 'penilaian.php?materi_id=' . $materi_id_post;
+        if (!empty($_GET['kelas_nama'])) {
+            $redirect_url .= '&kelas_nama=' . urlencode($_GET['kelas_nama']);
+        }
+        header('Location: ' . $redirect_url);
+        exit;
+    }
     
     if ($materi_id_post > 0 && $kelas_id_post > 0) {
         $conn->begin_transaction();
@@ -170,6 +209,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $tahun_ajaran_post = $_POST['tahun_ajaran'] ?? '';
     $nilai_array = $_POST['nilai'] ?? [];
     
+    // Cek apakah nilai sudah dikirim
+    $status_kirim_check = 'belum';
+    try {
+        $stmt_check_kirim = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                           WHERE materi_mulok_id = ? 
+                                           AND kelas_id = ? 
+                                           AND semester = ? 
+                                           AND tahun_ajaran = ? 
+                                           AND status = 'terkirim'");
+        $stmt_check_kirim->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+        $stmt_check_kirim->execute();
+        $result_check_kirim = $stmt_check_kirim->get_result();
+        if ($result_check_kirim && $result_check_kirim->num_rows > 0) {
+            $status_kirim_check = 'terkirim';
+        }
+        $stmt_check_kirim->close();
+    } catch (Exception $e) {
+        // Ignore error
+    }
+    
+    if ($status_kirim_check == 'terkirim') {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Nilai sudah dikirim. Silakan batalkan pengiriman terlebih dahulu untuk mengubah nilai.'
+        ]);
+        exit;
+    }
+    
     if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($nilai_array)) {
         $conn->begin_transaction();
         try {
@@ -183,10 +251,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     // Hitung predikat dari nilai
                     $predikat = hitungPredikat($nilai_float);
                     
-                    // Ambil nama materi untuk deskripsi - gunakan nama_mulok langsung dari database tanpa modifikasi
+                    // Ambil nama materi dan kategori untuk deskripsi - gunakan nama_mulok langsung dari database tanpa modifikasi
                     // Gunakan BINARY untuk memastikan case sensitivity
                     $nama_materi = '';
-                    $stmt_materi_nama = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok FROM materi_mulok WHERE id = ?");
+                    $kategori_materi = '';
+                    // Cek apakah kolom kategori_mulok ada
+                    $has_kategori_mulok = false;
+                    try {
+                        $check_cols = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+                        if ($check_cols && $check_cols->num_rows > 0) {
+                            $has_kategori_mulok = true;
+                        }
+                    } catch (Exception $e) {
+                        $has_kategori_mulok = false;
+                    }
+                    
+                    $kolom_kategori = $has_kategori_mulok ? 'kategori_mulok' : 'kode_mulok';
+                    $stmt_materi_nama = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok, $kolom_kategori as kategori FROM materi_mulok WHERE id = ?");
                     $stmt_materi_nama->bind_param("i", $materi_id_post);
                     $stmt_materi_nama->execute();
                     $result_materi_nama = $stmt_materi_nama->get_result();
@@ -194,10 +275,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         $materi_row = $result_materi_nama->fetch_assoc();
                         // Ambil nama_mulok langsung tanpa modifikasi apapun (termasuk case)
                         $nama_materi = isset($materi_row['nama_mulok']) ? (string)$materi_row['nama_mulok'] : '';
+                        $kategori_materi = isset($materi_row['kategori']) ? (string)$materi_row['kategori'] : '';
                     }
+                    $stmt_materi_nama->close();
                     
-                    // Hitung deskripsi dengan nama materi yang sama persis dengan database
-                    $deskripsi = hitungDeskripsi($predikat, $nama_materi);
+                    // Hitung deskripsi dengan kategori dan nama materi yang sama persis dengan database
+                    $deskripsi = hitungDeskripsi($predikat, $nama_materi, $kategori_materi);
                     
                     // Cek apakah nilai sudah ada
                     $stmt_check = $conn->prepare("SELECT id FROM nilai_siswa 
@@ -242,6 +325,128 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         }
     } else {
         $error_message = 'Data tidak lengkap!';
+    }
+}
+
+// Handle kirim nilai
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'kirim_nilai') {
+    $materi_id_post = intval($_POST['materi_id'] ?? 0);
+    $kelas_id_post = intval($_POST['kelas_id'] ?? 0);
+    $semester_post = trim($_POST['semester'] ?? '1');
+    $tahun_ajaran_post = trim($_POST['tahun_ajaran'] ?? '');
+    
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post)) {
+        try {
+            // Cek apakah sudah ada status terkirim
+            $stmt_check = $conn->prepare("SELECT id FROM nilai_kirim_status 
+                                         WHERE materi_mulok_id = ? 
+                                         AND kelas_id = ? 
+                                         AND semester = ? 
+                                         AND tahun_ajaran = ? 
+                                         AND status = 'terkirim'");
+            $stmt_check->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_check->execute();
+            $result_check = $stmt_check->get_result();
+            $existing = $result_check->fetch_assoc();
+            $stmt_check->close();
+            
+            if ($existing) {
+                // Update status menjadi terkirim
+                $stmt_update = $conn->prepare("UPDATE nilai_kirim_status 
+                                              SET status = 'terkirim', 
+                                                  tanggal_kirim = NOW(), 
+                                                  tanggal_batal = NULL,
+                                                  user_id = ? 
+                                              WHERE id = ?");
+                $stmt_update->bind_param("ii", $user_id, $existing['id']);
+                $stmt_update->execute();
+                $stmt_update->close();
+            } else {
+                // Insert status baru
+                $stmt_insert = $conn->prepare("INSERT INTO nilai_kirim_status 
+                                               (materi_mulok_id, kelas_id, semester, tahun_ajaran, status, tanggal_kirim, user_id) 
+                                               VALUES (?, ?, ?, ?, 'terkirim', NOW(), ?)");
+                $stmt_insert->bind_param("iissi", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post, $user_id);
+                $stmt_insert->execute();
+                $stmt_insert->close();
+            }
+            
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Nilai berhasil dikirim!'
+            ]);
+            exit;
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Gagal mengirim nilai: ' . $e->getMessage()
+            ]);
+            exit;
+        }
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Data tidak lengkap!'
+        ]);
+        exit;
+    }
+}
+
+// Handle batal kirim nilai
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'batal_kirim_nilai') {
+    $materi_id_post = intval($_POST['materi_id'] ?? 0);
+    $kelas_id_post = intval($_POST['kelas_id'] ?? 0);
+    $semester_post = trim($_POST['semester'] ?? '1');
+    $tahun_ajaran_post = trim($_POST['tahun_ajaran'] ?? '');
+    
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post)) {
+        try {
+            // Update status menjadi batal
+            $stmt_update = $conn->prepare("UPDATE nilai_kirim_status 
+                                          SET status = 'batal', 
+                                              tanggal_batal = NOW() 
+                                          WHERE materi_mulok_id = ? 
+                                          AND kelas_id = ? 
+                                          AND semester = ? 
+                                          AND tahun_ajaran = ? 
+                                          AND status = 'terkirim'");
+            $stmt_update->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_update->execute();
+            $affected = $stmt_update->affected_rows;
+            $stmt_update->close();
+            
+            if ($affected > 0) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Pengiriman nilai berhasil dibatalkan!'
+                ]);
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Status pengiriman tidak ditemukan!'
+                ]);
+            }
+            exit;
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Gagal membatalkan pengiriman: ' . $e->getMessage()
+            ]);
+            exit;
+        }
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Data tidak lengkap!'
+        ]);
+        exit;
     }
 }
 
@@ -339,7 +544,18 @@ if ($materi_id > 0) {
         // Ambil data materi beserta kelas yang diampu
         // Jika ada kelas_nama filter, gunakan untuk memastikan kelas yang tepat
         if (!empty($kelas_nama_filter)) {
-            $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas
+            // Cek apakah kolom kategori_mulok ada
+            $has_kategori_mulok = false;
+            try {
+                $check_cols = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+                if ($check_cols && $check_cols->num_rows > 0) {
+                    $has_kategori_mulok = true;
+                }
+            } catch (Exception $e) {
+                $has_kategori_mulok = false;
+            }
+            $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
+            $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas, $kolom_kategori as kategori
                                            FROM materi_mulok m
                                            INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id
                                            LEFT JOIN kelas k ON mm.kelas_id = k.id
@@ -353,7 +569,18 @@ if ($materi_id > 0) {
         
         // Jika tidak ditemukan dengan filter kelas_nama, coba ambil dengan filter guru_id saja
         if (!$materi_data) {
-            $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas
+            // Cek apakah kolom kategori_mulok ada
+            $has_kategori_mulok = false;
+            try {
+                $check_cols = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+                if ($check_cols && $check_cols->num_rows > 0) {
+                    $has_kategori_mulok = true;
+                }
+            } catch (Exception $e) {
+                $has_kategori_mulok = false;
+            }
+            $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
+            $stmt_materi = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas, $kolom_kategori as kategori
                                            FROM materi_mulok m
                                            INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id
                                            LEFT JOIN kelas k ON mm.kelas_id = k.id
@@ -368,7 +595,18 @@ if ($materi_id > 0) {
         
         // Jika tidak ditemukan dengan filter guru_id, coba ambil tanpa filter guru_id
         if (!$materi_data) {
-            $stmt_materi2 = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas
+            // Cek apakah kolom kategori_mulok ada
+            $has_kategori_mulok = false;
+            try {
+                $check_cols = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+                if ($check_cols && $check_cols->num_rows > 0) {
+                    $has_kategori_mulok = true;
+                }
+            } catch (Exception $e) {
+                $has_kategori_mulok = false;
+            }
+            $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
+            $stmt_materi2 = $conn->prepare("SELECT m.*, mm.kelas_id, k.nama_kelas, $kolom_kategori as kategori
                                            FROM materi_mulok m
                                            INNER JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id
                                            LEFT JOIN kelas k ON mm.kelas_id = k.id
@@ -383,7 +621,18 @@ if ($materi_id > 0) {
         
         // Jika masih belum ditemukan, ambil langsung dari tabel materi_mulok
         if (!$materi_data) {
-            $stmt_materi3 = $conn->prepare("SELECT m.*, NULL as kelas_id, NULL as nama_kelas
+            // Cek apakah kolom kategori_mulok ada
+            $has_kategori_mulok = false;
+            try {
+                $check_cols = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+                if ($check_cols && $check_cols->num_rows > 0) {
+                    $has_kategori_mulok = true;
+                }
+            } catch (Exception $e) {
+                $has_kategori_mulok = false;
+            }
+            $kolom_kategori = $has_kategori_mulok ? 'kategori_mulok' : 'kode_mulok';
+            $stmt_materi3 = $conn->prepare("SELECT m.*, NULL as kelas_id, NULL as nama_kelas, $kolom_kategori as kategori
                                            FROM materi_mulok m
                                            WHERE m.id = ?");
             $stmt_materi3->bind_param("i", $materi_id);
@@ -459,26 +708,64 @@ if ($materi_id > 0) {
                 }
             }
         }
+        
+        // Cek status kirim nilai
+        $status_kirim = 'belum';
+        if ($materi_data && $kelas_id_for_materi > 0 && !empty($tahun_ajaran)) {
+            try {
+                $stmt_status = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                              WHERE materi_mulok_id = ? 
+                                              AND kelas_id = ? 
+                                              AND semester = ? 
+                                              AND tahun_ajaran = ? 
+                                              AND status = 'terkirim'");
+                $stmt_status->bind_param("iiss", $materi_id, $kelas_id_for_materi, $semester, $tahun_ajaran);
+                $stmt_status->execute();
+                $result_status = $stmt_status->get_result();
+                if ($result_status && $result_status->num_rows > 0) {
+                    $status_kirim = 'terkirim';
+                }
+                $stmt_status->close();
+            } catch (Exception $e) {
+                $status_kirim = 'belum';
+            }
+        }
     } catch (Exception $e) {
         $materi_data = null;
         $siswa_list = null;
     }
+} else {
+    $status_kirim = 'belum';
 }
 ?>
 <?php include '../includes/header.php'; ?>
 
 <?php if ($success_message): ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof toastr !== 'undefined') {
+                toastr.success('<?php echo addslashes($success_message); ?>', 'Berhasil!', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 5000
+                });
+            }
+        });
+    </script>
 <?php endif; ?>
 
 <?php if ($error_message): ?>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_message); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('<?php echo addslashes($error_message); ?>', 'Error!', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 5000
+                });
+            }
+        });
+    </script>
 <?php endif; ?>
 
 <div class="card">
@@ -493,15 +780,21 @@ if ($materi_id > 0) {
         </h5>
         <?php if ($materi_id > 0 && $materi_data): ?>
             <div>
-                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambahNilai">
+                <button type="button" class="btn btn-success btn-sm" id="btnTambahNilai" data-bs-toggle="modal" data-bs-target="#modalTambahNilai" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
                     <i class="fas fa-plus"></i> Tambah Nilai
                 </button>
-                <button type="button" class="btn btn-warning btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#modalImportNilai">
+                <button type="button" class="btn btn-warning btn-sm ms-2" id="btnImporNilai" data-bs-toggle="modal" data-bs-target="#modalImportNilai" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
                     <i class="fas fa-file-import"></i> Impor Nilai
                 </button>
-                <button type="button" class="btn btn-info btn-sm ms-2">
-                    <i class="fas fa-paper-plane"></i> Kirim Nilai
-                </button>
+                <?php if ($status_kirim == 'terkirim'): ?>
+                    <button type="button" class="btn btn-danger btn-sm ms-2" id="btnBatalKirim" onclick="batalKirimNilai()">
+                        <i class="fas fa-times-circle"></i> Batal Kirim
+                    </button>
+                <?php else: ?>
+                    <button type="button" class="btn btn-info btn-sm ms-2" id="btnKirimNilai" onclick="kirimNilai()">
+                        <i class="fas fa-paper-plane"></i> Kirim Nilai
+                    </button>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
@@ -558,12 +851,22 @@ if ($materi_id > 0) {
                                         $predikat_value = hitungPredikat($nilai_value);
                                     }
                                     
-                                    // Hitung deskripsi jika belum ada - gunakan nama_mulok langsung dari database tanpa modifikasi
-                                    if (empty($deskripsi_value) && !empty($predikat_value) && $predikat_value != '-') {
-                                        // Ambil nama_mulok langsung dari materi_data tanpa modifikasi apapun (termasuk case)
+                                    // Hitung atau update deskripsi - selalu update untuk memastikan format baru dengan kategori
+                                    if (!empty($predikat_value) && $predikat_value != '-') {
+                                        // Ambil nama_mulok dan kategori langsung dari materi_data tanpa modifikasi apapun (termasuk case)
                                         // Pastikan menggunakan string cast untuk mempertahankan case
                                         $nama_materi_display = isset($materi_data['nama_mulok']) ? (string)$materi_data['nama_mulok'] : '';
-                                        $deskripsi_value = hitungDeskripsi($predikat_value, $nama_materi_display);
+                                        // Ambil kategori dari materi_data
+                                        $kategori_display = '';
+                                        if (isset($materi_data['kategori_mulok']) && !empty($materi_data['kategori_mulok'])) {
+                                            $kategori_display = (string)$materi_data['kategori_mulok'];
+                                        } elseif (isset($materi_data['kode_mulok']) && !empty($materi_data['kode_mulok'])) {
+                                            $kategori_display = (string)$materi_data['kode_mulok'];
+                                        } elseif (isset($materi_data['kategori']) && !empty($materi_data['kategori'])) {
+                                            $kategori_display = (string)$materi_data['kategori'];
+                                        }
+                                        // Selalu hitung ulang deskripsi untuk memastikan format baru dengan kategori
+                                        $deskripsi_value = hitungDeskripsi($predikat_value, $nama_materi_display, $kategori_display);
                                     }
                                 ?>
                                     <tr>
@@ -900,6 +1203,158 @@ if ($materi_id > 0) {
                     title: 'Error!',
                     text: 'Terjadi kesalahan saat mengupload file: ' + error,
                     confirmButtonColor: '#ffc107'
+                });
+            }
+        });
+    }
+    
+    function kirimNilai() {
+        Swal.fire({
+            title: 'Kirim Nilai?',
+            text: 'Apakah Anda yakin ingin mengirim nilai? Setelah dikirim, nilai tidak dapat diubah kecuali dibatalkan terlebih dahulu.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2d5016',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Kirim',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const materiId = <?php echo $materi_id; ?>;
+                const kelasId = <?php echo $kelas_id_for_materi; ?>;
+                const semester = '<?php echo $semester; ?>';
+                const tahunAjaran = '<?php echo addslashes($tahun_ajaran); ?>';
+                
+                Swal.fire({
+                    title: 'Mengirim...',
+                    text: 'Mohon tunggu',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                const formData = new FormData();
+                formData.append('action', 'kirim_nilai');
+                formData.append('materi_id', materiId);
+                formData.append('kelas_id', kelasId);
+                formData.append('semester', semester);
+                formData.append('tahun_ajaran', tahunAjaran);
+                
+                fetch('penilaian.php?materi_id=<?php echo $materi_id; ?>', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        }).then(() => {
+                            if (typeof toastr !== 'undefined') {
+                                toastr.success(data.message, 'Berhasil!', {
+                                    closeButton: true,
+                                    progressBar: true,
+                                    timeOut: 5000
+                                });
+                            }
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Terjadi kesalahan: ' + error.message,
+                        confirmButtonColor: '#2d5016'
+                    });
+                });
+            }
+        });
+    }
+    
+    function batalKirimNilai() {
+        Swal.fire({
+            title: 'Batal Kirim Nilai?',
+            text: 'Apakah Anda yakin ingin membatalkan pengiriman nilai? Setelah dibatalkan, nilai dapat diubah kembali.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Batal Kirim',
+            cancelButtonText: 'Tidak'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const materiId = <?php echo $materi_id; ?>;
+                const kelasId = <?php echo $kelas_id_for_materi; ?>;
+                const semester = '<?php echo $semester; ?>';
+                const tahunAjaran = '<?php echo addslashes($tahun_ajaran); ?>';
+                
+                Swal.fire({
+                    title: 'Membatalkan...',
+                    text: 'Mohon tunggu',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                const formData = new FormData();
+                formData.append('action', 'batal_kirim_nilai');
+                formData.append('materi_id', materiId);
+                formData.append('kelas_id', kelasId);
+                formData.append('semester', semester);
+                formData.append('tahun_ajaran', tahunAjaran);
+                
+                fetch('penilaian.php?materi_id=<?php echo $materi_id; ?>', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        }).then(() => {
+                            if (typeof toastr !== 'undefined') {
+                                toastr.success(data.message, 'Berhasil!', {
+                                    closeButton: true,
+                                    progressBar: true,
+                                    timeOut: 5000
+                                });
+                            }
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Terjadi kesalahan: ' + error.message,
+                        confirmButtonColor: '#2d5016'
+                    });
                 });
             }
         });

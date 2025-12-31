@@ -47,19 +47,25 @@ function hitungPredikat($nilai) {
     return '-';
 }
 
-// Fungsi untuk menghitung deskripsi berdasarkan predikat dan nama materi
-function hitungDeskripsi($predikat, $nama_materi) {
+// Fungsi untuk menghitung deskripsi berdasarkan predikat, kategori, dan nama materi
+function hitungDeskripsi($predikat, $nama_materi, $kategori = '') {
     if (empty($predikat) || $predikat == '-') return '-';
+    
+    // Gabungkan kategori dan nama materi jika kategori ada
+    $materi_full = $nama_materi;
+    if (!empty($kategori)) {
+        $materi_full = $kategori . ' ' . $nama_materi;
+    }
     
     switch ($predikat) {
         case 'A':
-            return 'Sangat baik dalam ' . $nama_materi;
+            return 'Sangat baik dalam ' . $materi_full;
         case 'B':
-            return 'Baik dalam ' . $nama_materi;
+            return 'Baik dalam ' . $materi_full;
         case 'C':
-            return 'Cukup dalam ' . $nama_materi;
+            return 'Cukup dalam ' . $materi_full;
         case 'D':
-            return 'Kurang dalam ' . $nama_materi;
+            return 'Kurang dalam ' . $materi_full;
         default:
             return '-';
     }
@@ -125,16 +131,29 @@ try {
     $tahun_ajaran = '';
 }
 
-// Ambil nama materi untuk deskripsi
+// Ambil nama materi dan kategori untuk deskripsi
 $nama_materi = '';
+$kategori_materi = '';
 try {
-    $stmt_materi = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok FROM materi_mulok WHERE id = ?");
+    // Cek apakah kolom kategori_mulok ada
+    $has_kategori_mulok = false;
+    try {
+        $check_cols = $conn->query("SHOW COLUMNS FROM materi_mulok LIKE 'kategori_mulok'");
+        if ($check_cols && $check_cols->num_rows > 0) {
+            $has_kategori_mulok = true;
+        }
+    } catch (Exception $e) {
+        $has_kategori_mulok = false;
+    }
+    $kolom_kategori = $has_kategori_mulok ? 'kategori_mulok' : 'kode_mulok';
+    $stmt_materi = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok, $kolom_kategori as kategori FROM materi_mulok WHERE id = ?");
     $stmt_materi->bind_param("i", $materi_id);
     $stmt_materi->execute();
     $result_materi = $stmt_materi->get_result();
     if ($result_materi && $result_materi->num_rows > 0) {
         $materi_row = $result_materi->fetch_assoc();
         $nama_materi = isset($materi_row['nama_mulok']) ? (string)$materi_row['nama_mulok'] : '';
+        $kategori_materi = isset($materi_row['kategori']) ? (string)$materi_row['kategori'] : '';
     }
     $stmt_materi->close();
 } catch (Exception $e) {
@@ -292,7 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
                         
                         // Hitung predikat dan deskripsi
                         $predikat = hitungPredikat($nilai_float);
-                        $deskripsi = hitungDeskripsi($predikat, $nama_materi);
+                        $deskripsi = hitungDeskripsi($predikat, $nama_materi, $kategori_materi);
                         
                         // Cek apakah nilai sudah ada
                         $stmt_check = $conn->prepare("SELECT id FROM nilai_siswa 

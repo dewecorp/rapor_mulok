@@ -557,17 +557,41 @@ if ($role == 'proktor') {
                     <div class="card">
                         <div class="card-body text-center">
                             <div class="position-relative d-inline-block">
-                                <img src="uploads/<?php echo htmlspecialchars($_SESSION['foto'] ?? 'default.png'); ?>" 
+                                <?php 
+                                $foto_guru = $_SESSION['foto'] ?? '';
+                                $nama_guru = $_SESSION['nama'] ?? 'User';
+                                $inisial_guru = strtoupper(substr($nama_guru, 0, 1));
+                                
+                                // Cek apakah foto ada dan file exist
+                                if (!empty($foto_guru) && file_exists('uploads/' . $foto_guru)) {
+                                    $foto_src = 'uploads/' . htmlspecialchars($foto_guru);
+                                    $use_avatar = false;
+                                } else {
+                                    // Gunakan avatar dengan inisial
+                                    $foto_src = 'data:image/svg+xml;base64,' . base64_encode('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><circle cx="75" cy="75" r="75" fill="#2d5016"/><text x="75" y="75" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' . htmlspecialchars($inisial_guru) . '</text></svg>');
+                                    $use_avatar = true;
+                                }
+                                ?>
+                                <img src="<?php echo $foto_src; ?>" 
                                      alt="Foto" class="rounded-circle mb-3" width="150" height="150" 
                                      id="fotoProfilGuru"
-                                     style="object-fit: cover;" onerror="this.onerror=null; this.src='uploads/default.png';">
+                                     style="object-fit: cover;" 
+                                     onerror="<?php if (!$use_avatar): ?>this.onerror=null; this.src='data:image/svg+xml;base64,<?php echo base64_encode('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><circle cx="75" cy="75" r="75" fill="#2d5016"/><text x="75" y="75" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' . htmlspecialchars($inisial_guru) . '</text></svg>'); ?>';<?php endif; ?>">
+                                <?php if (!$use_avatar): ?>
                                 <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
                                         style="width: 40px; height: 40px; padding: 0; border: 2px solid white;"
                                         onclick="openEditFotoModal('guru')" title="Edit Foto">
                                     <i class="fas fa-camera"></i>
                                 </button>
+                                <?php else: ?>
+                                <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
+                                        style="width: 40px; height: 40px; padding: 0; border: 2px solid white;"
+                                        onclick="openEditFotoModal('guru')" title="Upload Foto">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                                <?php endif; ?>
                             </div>
-                            <h5><?php echo htmlspecialchars($_SESSION['nama']); ?></h5>
+                            <h5><?php echo htmlspecialchars($nama_guru); ?></h5>
                             <p class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $_SESSION['role'])); ?></p>
                         </div>
                     </div>
@@ -958,10 +982,11 @@ document.getElementById('formEditFoto').addEventListener('submit', function(e) {
                     fotoElement.src = 'uploads/' + data.filename + '?t=' + new Date().getTime();
                 }
                 
-                // Update session foto di navbar jika ada
-                var navbarFoto = document.querySelector('.user-avatar');
-                if (navbarFoto) {
+                // Update session foto di navbar jika ada (hanya untuk non-admin)
+                var navbarFoto = document.getElementById('userAvatarDropdown');
+                if (navbarFoto && role !== 'proktor') {
                     navbarFoto.src = 'uploads/' + data.filename + '?t=' + new Date().getTime();
+                    navbarFoto.onerror = null; // Reset error handler
                 }
                 
                 // Tutup modal

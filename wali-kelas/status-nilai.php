@@ -55,7 +55,7 @@ $total_materi = 0;
 $materi_terkirim = 0;
 
 if ($kelas_id && !empty($semester)) {
-    // Ambil semua materi untuk kelas ini dan semester aktif beserta gurunya
+    // Ambil semua materi untuk kelas ini dan semester aktif beserta gurunya (sama persis dengan dashboard proktor)
     if ($has_kelas_id && $has_semester) {
         // Struktur baru: ambil semua materi berdasarkan kelas_id dan semester
         $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
@@ -78,6 +78,10 @@ if ($kelas_id && !empty($semester)) {
     }
     $stmt_materi->execute();
     $materi_result = $stmt_materi->get_result();
+    
+    // Hitung total materi dan materi yang sudah dikirim
+    $total_materi = 0;
+    $materi_terkirim = 0;
     
     if ($materi_result) {
         while ($materi = $materi_result->fetch_assoc()) {
@@ -108,6 +112,8 @@ if ($kelas_id && !empty($semester)) {
                 'nama_guru' => $materi['nama_guru'] ?? '-',
                 'status' => $ada_nilai ? 'terkirim' : 'belum'
             ];
+            
+            $stmt_cek->close();
         }
         $stmt_materi->close();
     }
@@ -159,13 +165,10 @@ if ($kelas_id && !empty($semester)) {
                         ?>
                             <tr>
                                 <td><?php echo $no++; ?></td>
-                                <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($materi['nama_guru'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars($materi['nama_mulok']); ?></td>
+                                <td><?php echo htmlspecialchars($materi['nama_guru']); ?></td>
                                 <td>
-                                    <?php 
-                                    $status_materi = isset($materi['status']) ? $materi['status'] : 'belum';
-                                    if ($status_materi == 'terkirim'): 
-                                    ?>
+                                    <?php if ($materi['status'] == 'terkirim'): ?>
                                         <span class="badge bg-success">Terkirim</span>
                                     <?php else: ?>
                                         <span class="badge bg-danger">Belum</span>

@@ -820,7 +820,36 @@ $basePath = getBasePath();
                     </div>
                 </div>
                 <div class="user-avatar-wrapper">
-                    <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="user-avatar" id="userAvatarDropdown" onerror="this.onerror=null; this.style.display='none';">
+                    <?php 
+                    $user_foto = $user['foto'] ?? '';
+                    $user_role = $user['role'] ?? '';
+                    $user_nama = $user['nama'] ?? 'User';
+                    $foto_path = !empty($user_foto) ? __DIR__ . '/../uploads/' . $user_foto : '';
+                    $foto_exists = !empty($user_foto) && file_exists($foto_path);
+                    
+                    // Admin tetap menggunakan logo madrasah
+                    if ($user_role == 'proktor') {
+                        // Admin tetap logo madrasah
+                        $avatar_src = $basePath . 'uploads/' . htmlspecialchars($profil['logo'] ?? 'logo.png');
+                        $avatar_alt = 'Logo Madrasah';
+                        $onerror_handler = "this.onerror=null; this.style.display='none';";
+                    } elseif ($foto_exists) {
+                        // User dengan foto: gunakan foto user
+                        $avatar_src = $basePath . 'uploads/' . htmlspecialchars($user_foto);
+                        $avatar_alt = htmlspecialchars($user_nama);
+                        // Jika foto gagal load, gunakan avatar dengan inisial
+                        $inisial = strtoupper(substr($user_nama, 0, 1));
+                        $avatar_fallback = 'data:image/svg+xml;base64,' . base64_encode('<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#2d5016"/><text x="20" y="20" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' . htmlspecialchars($inisial) . '</text></svg>');
+                        $onerror_handler = "this.onerror=null; this.src='" . $avatar_fallback . "';";
+                    } else {
+                        // User tanpa foto: gunakan avatar dengan inisial
+                        $inisial = strtoupper(substr($user_nama, 0, 1));
+                        $avatar_src = 'data:image/svg+xml;base64,' . base64_encode('<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#2d5016"/><text x="20" y="20" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' . htmlspecialchars($inisial) . '</text></svg>');
+                        $avatar_alt = htmlspecialchars($user_nama);
+                        $onerror_handler = '';
+                    }
+                    ?>
+                    <img src="<?php echo $avatar_src; ?>" alt="<?php echo $avatar_alt; ?>" class="user-avatar" id="userAvatarDropdown" onerror="<?php echo $onerror_handler; ?>">
                     <div class="user-dropdown-menu" id="userDropdownMenu">
                         <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">
                             <i class="fas fa-sign-out-alt"></i> Logout
@@ -968,7 +997,7 @@ $basePath = getBasePath();
                                     </a>
                                     <div class="collapse" id="kategoriMenuGuru<?php echo md5($kategori); ?>">
                                         <?php foreach ($materi_list as $materi): ?>
-                                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi=<?php echo $materi['id']; ?>&kelas=<?php echo $materi['kelas_id'] ?? ''; ?>" style="padding-left: 3rem !important;">
+                                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>" style="padding-left: 3rem !important;">
                                                 <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
                                             </a>
                                         <?php endforeach; ?>
@@ -981,7 +1010,7 @@ $basePath = getBasePath();
                             </a>
                             <div class="collapse" id="materiMenuGuru" data-bs-parent=".sidebar">
                                 <?php foreach ($materi_guru as $materi): ?>
-                                    <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi=<?php echo $materi['id']; ?>&kelas=<?php echo $materi['kelas_id'] ?? ''; ?>">
+                                    <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>">
                                         <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
                                     </a>
                                 <?php endforeach; ?>
