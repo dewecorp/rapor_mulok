@@ -257,13 +257,6 @@ if (!empty($kelas_tujuan_ids)) {
         <p class="mb-0 text-muted" style="font-size: 14px;">Menu ini digunakan untuk memindahkan siswa ke kelas lain.</p>
     </div>
     <div class="card-body">
-        <?php if ($success): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-        
         <?php if ($error): ?>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
@@ -938,5 +931,18 @@ if (!empty($kelas_tujuan_ids)) {
         
         // Inisialisasi visibility tombol saat halaman dimuat
         updateButtonVisibility();
+        
+        // Tampilkan SweetAlert jika ada success message
+        <?php if (isset($success_message)): ?>
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: '<?php echo htmlspecialchars($success_message, ENT_QUOTES); ?>',
+            confirmButtonColor: '#2d5016',
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: true
+        });
+        <?php endif; ?>
     });
 </script>
