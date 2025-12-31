@@ -161,20 +161,14 @@ $basePath = getBasePath();
         .user-info {
             display: flex;
             align-items: center;
-            gap: 20px;
-            min-width: 350px;
-            max-width: 100%;
+            flex: 0 0 auto;
         }
         
         .user-details {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            gap: 6px;
-            flex: 0 1 auto;
-            min-width: 0;
-            max-width: calc(100% - 60px);
+            gap: 4px;
+            text-align: left;
         }
         
         .user-name {
@@ -184,21 +178,16 @@ $basePath = getBasePath();
             margin: 0;
             padding: 0;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
-            line-height: 1.5;
-            display: block;
+            text-align: left;
         }
         
         .user-role {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             margin: 0;
             padding: 0;
-            line-height: 1.5;
-            flex-wrap: nowrap;
+            justify-content: flex-start;
         }
         
         .user-role-text {
@@ -208,7 +197,6 @@ $basePath = getBasePath();
             white-space: nowrap;
             margin: 0;
             padding: 0;
-            flex-shrink: 0;
         }
         
         .madrasah-logo-small {
@@ -220,8 +208,6 @@ $basePath = getBasePath();
             background-color: white;
             padding: 2px;
             flex-shrink: 0;
-            margin: 0;
-            display: block;
         }
         
         .user-avatar-wrapper {
@@ -325,8 +311,8 @@ $basePath = getBasePath();
             display: flex;
             align-items: center;
             gap: 20px;
+            width: auto;
         }
-        
         
         .sidebar {
             min-height: calc(100vh - 56px);
@@ -679,13 +665,13 @@ $basePath = getBasePath();
                             <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                     </div>
-                    <div class="user-avatar-wrapper">
-                        <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" id="userAvatarDropdown" onerror="this.onerror=null; this.style.display='none';">
-                        <div class="user-dropdown-menu" id="userDropdownMenu">
-                            <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </a>
-                        </div>
+                </div>
+                <div class="user-avatar-wrapper">
+                    <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" id="userAvatarDropdown" onerror="this.onerror=null; this.style.display='none';">
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
                     </div>
                 </div>
             </div>
