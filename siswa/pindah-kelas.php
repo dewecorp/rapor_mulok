@@ -9,14 +9,25 @@ $error = '';
 
 // Handle pindah kelas
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'pindah') {
-    $kelas_lama_id = $_POST['kelas_lama_id'] ?? 0;
-    $kelas_baru_id = $_POST['kelas_baru_id'] ?? 0;
+    $kelas_lama_id = intval($_POST['kelas_lama_id'] ?? 0);
+    $kelas_baru_id = intval($_POST['kelas_baru_id'] ?? 0);
     $siswa_ids = $_POST['siswa_ids'] ?? [];
     
+    // Debug: log data yang diterima
+    error_log("=== PINDAH KELAS DEBUG ===");
+    error_log("POST action: " . ($_POST['action'] ?? 'NOT SET'));
+    error_log("kelas_lama_id: " . $kelas_lama_id);
+    error_log("kelas_baru_id: " . $kelas_baru_id);
+    error_log("siswa_ids count: " . count($siswa_ids));
+    error_log("siswa_ids: " . print_r($siswa_ids, true));
+    error_log("All POST data: " . print_r($_POST, true));
+    
     if (!$kelas_lama_id || !$kelas_baru_id) {
-        $error = 'Pilih kelas asal dan kelas tujuan!';
+        $error = 'Pilih kelas asal dan kelas tujuan! Kelas lama: ' . $kelas_lama_id . ', Kelas baru: ' . $kelas_baru_id;
+        error_log("ERROR: " . $error);
     } elseif (empty($siswa_ids) || !is_array($siswa_ids)) {
-        $error = 'Pilih siswa yang akan dipindah!';
+        $error = 'Pilih siswa yang akan dipindah! Jumlah siswa: ' . count($siswa_ids);
+        error_log("ERROR: " . $error);
     } else {
         $pindah_count = 0;
         $conn->begin_transaction();
@@ -28,8 +39,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ? WHERE id = ?");
                     $stmt->bind_param("ii", $kelas_baru_id, $siswa_id);
                     if ($stmt->execute()) {
-                        $pindah_count++;
+                        if ($stmt->affected_rows > 0) {
+                            $pindah_count++;
+                            error_log("Updated siswa ID: " . $siswa_id . " to kelas: " . $kelas_baru_id);
+                        } else {
+                            error_log("No rows affected for siswa ID: " . $siswa_id);
+                        }
+                    } else {
+                        error_log("Execute failed for siswa ID: " . $siswa_id . " - Error: " . $stmt->error);
                     }
+                    $stmt->close();
                 }
             }
             
@@ -50,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal memindahkan siswa: ' . $e->getMessage();
+            error_log("EXCEPTION: " . $error);
         }
     }
 }
