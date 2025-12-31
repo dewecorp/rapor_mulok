@@ -90,18 +90,17 @@ if ($kelas_filter) {
             $materi_id = $materi['materi_id'];
             
             // Cek apakah ada nilai yang sudah dikirim untuk materi ini
-            $query_cek_nilai = "SELECT COUNT(*) as total 
-                               FROM nilai_siswa 
+            $query_cek_nilai = "SELECT status FROM nilai_kirim_status 
                                WHERE materi_mulok_id = ? 
                                AND kelas_id = ? 
                                AND semester = ? 
-                               AND tahun_ajaran = ?";
+                               AND tahun_ajaran = ? 
+                               AND status = 'terkirim'";
             $stmt_cek = $conn->prepare($query_cek_nilai);
             $stmt_cek->bind_param("iiss", $materi_id, $kelas_id, $semester, $tahun_ajaran);
             $stmt_cek->execute();
             $result_cek = $stmt_cek->get_result();
-            $cek_data = $result_cek->fetch_assoc();
-            $ada_nilai = ($cek_data['total'] ?? 0) > 0;
+            $ada_nilai = ($result_cek && $result_cek->num_rows > 0);
             
             if ($ada_nilai) {
                 $materi_terkirim++;

@@ -7,6 +7,69 @@ $conn = getConnection();
 $user_id = $_SESSION['user_id'];
 $materi_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
+// Cek dan tambahkan kolom predikat dan deskripsi jika belum ada
+try {
+    $check_predikat = $conn->query("SHOW COLUMNS FROM nilai_siswa LIKE 'predikat'");
+    if (!$check_predikat || $check_predikat->num_rows == 0) {
+        $conn->query("ALTER TABLE nilai_siswa ADD COLUMN predikat VARCHAR(10) DEFAULT NULL AFTER nilai_pengetahuan");
+    }
+    
+    $check_deskripsi = $conn->query("SHOW COLUMNS FROM nilai_siswa LIKE 'deskripsi'");
+    if (!$check_deskripsi || $check_deskripsi->num_rows == 0) {
+        $conn->query("ALTER TABLE nilai_siswa ADD COLUMN deskripsi TEXT DEFAULT NULL AFTER predikat");
+    }
+    
+    // Buat tabel nilai_kirim_status jika belum ada
+    $check_table = $conn->query("SHOW TABLES LIKE 'nilai_kirim_status'");
+    if (!$check_table || $check_table->num_rows == 0) {
+        $conn->query("CREATE TABLE nilai_kirim_status (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            materi_mulok_id INT NOT NULL,
+            kelas_id INT NOT NULL,
+            semester VARCHAR(10) NOT NULL,
+            tahun_ajaran VARCHAR(20) NOT NULL,
+            status ENUM('terkirim', 'batal') DEFAULT 'terkirim',
+            tanggal_kirim DATETIME DEFAULT CURRENT_TIMESTAMP,
+            tanggal_batal DATETIME DEFAULT NULL,
+            user_id INT NOT NULL,
+            INDEX idx_materi_kelas (materi_mulok_id, kelas_id, semester, tahun_ajaran),
+            FOREIGN KEY (materi_mulok_id) REFERENCES materi_mulok(id) ON DELETE CASCADE,
+            FOREIGN KEY (kelas_id) REFERENCES kelas(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES pengguna(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+} catch (Exception $e) {
+    // Ignore jika kolom/tabel sudah ada atau error lainnya
+}
+
+// Fungsi untuk menghitung predikat berdasarkan nilai
+function hitungPredikat($nilai) {
+    $nilai_float = floatval($nilai);
+    if ($nilai_float <= 60) return 'D';
+    elseif ($nilai_float <= 69) return 'C';
+    elseif ($nilai_float <= 89) return 'B';
+    elseif ($nilai_float <= 100) return 'A';
+    return '-';
+}
+
+// Fungsi untuk menghitung deskripsi berdasarkan predikat dan nama materi
+function hitungDeskripsi($predikat, $nama_materi) {
+    if (empty($predikat) || $predikat == '-') return '-';
+    
+    switch ($predikat) {
+        case 'A':
+            return 'Sangat baik dalam ' . $nama_materi;
+        case 'B':
+            return 'Baik dalam ' . $nama_materi;
+        case 'C':
+            return 'Cukup dalam ' . $nama_materi;
+        case 'D':
+            return 'Kurang dalam ' . $nama_materi;
+        default:
+            return '-';
+    }
+}
+
 // Handle tambah nilai
 $success_message = '';
 $error_message = '';
@@ -18,6 +81,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $siswa_ids = $_POST['siswa_ids'] ?? [];
     $nilai_array = $_POST['nilai'] ?? [];
     
+    // Cek apakah nilai sudah dikirim
+    $status_kirim_check = 'belum';
+    try {
+        $stmt_check_kirim = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                           WHERE materi_mulok_id = ? 
+                                           AND kelas_id = ? 
+                                           AND semester = ? 
+                                           AND tahun_ajaran = ? 
+                                           AND status = 'terkirim'");
+        $stmt_check_kirim->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+        $stmt_check_kirim->execute();
+        $result_check_kirim = $stmt_check_kirim->get_result();
+        if ($result_check_kirim && $result_check_kirim->num_rows > 0) {
+            $status_kirim_check = 'terkirim';
+        }
+        $stmt_check_kirim->close();
+    } catch (Exception $e) {
+        // Ignore error
+    }
+    
+    if ($status_kirim_check == 'terkirim') {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Nilai sudah dikirim. Silakan batalkan pengiriman terlebih dahulu untuk mengubah nilai.'
+        ]);
+        exit;
+    }
+    
     if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post) && !empty($siswa_ids) && !empty($nilai_array)) {
         $conn->begin_transaction();
         try {
@@ -28,6 +120,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 
                 if ($siswa_id > 0 && $nilai_value !== '') {
                     $nilai_float = floatval($nilai_value);
+                    
+                    // Hitung predikat dari nilai
+                    $predikat = hitungPredikat($nilai_float);
+                    
+                    // Ambil nama materi untuk deskripsi
+                    $nama_materi = '';
+                    $stmt_materi_nama = $conn->prepare("SELECT BINARY nama_mulok as nama_mulok FROM materi_mulok WHERE id = ?");
+                    $stmt_materi_nama->bind_param("i", $materi_id_post);
+                    $stmt_materi_nama->execute();
+                    $result_materi_nama = $stmt_materi_nama->get_result();
+                    if ($result_materi_nama && $result_materi_nama->num_rows > 0) {
+                        $materi_row = $result_materi_nama->fetch_assoc();
+                        $nama_materi = isset($materi_row['nama_mulok']) ? (string)$materi_row['nama_mulok'] : '';
+                    }
+                    $stmt_materi_nama->close();
+                    
+                    // Hitung deskripsi dengan nama materi
+                    $deskripsi = hitungDeskripsi($predikat, $nama_materi);
                     
                     // Cek apakah nilai sudah ada
                     $stmt_check = $conn->prepare("SELECT id FROM nilai_siswa 
@@ -45,17 +155,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     if ($existing) {
                         // Update nilai yang sudah ada
                         $stmt_update = $conn->prepare("UPDATE nilai_siswa 
-                                                      SET nilai_pengetahuan = ?, guru_id = ? 
+                                                      SET nilai_pengetahuan = ?, predikat = ?, deskripsi = ?, guru_id = ? 
                                                       WHERE id = ?");
-                        $stmt_update->bind_param("dii", $nilai_float, $user_id, $existing['id']);
+                        $stmt_update->bind_param("dssii", $nilai_float, $predikat, $deskripsi, $user_id, $existing['id']);
                         $stmt_update->execute();
                         $stmt_update->close();
                     } else {
                         // Insert nilai baru
                         $stmt_insert = $conn->prepare("INSERT INTO nilai_siswa 
-                                                       (siswa_id, materi_mulok_id, kelas_id, guru_id, semester, tahun_ajaran, nilai_pengetahuan) 
-                                                       VALUES (?, ?, ?, ?, ?, ?, ?)");
-                        $stmt_insert->bind_param("iiiissd", $siswa_id, $materi_id_post, $kelas_id_post, $user_id, $semester_post, $tahun_ajaran_post, $nilai_float);
+                                                       (siswa_id, materi_mulok_id, kelas_id, guru_id, semester, tahun_ajaran, nilai_pengetahuan, predikat, deskripsi) 
+                                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt_insert->bind_param("iiiissdss", $siswa_id, $materi_id_post, $kelas_id_post, $user_id, $semester_post, $tahun_ajaran_post, $nilai_float, $predikat, $deskripsi);
                         $stmt_insert->execute();
                         $stmt_insert->close();
                     }
@@ -93,6 +203,128 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         echo json_encode([
             'success' => false,
             'message' => $error_message
+        ]);
+        exit;
+    }
+}
+
+// Handle kirim nilai
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'kirim_nilai') {
+    $materi_id_post = intval($_POST['materi_id'] ?? 0);
+    $kelas_id_post = intval($_POST['kelas_id'] ?? 0);
+    $semester_post = trim($_POST['semester'] ?? '1');
+    $tahun_ajaran_post = trim($_POST['tahun_ajaran'] ?? '');
+    
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post)) {
+        try {
+            // Cek apakah sudah ada status terkirim
+            $stmt_check = $conn->prepare("SELECT id FROM nilai_kirim_status 
+                                         WHERE materi_mulok_id = ? 
+                                         AND kelas_id = ? 
+                                         AND semester = ? 
+                                         AND tahun_ajaran = ? 
+                                         AND status = 'terkirim'");
+            $stmt_check->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_check->execute();
+            $result_check = $stmt_check->get_result();
+            $existing = $result_check->fetch_assoc();
+            $stmt_check->close();
+            
+            if ($existing) {
+                // Update status menjadi terkirim
+                $stmt_update = $conn->prepare("UPDATE nilai_kirim_status 
+                                              SET status = 'terkirim', 
+                                                  tanggal_kirim = NOW(), 
+                                                  tanggal_batal = NULL,
+                                                  user_id = ? 
+                                              WHERE id = ?");
+                $stmt_update->bind_param("ii", $user_id, $existing['id']);
+                $stmt_update->execute();
+                $stmt_update->close();
+            } else {
+                // Insert status baru
+                $stmt_insert = $conn->prepare("INSERT INTO nilai_kirim_status 
+                                               (materi_mulok_id, kelas_id, semester, tahun_ajaran, status, tanggal_kirim, user_id) 
+                                               VALUES (?, ?, ?, ?, 'terkirim', NOW(), ?)");
+                $stmt_insert->bind_param("iissi", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post, $user_id);
+                $stmt_insert->execute();
+                $stmt_insert->close();
+            }
+            
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Nilai berhasil dikirim!'
+            ]);
+            exit;
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Gagal mengirim nilai: ' . $e->getMessage()
+            ]);
+            exit;
+        }
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Data tidak lengkap!'
+        ]);
+        exit;
+    }
+}
+
+// Handle batal kirim nilai
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'batal_kirim_nilai') {
+    $materi_id_post = intval($_POST['materi_id'] ?? 0);
+    $kelas_id_post = intval($_POST['kelas_id'] ?? 0);
+    $semester_post = trim($_POST['semester'] ?? '1');
+    $tahun_ajaran_post = trim($_POST['tahun_ajaran'] ?? '');
+    
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post)) {
+        try {
+            // Update status menjadi batal
+            $stmt_update = $conn->prepare("UPDATE nilai_kirim_status 
+                                          SET status = 'batal', 
+                                              tanggal_batal = NOW() 
+                                          WHERE materi_mulok_id = ? 
+                                          AND kelas_id = ? 
+                                          AND semester = ? 
+                                          AND tahun_ajaran = ? 
+                                          AND status = 'terkirim'");
+            $stmt_update->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_update->execute();
+            $affected = $stmt_update->affected_rows;
+            $stmt_update->close();
+            
+            if ($affected > 0) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Pengiriman nilai berhasil dibatalkan!'
+                ]);
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Status pengiriman tidak ditemukan!'
+                ]);
+            }
+            exit;
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Gagal membatalkan pengiriman: ' . $e->getMessage()
+            ]);
+            exit;
+        }
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Data tidak lengkap!'
         ]);
         exit;
     }
@@ -159,6 +391,28 @@ if ($materi_id > 0 && $kelas_id > 0) {
         $stmt_materi->close();
     } catch (Exception $e) {
         $materi_data = null;
+    }
+    
+    // Cek status kirim nilai
+    $status_kirim = 'belum';
+    if ($materi_data && $kelas_id > 0 && !empty($tahun_ajaran)) {
+        try {
+            $stmt_status = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                          WHERE materi_mulok_id = ? 
+                                          AND kelas_id = ? 
+                                          AND semester = ? 
+                                          AND tahun_ajaran = ? 
+                                          AND status = 'terkirim'");
+            $stmt_status->bind_param("iiss", $materi_id, $kelas_id, $semester_aktif, $tahun_ajaran);
+            $stmt_status->execute();
+            $result_status = $stmt_status->get_result();
+            if ($result_status && $result_status->num_rows > 0) {
+                $status_kirim = 'terkirim';
+            }
+            $stmt_status->close();
+        } catch (Exception $e) {
+            $status_kirim = 'belum';
+        }
     }
     
     // Ambil data siswa di kelas
@@ -235,19 +489,16 @@ if ($materi_id > 0 && $kelas_id > 0) {
                     // Cek apakah nilai sudah dikirim untuk materi ini
                     $status_nilai = 'belum';
                     if (!empty($tahun_ajaran)) {
-                        $stmt_cek = $conn->prepare("SELECT COUNT(*) as total 
-                                                   FROM nilai_siswa 
+                        $stmt_cek = $conn->prepare("SELECT status FROM nilai_kirim_status 
                                                    WHERE materi_mulok_id = ? 
                                                    AND kelas_id = ? 
                                                    AND semester = ? 
-                                                   AND tahun_ajaran = ?");
+                                                   AND tahun_ajaran = ? 
+                                                   AND status = 'terkirim'");
                         $stmt_cek->bind_param("iiss", $materi_id_check, $kelas_id, $semester_aktif, $tahun_ajaran);
                         $stmt_cek->execute();
                         $result_cek = $stmt_cek->get_result();
-                        $cek_data = $result_cek->fetch_assoc();
-                        $ada_nilai = ($cek_data['total'] ?? 0) > 0;
-                        
-                        if ($ada_nilai) {
+                        if ($result_cek && $result_cek->num_rows > 0) {
                             $status_nilai = 'terkirim';
                         }
                         $stmt_cek->close();
@@ -296,15 +547,21 @@ if ($materi_id > 0 && $kelas_id > 0) {
         </div>
         <div class="card-body">
             <div class="mb-3 d-flex gap-2">
-                <button type="button" class="btn btn-primary" onclick="tambahNilai()">
+                <button type="button" class="btn btn-primary" id="btnTambahNilai" onclick="tambahNilai()" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
                     <i class="fas fa-plus"></i> Tambah Nilai
                 </button>
-                <button type="button" class="btn btn-info" onclick="imporNilai()">
+                <button type="button" class="btn btn-info" id="btnImporNilai" onclick="imporNilai()" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
                     <i class="fas fa-file-import"></i> Impor Nilai
                 </button>
-                <button type="button" class="btn btn-success" onclick="kirimNilai()">
-                    <i class="fas fa-paper-plane"></i> Kirim Nilai
-                </button>
+                <?php if ($status_kirim == 'terkirim'): ?>
+                    <button type="button" class="btn btn-danger" id="btnBatalKirim" onclick="batalKirimNilai()">
+                        <i class="fas fa-times-circle"></i> Batal Kirim
+                    </button>
+                <?php else: ?>
+                    <button type="button" class="btn btn-success" id="btnKirimNilai" onclick="kirimNilai()">
+                        <i class="fas fa-paper-plane"></i> Kirim Nilai
+                    </button>
+                <?php endif; ?>
             </div>
             
             <div class="table-responsive">
@@ -329,6 +586,16 @@ if ($materi_id > 0 && $kelas_id > 0) {
                                 $nilai_value = $nilai ? ($nilai['nilai_pengetahuan'] ?? $nilai['harian'] ?? '') : '';
                                 $predikat = $nilai ? ($nilai['predikat'] ?? '') : '';
                                 $deskripsi = $nilai ? ($nilai['deskripsi'] ?? '') : '';
+                                
+                                // Hitung predikat dari nilai jika belum ada
+                                if (empty($predikat) && !empty($nilai_value)) {
+                                    $predikat = hitungPredikat($nilai_value);
+                                }
+                                
+                                // Hitung deskripsi jika belum ada
+                                if (empty($deskripsi) && !empty($predikat) && $predikat != '-' && !empty($materi_data['nama_mulok'])) {
+                                    $deskripsi = hitungDeskripsi($predikat, $materi_data['nama_mulok']);
+                                }
                             ?>
                                 <tr>
                                     <td><?php echo $no++; ?></td>
@@ -470,6 +737,60 @@ if ($materi_id > 0 && $kelas_id > 0) {
         </div>
     </div>
 </div>
+
+<!-- Modal Import Nilai -->
+<div class="modal fade" id="modalImportNilai" tabindex="-1" aria-labelledby="modalImportNilaiLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #2d5016; color: white;">
+                <h5 class="modal-title" id="modalImportNilaiLabel"><i class="fas fa-file-upload"></i> Upload Nilai</h5>
+                <div>
+                    <button type="button" class="btn btn-success btn-sm" onclick="downloadTemplateNilai()">
+                        <i class="fas fa-download"></i> Template Excel
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <!-- Upload Area -->
+                <div class="upload-area" id="uploadAreaNilai" style="border: 2px dashed #ccc; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; background-color: #f8f9fa; transition: all 0.3s;">
+                    <input type="file" id="fileInputNilai" accept=".xls,.xlsx" style="display: none;" multiple>
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #6c757d; margin-bottom: 15px;"></i>
+                    <p class="mb-0" style="color: #6c757d; font-size: 16px;">
+                        Letakkan File atau Klik Disini untuk upload
+                    </p>
+                </div>
+                
+                <!-- File List Table -->
+                <div class="mt-4">
+                    <table class="table table-bordered table-sm" id="fileTableNilai" style="display: table;">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Size</th>
+                                <th>Progress</th>
+                                <th>Sukses</th>
+                                <th>Gagal</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fileTableBodyNilai">
+                            <tr id="noDataRowNilai">
+                                <td colspan="7" class="text-center text-muted py-3">
+                                    <i class="fas fa-info-circle"></i> Belum ada file yang dipilih
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
 <?php endif; ?>
 
 <?php include '../includes/footer.php'; ?>
@@ -491,6 +812,16 @@ if ($materi_id > 0 && $kelas_id > 0) {
                 }
             });
         <?php endif; ?>
+        
+        // Auto close alert setelah 3 detik
+        $('.alert-success').each(function() {
+            var alert = $(this);
+            setTimeout(function() {
+                alert.fadeOut('slow', function() {
+                    $(this).alert('close');
+                });
+            }, 3000);
+        });
     });
     
     function tambahNilai() {
@@ -499,24 +830,451 @@ if ($materi_id > 0 && $kelas_id > 0) {
     }
     
     function imporNilai() {
-        // TODO: Implementasi impor nilai
-        Swal.fire({
-            icon: 'info',
-            title: 'Impor Nilai',
-            text: 'Fitur ini akan segera tersedia',
-            confirmButtonColor: '#2d5016'
-        });
+        var modal = new bootstrap.Modal(document.getElementById('modalImportNilai'));
+        modal.show();
+    }
+    
+    function downloadTemplateNilai() {
+        var materiId = <?php echo $materi_id; ?>;
+        if (!materiId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Materi tidak ditemukan',
+                confirmButtonColor: '#2d5016'
+            });
+            return;
+        }
+        window.location.href = 'template_nilai.php?materi_id=' + materiId;
     }
     
     function kirimNilai() {
-        // TODO: Implementasi kirim nilai
         Swal.fire({
-            icon: 'info',
-            title: 'Kirim Nilai',
-            text: 'Fitur ini akan segera tersedia',
-            confirmButtonColor: '#2d5016'
+            title: 'Kirim Nilai?',
+            text: 'Apakah Anda yakin ingin mengirim nilai? Setelah dikirim, nilai tidak dapat diubah kecuali dibatalkan terlebih dahulu.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2d5016',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Kirim',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const materiId = <?php echo $materi_id; ?>;
+                const kelasId = <?php echo $kelas_id; ?>;
+                const semester = '<?php echo $semester_aktif; ?>';
+                const tahunAjaran = '<?php echo $tahun_ajaran; ?>';
+                
+                Swal.fire({
+                    title: 'Mengirim...',
+                    text: 'Mohon tunggu',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                const formData = new FormData();
+                formData.append('action', 'kirim_nilai');
+                formData.append('materi_id', materiId);
+                formData.append('kelas_id', kelasId);
+                formData.append('semester', semester);
+                formData.append('tahun_ajaran', tahunAjaran);
+                
+                fetch('materi.php?id=<?php echo $materi_id; ?>', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Terjadi kesalahan: ' + error.message,
+                        confirmButtonColor: '#2d5016'
+                    });
+                });
+            }
         });
     }
+    
+    function batalKirimNilai() {
+        Swal.fire({
+            title: 'Batal Kirim Nilai?',
+            text: 'Apakah Anda yakin ingin membatalkan pengiriman nilai? Setelah dibatalkan, nilai dapat diubah kembali.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Batal Kirim',
+            cancelButtonText: 'Tidak'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const materiId = <?php echo $materi_id; ?>;
+                const kelasId = <?php echo $kelas_id; ?>;
+                const semester = '<?php echo $semester_aktif; ?>';
+                const tahunAjaran = '<?php echo $tahun_ajaran; ?>';
+                
+                Swal.fire({
+                    title: 'Membatalkan...',
+                    text: 'Mohon tunggu',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                const formData = new FormData();
+                formData.append('action', 'batal_kirim_nilai');
+                formData.append('materi_id', materiId);
+                formData.append('kelas_id', kelasId);
+                formData.append('semester', semester);
+                formData.append('tahun_ajaran', tahunAjaran);
+                
+                fetch('materi.php?id=<?php echo $materi_id; ?>', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: data.message,
+                            confirmButtonColor: '#2d5016'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Terjadi kesalahan: ' + error.message,
+                        confirmButtonColor: '#2d5016'
+                    });
+                });
+            }
+        });
+    }
+    
+    // Handle upload area untuk import nilai
+    const uploadAreaNilai = document.getElementById('uploadAreaNilai');
+    const fileInputNilai = document.getElementById('fileInputNilai');
+    const fileTableBodyNilai = document.getElementById('fileTableBodyNilai');
+    
+    if (uploadAreaNilai && fileInputNilai) {
+        uploadAreaNilai.addEventListener('click', () => {
+            fileInputNilai.click();
+        });
+        
+        uploadAreaNilai.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadAreaNilai.style.backgroundColor = '#e9ecef';
+            uploadAreaNilai.style.borderColor = '#2d5016';
+        });
+        
+        uploadAreaNilai.addEventListener('dragleave', () => {
+            uploadAreaNilai.style.backgroundColor = '#f8f9fa';
+            uploadAreaNilai.style.borderColor = '#ccc';
+        });
+        
+        uploadAreaNilai.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadAreaNilai.style.backgroundColor = '#f8f9fa';
+            uploadAreaNilai.style.borderColor = '#ccc';
+            
+            const files = Array.from(e.dataTransfer.files).filter(file => 
+                file.name.endsWith('.xls') || file.name.endsWith('.xlsx')
+            );
+            
+            if (files.length > 0) {
+                fileInputNilai.files = e.dataTransfer.files;
+                handleFilesNilai(files);
+            }
+        });
+        
+        fileInputNilai.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                handleFilesNilai(files);
+            }
+        });
+    }
+    
+    function handleFilesNilai(files) {
+        // Simpan files di window untuk digunakan saat upload
+        window.uploadFilesNilai = files;
+        
+        // Hapus row "no data"
+        const noDataRow = document.getElementById('noDataRowNilai');
+        if (noDataRow) {
+            noDataRow.remove();
+        }
+        
+        // Tambahkan row untuk setiap file
+        files.forEach((file, index) => {
+            const row = document.createElement('tr');
+            row.id = 'fileRowNilai_' + index;
+            
+            let fileSize = '';
+            if (file.size < 1024) {
+                fileSize = file.size + ' B';
+            } else if (file.size < 1024 * 1024) {
+                fileSize = (file.size / 1024).toFixed(2) + ' KB';
+            } else {
+                fileSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+            
+            row.innerHTML = `
+                <td>${file.name}</td>
+                <td>${fileSize}</td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progressNilai_${index}" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </td>
+                <td id="successNilai_${index}" style="text-align: center; font-weight: bold; color: #28a745;">0</td>
+                <td id="failedNilai_${index}" style="text-align: center; font-weight: bold; color: #dc3545;">0</td>
+                <td id="statusNilai_${index}">
+                    <span class="badge bg-secondary">Menunggu</span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="uploadFileNilai(${index})">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
+                </td>
+            `;
+            
+            fileTableBodyNilai.appendChild(row);
+        });
+    }
+    
+    function uploadFileNilai(index) {
+        let file = null;
+        if (window.uploadFilesNilai && Array.isArray(window.uploadFilesNilai) && window.uploadFilesNilai[index]) {
+            file = window.uploadFilesNilai[index];
+        } else {
+            const fileInput = document.getElementById('fileInputNilai');
+            if (fileInput && fileInput.files && fileInput.files[index]) {
+                file = fileInput.files[index];
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'File tidak ditemukan!',
+                    confirmButtonColor: '#2d5016'
+                });
+                return;
+            }
+        }
+        
+        if (!file || !file.name) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'File tidak valid!',
+                confirmButtonColor: '#2d5016'
+            });
+            return;
+        }
+        
+        const materiId = <?php echo $materi_id; ?>;
+        if (!materiId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'Materi tidak ditemukan!',
+                confirmButtonColor: '#2d5016'
+            });
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file_excel', file);
+        formData.append('action', 'import_nilai');
+        formData.append('materi_id', materiId);
+        
+        const progressBar = document.getElementById('progressNilai_' + index);
+        const statusBadge = document.getElementById('statusNilai_' + index);
+        const successCell = document.getElementById('successNilai_' + index);
+        const failedCell = document.getElementById('failedNilai_' + index);
+        
+        if (!progressBar || !statusBadge || !successCell || !failedCell) {
+            return;
+        }
+        
+        // Reset progress bar
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+        progressBar.setAttribute('aria-valuenow', '0');
+        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
+        
+        // Update status
+        statusBadge.innerHTML = '<span class="badge bg-info">Mengupload...</span>';
+        
+        // Disable upload button
+        const uploadBtn = document.querySelector(`#fileRowNilai_${index} button`);
+        if (uploadBtn) {
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        }
+        
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                const percentRounded = Math.round(percentComplete);
+                
+                progressBar.style.width = percentComplete + '%';
+                progressBar.textContent = percentRounded + '%';
+                progressBar.setAttribute('aria-valuenow', percentRounded);
+                
+                if (percentComplete < 50) {
+                    progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
+                } else if (percentComplete < 100) {
+                    progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
+                } else {
+                    progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+                }
+            }
+        });
+        
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                try {
+                    const responseText = xhr.responseText.trim();
+                    
+                    if (!responseText) {
+                        throw new Error('Response kosong dari server');
+                    }
+                    
+                    if (!responseText.startsWith('{') && !responseText.startsWith('[')) {
+                        throw new Error('Response bukan JSON valid');
+                    }
+                    
+                    const response = JSON.parse(responseText);
+                    
+                    if (response.success) {
+                        progressBar.className = 'progress-bar bg-success';
+                        statusBadge.innerHTML = '<span class="badge bg-success">Selesai</span>';
+                        successCell.textContent = response.success_count || 0;
+                        failedCell.textContent = response.failed_count || 0;
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: response.message || 'Nilai berhasil diimpor',
+                            confirmButtonColor: '#2d5016',
+                            timer: 2000,
+                            timerProgressBar: true
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        progressBar.className = 'progress-bar bg-danger';
+                        statusBadge.innerHTML = '<span class="badge bg-danger">Gagal</span>';
+                        failedCell.textContent = response.failed_count || 0;
+                        
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: response.message || 'Gagal mengimpor nilai',
+                            confirmButtonColor: '#2d5016'
+                        });
+                    }
+                } catch (error) {
+                    progressBar.className = 'progress-bar bg-danger';
+                    statusBadge.innerHTML = '<span class="badge bg-danger">Error</span>';
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Terjadi kesalahan saat memproses response: ' + error.message,
+                        confirmButtonColor: '#2d5016'
+                    });
+                }
+            } else {
+                progressBar.className = 'progress-bar bg-danger';
+                statusBadge.innerHTML = '<span class="badge bg-danger">Error</span>';
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'Server error: ' + xhr.status,
+                    confirmButtonColor: '#2d5016'
+                });
+            }
+            
+            // Enable upload button
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+            }
+        });
+        
+        xhr.addEventListener('error', () => {
+            progressBar.className = 'progress-bar bg-danger';
+            statusBadge.innerHTML = '<span class="badge bg-danger">Error</span>';
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'Terjadi kesalahan saat mengupload file',
+                confirmButtonColor: '#2d5016'
+            });
+            
+            if (uploadBtn) {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+            }
+        });
+        
+        xhr.open('POST', 'import_nilai.php');
+        xhr.send(formData);
+    }
+    
+    // Reset tabel import saat modal import ditutup
+    $('#modalImportNilai').on('hidden.bs.modal', function() {
+        const fileTableBodyNilai = document.getElementById('fileTableBodyNilai');
+        if (fileTableBodyNilai) {
+            fileTableBodyNilai.innerHTML = '<tr id="noDataRowNilai"><td colspan="7" class="text-center text-muted py-3"><i class="fas fa-info-circle"></i> Belum ada file yang dipilih</td></tr>';
+        }
+        const fileInputNilai = document.getElementById('fileInputNilai');
+        if (fileInputNilai) {
+            fileInputNilai.value = '';
+        }
+        window.uploadFilesNilai = null;
+    });
     
     // Handle submit form tambah nilai
     document.getElementById('formTambahNilai').addEventListener('submit', function(e) {
@@ -564,16 +1322,19 @@ if ($materi_id > 0 && $kelas_id > 0) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Tutup modal terlebih dahulu
+                var modal = bootstrap.Modal.getInstance(document.getElementById('modalTambahNilai'));
+                modal.hide();
+                
                 Swal.fire({
                     icon: 'success',
                     title: 'Berhasil',
                     text: data.message || 'Nilai berhasil disimpan',
-                    confirmButtonColor: '#2d5016'
+                    confirmButtonColor: '#2d5016',
+                    timer: 2000,
+                    timerProgressBar: true,
+                    showConfirmButton: true
                 }).then(() => {
-                    // Tutup modal
-                    var modal = bootstrap.Modal.getInstance(document.getElementById('modalTambahNilai'));
-                    modal.hide();
-                    
                     // Reload halaman untuk update data
                     window.location.reload();
                 });
