@@ -54,7 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         if ($stmt->execute()) {
                             // Redirect untuk mencegah resubmit dan refresh data
                             $_SESSION['success_message'] = 'Kelas berhasil ditambahkan!';
-                            redirect(basename($_SERVER['PHP_SELF']), false);
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
+                            header('Location: kelas.php');
+                            exit();
                         } else {
                             $error_code = $stmt->errno;
                             $error_msg = $stmt->error;

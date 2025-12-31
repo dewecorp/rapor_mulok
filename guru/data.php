@@ -75,7 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         if (ob_get_level() > 0) {
                             ob_clean();
                         }
-                        redirect(basename($_SERVER['PHP_SELF']), false);
+                        header('Location: data.php');
+                        exit();
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -179,7 +180,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if ($stmt->execute()) {
                         // Redirect untuk mencegah resubmit dan refresh data
                         $_SESSION['success_message'] = 'Data guru berhasil diperbarui!';
-                        redirect(basename($_SERVER['PHP_SELF']), false);
+                        if (ob_get_level() > 0) {
+                            ob_clean();
+                        }
+                        header('Location: data.php');
+                        exit();
                     } else {
                         $error_code = $stmt->errno;
                         $error_msg = $stmt->error;
@@ -223,10 +228,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt->execute()) {
                 // Redirect untuk mencegah resubmit dan refresh data
                 $_SESSION['success_message'] = 'Data guru berhasil dihapus!';
-                redirect(basename($_SERVER['PHP_SELF']), false);
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: data.php');
+                exit();
             } else {
                 $_SESSION['error_message'] = 'Gagal menghapus data guru!';
-                redirect(basename($_SERVER['PHP_SELF']), false);
+                if (ob_get_level() > 0) {
+                    ob_clean();
+                }
+                header('Location: data.php');
+                exit();
             }
         }
     }

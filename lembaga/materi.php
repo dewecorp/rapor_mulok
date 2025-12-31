@@ -164,10 +164,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 if ($stmt->execute()) {
                     $_SESSION['success_message'] = 'Materi mulok berhasil dihapus!';
-                    redirect(basename($_SERVER['PHP_SELF']), false);
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: materi.php');
+                    exit();
                 } else {
                     $_SESSION['error_message'] = 'Gagal menghapus materi mulok! Error: ' . $conn->error;
-                    redirect(basename($_SERVER['PHP_SELF']), false);
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: materi.php');
+                    exit();
                 }
             } catch (Exception $e) {
                 $_SESSION['error_message'] = 'Gagal menghapus materi mulok! Error: ' . $e->getMessage();
