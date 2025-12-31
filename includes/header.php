@@ -161,8 +161,36 @@ $basePath = getBasePath();
         .user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
             min-width: 200px;
+            position: relative;
+        }
+        
+        .user-details {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: white;
+            margin-bottom: 2px;
+        }
+        
+        .user-role {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        
+        .user-role-text {
+            font-size: 13px;
+            color: white;
+            opacity: 0.9;
         }
         
         .user-avatar {
@@ -171,6 +199,59 @@ $basePath = getBasePath();
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid white;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .user-avatar:hover {
+            border-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+        
+        .user-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 180px;
+            z-index: 1050;
+            display: none;
+        }
+        
+        .user-dropdown-menu.show {
+            display: block;
+        }
+        
+        .user-dropdown-item {
+            padding: 12px 16px;
+            color: #333;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .user-dropdown-item:last-child {
+            border-bottom: none;
+        }
+        
+        .user-dropdown-item:hover {
+            background-color: #f5f5f5;
+            color: #2d5016;
+        }
+        
+        .user-dropdown-item.logout {
+            color: #dc3545;
+        }
+        
+        .user-dropdown-item.logout:hover {
+            background-color: #fff5f5;
+            color: #c82333;
         }
         
         .user-details {
@@ -596,10 +677,16 @@ $basePath = getBasePath();
                         <div class="user-name"><?php echo htmlspecialchars($user['nama']); ?></div>
                         <div class="user-role">
                             <span class="user-role-text"><?php echo ucfirst(str_replace('_', ' ', $user['role'])); ?></span>
-                            <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo Madrasah" class="madrasah-logo-small" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                     </div>
-                    <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" onerror="this.onerror=null; this.style.display='none';">
+                    <div style="position: relative;">
+                        <img src="uploads/<?php echo htmlspecialchars($user['foto'] ?? 'default.png'); ?>" alt="User" class="user-avatar" id="userAvatarDropdown" onerror="this.onerror=null; this.style.display='none';">
+                        <div class="user-dropdown-menu" id="userDropdownMenu">
+                            <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

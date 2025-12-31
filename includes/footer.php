@@ -17,6 +17,46 @@
     <!-- Select2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js?v=<?php echo $cache_version; ?>"></script>
     
+    <!-- Script untuk toggle dropdown user -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var userAvatar = document.getElementById('userAvatarDropdown');
+        var userDropdown = document.getElementById('userDropdownMenu');
+        
+        if (userAvatar && userDropdown) {
+            // Toggle dropdown saat avatar diklik
+            userAvatar.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+            
+            // Tutup dropdown saat klik di luar
+            document.addEventListener('click', function(e) {
+                if (!userAvatar.contains(e.target) && !userDropdown.contains(e.target)) {
+                    userDropdown.classList.remove('show');
+                }
+            });
+        }
+    });
+    
+    function logout() {
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: 'Anda akan logout dari sistem',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2d5016',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Logout',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '<?php echo $basePath ?? ''; ?>logout.php';
+            }
+        });
+    }
+    </script>
+    
     <!-- Script untuk Welcome Alert - dieksekusi setelah semua library dimuat -->
     <?php if (isset($_SESSION['show_welcome']) && $_SESSION['show_welcome']): ?>
         <?php
