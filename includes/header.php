@@ -161,8 +161,8 @@ $basePath = getBasePath();
         .user-info {
             display: flex;
             align-items: center;
-            gap: 12px;
-            min-width: 280px;
+            gap: 15px;
+            min-width: 320px;
             position: relative;
         }
         
@@ -173,28 +173,34 @@ $basePath = getBasePath();
             align-items: flex-end;
             flex: 1;
             min-width: 0;
-            margin-right: 0;
+            padding-right: 0;
+            gap: 4px;
         }
         
         .user-name {
             font-weight: 600;
             font-size: 15px;
             color: white;
-            margin-bottom: 3px;
+            margin: 0;
+            padding: 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 100%;
-            line-height: 1.2;
+            max-width: 220px;
+            line-height: 1.4;
+            display: block;
         }
         
         .user-role {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             justify-content: flex-end;
             white-space: nowrap;
-            line-height: 1.2;
+            line-height: 1.4;
+            flex-wrap: nowrap;
+            margin: 0;
+            padding: 0;
         }
         
         .user-role-text {
@@ -202,18 +208,22 @@ $basePath = getBasePath();
             color: white;
             opacity: 0.9;
             white-space: nowrap;
-            margin-right: 0;
+            display: inline-block;
+            margin: 0;
+            padding: 0;
         }
         
         .madrasah-logo-small {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid white;
             background-color: white;
             padding: 2px;
             flex-shrink: 0;
+            display: inline-block;
+            margin: 0;
         }
         
         .user-avatar {
