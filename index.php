@@ -13,6 +13,7 @@ $total_siswa = 0;
 $total_kelas = 0;
 $total_materi = 0;
 $materi_diampu = null;
+$materi_data = [];
 $is_wali_kelas = false;
 $kelas_id = 0;
 
@@ -71,13 +72,76 @@ if ($role == 'proktor') {
         $total_siswa = 0;
     }
     
+    // Ambil semester aktif dan tahun ajaran aktif
+    $semester_aktif = '1';
+    $tahun_ajaran = '';
     try {
-        $query_materi = "SELECT mm.* FROM mengampu_materi mm 
-                         INNER JOIN pengguna p ON mm.guru_id = p.id 
-                         WHERE p.id = $user_id";
-        $materi_diampu = $conn->query($query_materi);
+        $query_profil = "SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1";
+        $result_profil = $conn->query($query_profil);
+        $profil = $result_profil ? $result_profil->fetch_assoc() : null;
+        $semester_aktif = $profil['semester_aktif'] ?? '1';
+        $tahun_ajaran = $profil['tahun_ajaran_aktif'] ?? '';
     } catch (Exception $e) {
-        $materi_diampu = null;
+        $semester_aktif = '1';
+        $tahun_ajaran = '';
+    }
+    
+    // Ambil materi yang diampu di kelas dalam semester aktif
+    $materi_data = [];
+    if ($kelas_id > 0) {
+        try {
+            $stmt = $conn->prepare("SELECT DISTINCT m.id, m.nama_mulok
+                      FROM mengampu_materi mm
+                      INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+                      WHERE mm.guru_id = ? AND mm.kelas_id = ? AND m.semester = ?
+                      ORDER BY m.nama_mulok");
+            $stmt->bind_param("iis", $user_id, $kelas_id, $semester_aktif);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $materi_id = $row['id'];
+                    
+                    // Cek apakah nilai sudah dikirim untuk materi ini
+                    $status_nilai = 'belum';
+                    if (!empty($tahun_ajaran)) {
+                        $stmt_cek = $conn->prepare("SELECT COUNT(*) as total 
+                                                   FROM nilai_siswa 
+                                                   WHERE materi_mulok_id = ? 
+                                                   AND kelas_id = ? 
+                                                   AND semester = ? 
+                                                   AND tahun_ajaran = ?");
+                        $stmt_cek->bind_param("iiss", $materi_id, $kelas_id, $semester_aktif, $tahun_ajaran);
+                        $stmt_cek->execute();
+                        $result_cek = $stmt_cek->get_result();
+                        $cek_data = $result_cek->fetch_assoc();
+                        $ada_nilai = ($cek_data['total'] ?? 0) > 0;
+                        
+                        if ($ada_nilai) {
+                            $status_nilai = 'terkirim';
+                        }
+                        $stmt_cek->close();
+                    }
+                    
+                    $materi_data[] = [
+                        'id' => $row['id'],
+                        'nama_mulok' => $row['nama_mulok'],
+                        'status_nilai' => $status_nilai
+                    ];
+                }
+            }
+            $stmt->close();
+        } catch (Exception $e) {
+            $materi_data = [];
+        }
+    }
+    
+    // Untuk kompatibilitas dengan kode lama
+    $materi_diampu = null;
+    if (!empty($materi_data)) {
+        // Buat object result dummy untuk kompatibilitas
+        $materi_diampu = (object)['num_rows' => count($materi_data)];
     }
     
     // Cek apakah user adalah wali kelas
@@ -339,9 +403,17 @@ if ($role == 'proktor') {
                 <div class="col-md-4">
                     <div class="card">
                         <div class="card-body text-center">
-                            <img src="uploads/<?php echo htmlspecialchars($_SESSION['foto'] ?? 'default.png'); ?>" 
-                                 alt="Foto" class="rounded-circle mb-3" width="150" height="150" 
-                                 style="object-fit: cover;" onerror="this.onerror=null; this.style.display='none';">
+                            <div class="position-relative d-inline-block">
+                                <img src="uploads/<?php echo htmlspecialchars($_SESSION['foto'] ?? 'default.png'); ?>" 
+                                     alt="Foto" class="rounded-circle mb-3" width="150" height="150" 
+                                     id="fotoProfilWaliKelas"
+                                     style="object-fit: cover;" onerror="this.onerror=null; this.src='uploads/default.png';">
+                                <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
+                                        style="width: 40px; height: 40px; padding: 0; border: 2px solid white;"
+                                        onclick="openEditFotoModal('wali_kelas')" title="Edit Foto">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
                             <h5><?php echo htmlspecialchars($_SESSION['nama']); ?></h5>
                             <p class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $_SESSION['role'])); ?></p>
                             <?php if ($is_wali_kelas): ?>
@@ -371,7 +443,7 @@ if ($role == 'proktor') {
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h6 class="card-subtitle mb-2">Materi yang Diampu</h6>
-                                    <h2 class="mb-0"><?php echo $materi_diampu ? $materi_diampu->num_rows : 0; ?></h2>
+                                    <h2 class="mb-0"><?php echo !empty($materi_data) ? count($materi_data) : 0; ?></h2>
                                 </div>
                                 <i class="fas fa-book fa-3x opacity-50"></i>
                             </div>
@@ -385,40 +457,33 @@ if ($role == 'proktor') {
                     <h6 class="mb-0">Materi yang Diampu</h6>
                 </div>
                 <div class="card-body">
-                    <?php if ($materi_diampu && $materi_diampu->num_rows > 0): ?>
+                    <?php if (!empty($materi_data)): ?>
                         <div class="table-responsive">
                             <table class="table table-bordered">
                                 <thead>
                                     <tr>
                                         <th>No</th>
                                         <th>Materi Mulok</th>
-                                        <th>Kelas</th>
+                                        <th>Status Nilai</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php 
                                     $no = 1;
-                                    while ($materi = $materi_diampu->fetch_assoc()): 
-                                        try {
-                                            $materi_result = $conn->query("SELECT nama_mulok FROM materi_mulok WHERE id = " . $materi['materi_mulok_id']);
-                                            $materi_mulok = $materi_result ? $materi_result->fetch_assoc() : ['nama_mulok' => '-'];
-                                        } catch (Exception $e) {
-                                            $materi_mulok = ['nama_mulok' => '-'];
-                                        }
-                                        
-                                        try {
-                                            $kelas_result = $conn->query("SELECT nama_kelas FROM kelas WHERE id = " . $materi['kelas_id']);
-                                            $kelas = $kelas_result ? $kelas_result->fetch_assoc() : ['nama_kelas' => '-'];
-                                        } catch (Exception $e) {
-                                            $kelas = ['nama_kelas' => '-'];
-                                        }
+                                    foreach ($materi_data as $materi): 
                                     ?>
                                         <tr>
                                             <td><?php echo $no++; ?></td>
-                                            <td><?php echo htmlspecialchars($materi_mulok['nama_mulok'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($kelas['nama_kelas'] ?? '-'); ?></td>
+                                            <td><?php echo htmlspecialchars($materi['nama_mulok']); ?></td>
+                                            <td>
+                                                <?php if ($materi['status_nilai'] == 'terkirim'): ?>
+                                                    <span class="badge bg-success">Terkirim</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Belum</span>
+                                                <?php endif; ?>
+                                            </td>
                                         </tr>
-                                    <?php endwhile; ?>
+                                    <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -428,66 +493,22 @@ if ($role == 'proktor') {
                 </div>
             </div>
             
-            <?php
-            // Buat tabel dan ambil info aplikasi untuk wali kelas
-            $info_aplikasi_wk = '';
-            try {
-                // Buat tabel jika belum ada
-                $conn->query("CREATE TABLE IF NOT EXISTS `pengaturan_aplikasi` (
-                    `id` int(11) NOT NULL AUTO_INCREMENT,
-                    `info_aplikasi` text DEFAULT NULL,
-                    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    `updated_by` int(11) DEFAULT NULL,
-                    PRIMARY KEY (`id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                
-                // Cek apakah ada data, jika tidak insert default
-                $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
-                $count = $check ? $check->fetch_assoc()['total'] : 0;
-                if ($count == 0) {
-                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-                    $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
-                    $stmt->bind_param("s", $default_info);
-                    $stmt->execute();
-                }
-                
-                // Ambil info aplikasi
-                $result_info = $conn->query("SELECT info_aplikasi FROM pengaturan_aplikasi LIMIT 1");
-                if ($result_info && $result_info->num_rows > 0) {
-                    $info_data = $result_info->fetch_assoc();
-                    $info_aplikasi_wk = $info_data['info_aplikasi'] ?? '';
-                }
-            } catch (Exception $e) {
-                // Error, tetap tampilkan default
-                $info_aplikasi_wk = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-            }
-            ?>
-            
-            <div class="card mt-3">
-                <div class="card-header" style="background-color: #2d5016; color: white;">
-                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Info Aplikasi</h6>
-                </div>
-                <div class="card-body">
-                    <div class="info-aplikasi">
-                        <?php 
-                        if (!empty($info_aplikasi_wk)) {
-                            echo $info_aplikasi_wk; 
-                        } else {
-                            echo 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-                        }
-                        ?>
-                    </div>
-                </div>
-            </div>
-            
         <?php elseif ($role == 'guru'): ?>
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-body text-center">
-                            <img src="uploads/<?php echo htmlspecialchars($_SESSION['foto'] ?? 'default.png'); ?>" 
-                                 alt="Foto" class="rounded-circle mb-3" width="150" height="150" 
-                                 style="object-fit: cover;" onerror="this.onerror=null; this.style.display='none';">
+                            <div class="position-relative d-inline-block">
+                                <img src="uploads/<?php echo htmlspecialchars($_SESSION['foto'] ?? 'default.png'); ?>" 
+                                     alt="Foto" class="rounded-circle mb-3" width="150" height="150" 
+                                     id="fotoProfilGuru"
+                                     style="object-fit: cover;" onerror="this.onerror=null; this.src='uploads/default.png';">
+                                <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
+                                        style="width: 40px; height: 40px; padding: 0; border: 2px solid white;"
+                                        onclick="openEditFotoModal('guru')" title="Edit Foto">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
                             <h5><?php echo htmlspecialchars($_SESSION['nama']); ?></h5>
                             <p class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $_SESSION['role'])); ?></p>
                         </div>
@@ -546,58 +567,6 @@ if ($role == 'proktor') {
                     <?php else: ?>
                         <p class="text-muted">Belum ada materi yang diampu.</p>
                     <?php endif; ?>
-                </div>
-            </div>
-            
-            <?php
-            // Buat tabel dan ambil info aplikasi untuk guru
-            $info_aplikasi_guru = '';
-            try {
-                // Buat tabel jika belum ada
-                $conn->query("CREATE TABLE IF NOT EXISTS `pengaturan_aplikasi` (
-                    `id` int(11) NOT NULL AUTO_INCREMENT,
-                    `info_aplikasi` text DEFAULT NULL,
-                    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    `updated_by` int(11) DEFAULT NULL,
-                    PRIMARY KEY (`id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                
-                // Cek apakah ada data, jika tidak insert default
-                $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
-                $count = $check ? $check->fetch_assoc()['total'] : 0;
-                if ($count == 0) {
-                    $default_info = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-                    $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (info_aplikasi) VALUES (?)");
-                    $stmt->bind_param("s", $default_info);
-                    $stmt->execute();
-                }
-                
-                // Ambil info aplikasi
-                $result_info = $conn->query("SELECT info_aplikasi FROM pengaturan_aplikasi LIMIT 1");
-                if ($result_info && $result_info->num_rows > 0) {
-                    $info_data = $result_info->fetch_assoc();
-                    $info_aplikasi_guru = $info_data['info_aplikasi'] ?? '';
-                }
-            } catch (Exception $e) {
-                // Error, tetap tampilkan default
-                $info_aplikasi_guru = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-            }
-            ?>
-            
-            <div class="card mt-3">
-                <div class="card-header" style="background-color: #2d5016; color: white;">
-                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Info Aplikasi</h6>
-                </div>
-                <div class="card-body">
-                    <div class="info-aplikasi">
-                        <?php 
-                        if (!empty($info_aplikasi_guru)) {
-                            echo $info_aplikasi_guru; 
-                        } else {
-                            echo 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
-                        }
-                        ?>
-                    </div>
                 </div>
             </div>
         <?php endif; ?>
@@ -778,7 +747,191 @@ if ($role == 'proktor') {
 .info-aplikasi a:hover {
     color: #4a7c2a;
 }
+
+/* Style untuk foto profil dengan tombol edit */
+.position-relative.d-inline-block {
+    position: relative;
+    display: inline-block;
+}
+
+.position-relative.d-inline-block .btn {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.position-relative.d-inline-block .btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+#previewFoto {
+    border: 3px solid #2d5016;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
 </style>
+
+<!-- Modal Edit Foto -->
+<div class="modal fade" id="modalEditFoto" tabindex="-1" aria-labelledby="modalEditFotoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEditFotoLabel"><i class="fas fa-camera"></i> Edit Foto Profil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEditFoto" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <img id="previewFoto" src="" alt="Preview" class="rounded-circle" width="200" height="200" style="object-fit: cover; border: 3px solid #2d5016;">
+                    </div>
+                    <div class="mb-3">
+                        <label for="fotoInput" class="form-label">Pilih Foto</label>
+                        <input type="file" class="form-control" id="fotoInput" name="foto" accept="image/*" required>
+                        <small class="text-muted">Format: JPG, PNG, GIF. Maksimal 2MB</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Simpan Foto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditFotoModal(role) {
+    // Ambil foto saat ini
+    var fotoElement = role === 'wali_kelas' ? document.getElementById('fotoProfilWaliKelas') : document.getElementById('fotoProfilGuru');
+    var fotoSrc = fotoElement ? fotoElement.src : 'uploads/default.png';
+    
+    // Set preview foto
+    document.getElementById('previewFoto').src = fotoSrc;
+    
+    // Reset form
+    document.getElementById('formEditFoto').reset();
+    document.getElementById('fotoInput').value = '';
+    
+    // Buka modal
+    var modal = new bootstrap.Modal(document.getElementById('modalEditFoto'));
+    modal.show();
+    
+    // Simpan role untuk digunakan saat submit
+    document.getElementById('formEditFoto').setAttribute('data-role', role);
+}
+
+// Preview foto saat file dipilih (event delegation)
+document.addEventListener('change', function(e) {
+    if (e.target && e.target.id === 'fotoInput') {
+        var file = e.target.files[0];
+        if (file) {
+            // Validasi ukuran file (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Ukuran File Terlalu Besar',
+                    text: 'Ukuran file maksimal 2MB',
+                    confirmButtonColor: '#2d5016'
+                });
+                e.target.value = '';
+                return;
+            }
+            
+            // Validasi tipe file
+            if (!file.type.match('image.*')) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Format File Tidak Valid',
+                    text: 'Hanya file gambar yang diperbolehkan',
+                    confirmButtonColor: '#2d5016'
+                });
+                e.target.value = '';
+                return;
+            }
+            
+            // Preview gambar
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewFoto').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+});
+
+// Handle submit form
+document.getElementById('formEditFoto').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    var form = this;
+    var formData = new FormData(form);
+    formData.append('action', 'upload_foto');
+    
+    // Tampilkan loading
+    Swal.fire({
+        title: 'Mengupload Foto...',
+        text: 'Mohon tunggu',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('upload_foto.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                text: 'Foto profil berhasil diupdate',
+                confirmButtonColor: '#2d5016'
+            }).then(() => {
+                // Update foto di halaman
+                var role = form.getAttribute('data-role');
+                var fotoElement = role === 'wali_kelas' ? document.getElementById('fotoProfilWaliKelas') : document.getElementById('fotoProfilGuru');
+                if (fotoElement) {
+                    fotoElement.src = 'uploads/' + data.filename + '?t=' + new Date().getTime();
+                }
+                
+                // Update session foto di navbar jika ada
+                var navbarFoto = document.querySelector('.user-avatar');
+                if (navbarFoto) {
+                    navbarFoto.src = 'uploads/' + data.filename + '?t=' + new Date().getTime();
+                }
+                
+                // Tutup modal
+                var modal = bootstrap.Modal.getInstance(document.getElementById('modalEditFoto'));
+                modal.hide();
+                
+                // Reload halaman setelah 1 detik untuk memastikan semua foto terupdate
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: data.message || 'Gagal mengupload foto',
+                confirmButtonColor: '#2d5016'
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Terjadi kesalahan saat mengupload foto',
+            confirmButtonColor: '#2d5016'
+        });
+    });
+});
+</script>
 
 <?php include 'includes/footer.php'; ?>
 
