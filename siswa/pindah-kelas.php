@@ -113,10 +113,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     }
 }
 
-// Filter kelas asal dan tujuan (ambil dari POST jika ada, jika tidak dari GET)
-$kelas_asal_filter = $_POST['kelas_asal'] ?? $_GET['kelas_asal'] ?? '';
-$kelas_tujuan_filter = $_POST['kelas_tujuan'] ?? $_GET['kelas_tujuan'] ?? '';
+// Filter kelas asal dan tujuan (ambil dari POST jika ada, jika tidak dari GET, jika tidak dari SESSION)
+$kelas_asal_filter = $_POST['kelas_asal'] ?? $_GET['kelas_asal'] ?? ($_SESSION['pindah_kelas_asal'] ?? '');
+$kelas_tujuan_filter = $_POST['kelas_tujuan'] ?? $_GET['kelas_tujuan'] ?? ($_SESSION['pindah_kelas_tujuan'] ?? '');
 $status_tingkat_filter = $_POST['status_tingkat'] ?? $_GET['status_tingkat'] ?? 'sama'; // Default: tingkat sama
+
+// Hapus session filter setelah digunakan (untuk refresh berikutnya tidak menggunakan session)
+if (isset($_SESSION['pindah_kelas_asal'])) {
+    unset($_SESSION['pindah_kelas_asal']);
+}
+if (isset($_SESSION['pindah_kelas_tujuan'])) {
+    unset($_SESSION['pindah_kelas_tujuan']);
+}
 
 // Ambil data kelas
 $query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
@@ -946,9 +954,18 @@ if (!empty($kelas_tujuan_ids)) {
             timerProgressBar: true,
             showConfirmButton: true
         }).then(() => {
-            // Refresh halaman untuk update data setelah alert ditutup
+            // Refresh halaman untuk update data setelah alert ditutup dengan mempertahankan filter
             <?php if ($refresh_after_alert): ?>
-            location.reload();
+            var kelasAsal = $('#kelasAsal').val() || '<?php echo $kelas_asal_filter; ?>';
+            var kelasTujuan = $('#kelasTujuan').val() || '<?php echo $kelas_tujuan_filter; ?>';
+            var statusTingkat = $('#statusTingkat').val() || '<?php echo $status_tingkat_filter; ?>';
+            var url = 'pindah-kelas.php';
+            var params = [];
+            if (kelasAsal) params.push('kelas_asal=' + kelasAsal);
+            if (kelasTujuan) params.push('kelas_tujuan=' + kelasTujuan);
+            if (statusTingkat) params.push('status_tingkat=' + statusTingkat);
+            if (params.length > 0) url += '?' + params.join('&');
+            window.location.href = url;
             <?php endif; ?>
         });
         <?php endif; ?>
