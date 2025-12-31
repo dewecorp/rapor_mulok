@@ -163,9 +163,9 @@ if ($kelas_filter) {
                 <div class="card-body">
                     <h6 class="mb-3">Materi Mulok</h6>
                     <div class="progress" style="height: 30px;">
-                        <div class="progress-bar <?php echo $status_data['persentase'] == 100 ? 'bg-success' : ($status_data['persentase'] >= 50 ? 'bg-warning' : 'bg-danger'); ?>" 
+                        <div class="progress-bar" 
                              role="progressbar" 
-                             style="width: <?php echo $status_data['persentase']; ?>%;" 
+                             style="width: <?php echo $status_data['persentase']; ?>%; background-color: #2d5016;" 
                              aria-valuenow="<?php echo $status_data['persentase']; ?>" 
                              aria-valuemin="0" 
                              aria-valuemax="100">
