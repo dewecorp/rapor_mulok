@@ -2,9 +2,10 @@
         </div>
     </div>
     
-    <!-- Cache busting version - menggunakan filemtime untuk file PHP ini -->
+    <!-- Cache busting version - menggunakan timestamp untuk force refresh -->
     <?php 
-    $cache_version = defined('APP_VERSION') ? APP_VERSION . '.' . filemtime(__FILE__) : filemtime(__FILE__);
+    // Gunakan timestamp yang selalu berubah untuk memaksa browser reload
+    $cache_version = defined('APP_VERSION') ? APP_VERSION . '.' . time() : time();
     ?>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js?v=<?php echo $cache_version; ?>"></script>

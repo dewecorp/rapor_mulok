@@ -1,4 +1,12 @@
 <?php
+// Set HTTP headers untuk prevent cache (harus sebelum output apapun)
+if (!headers_sent()) {
+    header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+}
+
 // Aktifkan output buffering untuk mencegah masalah redirect
 if (ob_get_level() == 0) {
     ob_start();

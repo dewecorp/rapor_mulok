@@ -53,9 +53,10 @@ $basePath = getBasePath();
         <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
     <?php endif; ?>
     
-    <!-- Cache busting version - menggunakan filemtime untuk file PHP ini -->
+    <!-- Cache busting version - menggunakan timestamp untuk force refresh -->
     <?php 
-    $cache_version = APP_VERSION . '.' . filemtime(__FILE__); // Gunakan filemtime untuk cache busting yang lebih stabil
+    // Gunakan timestamp yang selalu berubah untuk memaksa browser reload
+    $cache_version = APP_VERSION . '.' . time(); 
     ?>
     
     <!-- Bootstrap CSS -->
