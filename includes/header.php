@@ -282,37 +282,6 @@ $basePath = getBasePath();
             text-align: right;
         }
         
-        .user-details .user-name {
-            font-weight: 600;
-            font-size: 14px;
-            margin: 0;
-            margin-bottom: 5px;
-        }
-        
-        .user-details .user-role {
-            font-size: 13px;
-            opacity: 0.9;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        
-        .user-role-text {
-            white-space: nowrap;
-        }
-        
-        .madrasah-logo-small {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid white;
-            background-color: white;
-            padding: 2px;
-            flex-shrink: 0;
-        }
         
         .datetime-info {
             color: white;
