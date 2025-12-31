@@ -6,6 +6,7 @@ requireRole('proktor');
 $conn = getConnection();
 $success = '';
 $error = '';
+$success_message = '';
 
 // Handle pindah kelas
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'pindah') {
@@ -90,13 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             }
             
             $conn->commit();
-            // Redirect untuk mencegah resubmit dan refresh data
-            $_SESSION['success_message'] = "Berhasil membatalkan pindah $batal_count siswa!";
-            if (ob_get_level() > 0) {
-                ob_clean();
-            }
-            header('Location: pindah-kelas.php?kelas_asal=' . $kelas_asal_id . '&kelas_tujuan=' . $kelas_tujuan_id);
-            exit();
+            $success_message = "Berhasil membatalkan pindah $batal_count siswa!";
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal membatalkan pindah siswa: ' . $e->getMessage();
