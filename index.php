@@ -5,7 +5,29 @@ requireLogin();
 
 $conn = getConnection();
 $user_id = $_SESSION['user_id'];
-$role = $_SESSION['role'];
+
+// Validasi dan sinkronisasi role dari database
+// Pastikan role di session sesuai dengan role di database
+try {
+    $stmt_role = $conn->prepare("SELECT role FROM pengguna WHERE id = ? LIMIT 1");
+    $stmt_role->bind_param("i", $user_id);
+    $stmt_role->execute();
+    $result_role = $stmt_role->get_result();
+    if ($result_role && $result_role->num_rows > 0) {
+        $user_db = $result_role->fetch_assoc();
+        $role_db = $user_db['role'] ?? null;
+        
+        // Jika role di session berbeda dengan database, update session
+        if ($role_db && (!isset($_SESSION['role']) || $_SESSION['role'] != $role_db)) {
+            $_SESSION['role'] = $role_db;
+        }
+    }
+    $stmt_role->close();
+} catch (Exception $e) {
+    // Ignore error, gunakan role dari session
+}
+
+$role = $_SESSION['role'] ?? 'guru'; // Default ke guru jika tidak ada
 
 // Inisialisasi variabel
 $total_guru = 0;
@@ -465,17 +487,41 @@ $page_title = 'Dashboard';
                     <div class="card">
                         <div class="card-body text-center">
                             <div class="position-relative d-inline-block">
-                                <img src="uploads/<?php echo htmlspecialchars($_SESSION['foto'] ?? 'default.png'); ?>" 
+                                <?php 
+                                $foto_wali = $_SESSION['foto'] ?? '';
+                                $nama_wali = $_SESSION['nama'] ?? 'User';
+                                $inisial_wali = strtoupper(substr($nama_wali, 0, 1));
+                                
+                                // Cek apakah foto ada dan file exist
+                                if (!empty($foto_wali) && file_exists('uploads/' . $foto_wali) && $foto_wali != 'default.png') {
+                                    $foto_src = 'uploads/' . htmlspecialchars($foto_wali);
+                                    $use_avatar = false;
+                                } else {
+                                    // Gunakan avatar dengan inisial
+                                    $foto_src = 'data:image/svg+xml;base64,' . base64_encode('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><circle cx="75" cy="75" r="75" fill="#2d5016"/><text x="75" y="75" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' . htmlspecialchars($inisial_wali) . '</text></svg>');
+                                    $use_avatar = true;
+                                }
+                                ?>
+                                <img src="<?php echo $foto_src; ?>" 
                                      alt="Foto" class="rounded-circle mb-3" width="150" height="150" 
                                      id="fotoProfilWaliKelas"
-                                     style="object-fit: cover;" onerror="this.onerror=null; this.src='uploads/default.png';">
+                                     style="object-fit: cover;" 
+                                     onerror="<?php if (!$use_avatar): ?>this.onerror=null; this.src='data:image/svg+xml;base64,<?php echo base64_encode('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><circle cx="75" cy="75" r="75" fill="#2d5016"/><text x="75" y="75" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' . htmlspecialchars($inisial_wali) . '</text></svg>'); ?>';<?php endif; ?>">
+                                <?php if (!$use_avatar): ?>
                                 <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
                                         style="width: 40px; height: 40px; padding: 0; border: 2px solid white;"
                                         onclick="openEditFotoModal('wali_kelas')" title="Edit Foto">
                                     <i class="fas fa-camera"></i>
                                 </button>
+                                <?php else: ?>
+                                <button type="button" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
+                                        style="width: 40px; height: 40px; padding: 0; border: 2px solid white;"
+                                        onclick="openEditFotoModal('wali_kelas')" title="Upload Foto">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                                <?php endif; ?>
                             </div>
-                            <h5><?php echo htmlspecialchars($_SESSION['nama']); ?></h5>
+                            <h5><?php echo htmlspecialchars($nama_wali); ?></h5>
                             <p class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $_SESSION['role'])); ?></p>
                             <?php if ($is_wali_kelas): ?>
                                 <span class="badge bg-success">Wali Kelas Aktif</span>
@@ -566,7 +612,7 @@ $page_title = 'Dashboard';
                                 $inisial_guru = strtoupper(substr($nama_guru, 0, 1));
                                 
                                 // Cek apakah foto ada dan file exist
-                                if (!empty($foto_guru) && file_exists('uploads/' . $foto_guru)) {
+                                if (!empty($foto_guru) && file_exists('uploads/' . $foto_guru) && $foto_guru != 'default.png') {
                                     $foto_src = 'uploads/' . htmlspecialchars($foto_guru);
                                     $use_avatar = false;
                                 } else {

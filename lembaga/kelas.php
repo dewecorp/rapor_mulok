@@ -52,6 +52,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }
                         
                         if ($stmt->execute()) {
+                            // Update role user menjadi wali_kelas jika wali_kelas_id di-set
+                            if ($wali_kelas_id !== null && $wali_kelas_id > 0) {
+                                $stmt_role = $conn->prepare("UPDATE pengguna SET role = 'wali_kelas' WHERE id = ?");
+                                $stmt_role->bind_param("i", $wali_kelas_id);
+                                $stmt_role->execute();
+                                $stmt_role->close();
+                            }
+                            
                             // Redirect untuk mencegah resubmit dan refresh data
                             $_SESSION['success_message'] = 'Kelas berhasil ditambahkan!';
                             if (ob_get_level() > 0) {
@@ -111,6 +119,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 if (empty($error)) {
                     try {
+                        // Ambil wali_kelas_id lama sebelum update
+                        $wali_kelas_id_lama = null;
+                        $stmt_old = $conn->prepare("SELECT wali_kelas_id FROM kelas WHERE id = ?");
+                        $stmt_old->bind_param("i", $id);
+                        $stmt_old->execute();
+                        $result_old = $stmt_old->get_result();
+                        if ($result_old && $result_old->num_rows > 0) {
+                            $row_old = $result_old->fetch_assoc();
+                            $wali_kelas_id_lama = $row_old['wali_kelas_id'] ?? null;
+                        }
+                        $stmt_old->close();
+                        
                         if ($wali_kelas_id !== null && $wali_kelas_id > 0) {
                             $stmt = $conn->prepare("UPDATE kelas SET nama_kelas=?, wali_kelas_id=? WHERE id=?");
                             $stmt->bind_param("sii", $nama_kelas, $wali_kelas_id, $id);
@@ -120,6 +140,50 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }
                         
                         if ($stmt->execute()) {
+                            // Update role user lama menjadi guru (jika ada perubahan)
+                            if ($wali_kelas_id_lama !== null && $wali_kelas_id_lama > 0 && $wali_kelas_id_lama != $wali_kelas_id) {
+                                // Cek apakah user lama masih menjadi wali kelas di kelas lain
+                                $stmt_check = $conn->prepare("SELECT COUNT(*) as count FROM kelas WHERE wali_kelas_id = ? AND id != ?");
+                                $stmt_check->bind_param("ii", $wali_kelas_id_lama, $id);
+                                $stmt_check->execute();
+                                $result_check = $stmt_check->get_result();
+                                $row_check = $result_check->fetch_assoc();
+                                $stmt_check->close();
+                                
+                                // Jika tidak menjadi wali kelas di kelas lain, ubah role menjadi guru
+                                if ($row_check['count'] == 0) {
+                                    $stmt_role_old = $conn->prepare("UPDATE pengguna SET role = 'guru' WHERE id = ?");
+                                    $stmt_role_old->bind_param("i", $wali_kelas_id_lama);
+                                    $stmt_role_old->execute();
+                                    $stmt_role_old->close();
+                                }
+                            }
+                            
+                            // Update role user baru menjadi wali_kelas (jika wali_kelas_id di-set)
+                            if ($wali_kelas_id !== null && $wali_kelas_id > 0) {
+                                $stmt_role_new = $conn->prepare("UPDATE pengguna SET role = 'wali_kelas' WHERE id = ?");
+                                $stmt_role_new->bind_param("i", $wali_kelas_id);
+                                $stmt_role_new->execute();
+                                $stmt_role_new->close();
+                            } elseif ($wali_kelas_id_lama !== null && $wali_kelas_id_lama > 0) {
+                                // Jika wali_kelas_id dihapus (NULL), ubah role user lama menjadi guru
+                                // Cek apakah user masih menjadi wali kelas di kelas lain
+                                $stmt_check2 = $conn->prepare("SELECT COUNT(*) as count FROM kelas WHERE wali_kelas_id = ? AND id != ?");
+                                $stmt_check2->bind_param("ii", $wali_kelas_id_lama, $id);
+                                $stmt_check2->execute();
+                                $result_check2 = $stmt_check2->get_result();
+                                $row_check2 = $result_check2->fetch_assoc();
+                                $stmt_check2->close();
+                                
+                                // Jika tidak menjadi wali kelas di kelas lain, ubah role menjadi guru
+                                if ($row_check2['count'] == 0) {
+                                    $stmt_role_remove = $conn->prepare("UPDATE pengguna SET role = 'guru' WHERE id = ?");
+                                    $stmt_role_remove->bind_param("i", $wali_kelas_id_lama);
+                                    $stmt_role_remove->execute();
+                                    $stmt_role_remove->close();
+                                }
+                            }
+                            
                             $success = 'Kelas berhasil diperbarui!';
                         } else {
                             $error_code = $stmt->errno;
@@ -151,13 +215,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif ($_POST['action'] == 'delete') {
             $id = $_POST['id'] ?? 0;
             
-            $stmt = $conn->prepare("DELETE FROM kelas WHERE id=?");
-            $stmt->bind_param("i", $id);
-            
-            if ($stmt->execute()) {
-                $success = 'Kelas berhasil dihapus!';
-            } else {
-                $error = 'Gagal menghapus kelas!';
+            try {
+                // Ambil wali_kelas_id sebelum delete
+                $wali_kelas_id_hapus = null;
+                $stmt_get = $conn->prepare("SELECT wali_kelas_id FROM kelas WHERE id = ?");
+                $stmt_get->bind_param("i", $id);
+                $stmt_get->execute();
+                $result_get = $stmt_get->get_result();
+                if ($result_get && $result_get->num_rows > 0) {
+                    $row_get = $result_get->fetch_assoc();
+                    $wali_kelas_id_hapus = $row_get['wali_kelas_id'] ?? null;
+                }
+                $stmt_get->close();
+                
+                // Hapus kelas
+                $stmt = $conn->prepare("DELETE FROM kelas WHERE id=?");
+                $stmt->bind_param("i", $id);
+                
+                if ($stmt->execute()) {
+                    // Update role user menjadi guru jika tidak menjadi wali kelas di kelas lain
+                    if ($wali_kelas_id_hapus !== null && $wali_kelas_id_hapus > 0) {
+                        // Cek apakah user masih menjadi wali kelas di kelas lain
+                        $stmt_check = $conn->prepare("SELECT COUNT(*) as count FROM kelas WHERE wali_kelas_id = ?");
+                        $stmt_check->bind_param("i", $wali_kelas_id_hapus);
+                        $stmt_check->execute();
+                        $result_check = $stmt_check->get_result();
+                        $row_check = $result_check->fetch_assoc();
+                        $stmt_check->close();
+                        
+                        // Jika tidak menjadi wali kelas di kelas lain, ubah role menjadi guru
+                        if ($row_check['count'] == 0) {
+                            $stmt_role = $conn->prepare("UPDATE pengguna SET role = 'guru' WHERE id = ?");
+                            $stmt_role->bind_param("i", $wali_kelas_id_hapus);
+                            $stmt_role->execute();
+                            $stmt_role->close();
+                        }
+                    }
+                    
+                    $success = 'Kelas berhasil dihapus!';
+                } else {
+                    $error = 'Gagal menghapus kelas!';
+                }
+            } catch (Exception $e) {
+                $error = 'Gagal menghapus kelas! Error: ' . $e->getMessage();
             }
         }
     }

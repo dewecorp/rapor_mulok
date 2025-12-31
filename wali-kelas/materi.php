@@ -236,6 +236,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     
     if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post)) {
         try {
+            // Validasi: Cek apakah semua siswa sudah memiliki nilai
+            $stmt_siswa_check = $conn->prepare("SELECT COUNT(*) as total_siswa FROM siswa WHERE kelas_id = ?");
+            $stmt_siswa_check->bind_param("i", $kelas_id_post);
+            $stmt_siswa_check->execute();
+            $result_siswa_check = $stmt_siswa_check->get_result();
+            $row_siswa_check = $result_siswa_check->fetch_assoc();
+            $total_siswa = $row_siswa_check['total_siswa'] ?? 0;
+            $stmt_siswa_check->close();
+            
+            // Cek jumlah nilai yang sudah diinput
+            $stmt_nilai_check = $conn->prepare("SELECT COUNT(DISTINCT siswa_id) as total_nilai 
+                                                FROM nilai_siswa 
+                                                WHERE materi_mulok_id = ? 
+                                                AND siswa_id IN (SELECT id FROM siswa WHERE kelas_id = ?)
+                                                AND semester = ? 
+                                                AND tahun_ajaran = ? 
+                                                AND nilai_pengetahuan IS NOT NULL 
+                                                AND nilai_pengetahuan != ''");
+            $stmt_nilai_check->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_nilai_check->execute();
+            $result_nilai_check = $stmt_nilai_check->get_result();
+            $row_nilai_check = $result_nilai_check->fetch_assoc();
+            $total_nilai = $row_nilai_check['total_nilai'] ?? 0;
+            $stmt_nilai_check->close();
+            
+            // Jika ada siswa yang belum memiliki nilai, tolak pengiriman
+            if ($total_siswa > 0 && $total_nilai < $total_siswa) {
+                $siswa_belum_nilai = $total_siswa - $total_nilai;
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'message' => "Tidak dapat mengirim nilai! Masih ada $siswa_belum_nilai siswa yang belum memiliki nilai. Silakan lengkapi semua nilai terlebih dahulu."
+                ]);
+                exit;
+            }
+            
             // Cek apakah sudah ada status terkirim
             $stmt_check = $conn->prepare("SELECT id FROM nilai_kirim_status 
                                          WHERE materi_mulok_id = ? 
@@ -885,6 +921,59 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
     }
     
     function kirimNilai() {
+        // Validasi: Cek apakah semua nilai sudah diisi dari tabel yang ditampilkan
+        const tableNilai = document.getElementById('tableNilai');
+        if (!tableNilai) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Tabel nilai tidak ditemukan',
+                confirmButtonColor: '#2d5016'
+            });
+            return;
+        }
+        
+        const tableRows = tableNilai.querySelectorAll('tbody tr');
+        let nilaiKosong = [];
+        let siswaMap = new Map(); // Gunakan Map untuk menghindari duplikasi
+        
+        tableRows.forEach((row) => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 5) {
+                const namaSiswa = cells[2] ? cells[2].textContent.trim() : '';
+                const nilaiCell = cells[4] ? cells[4].textContent.trim() : '';
+                
+                // Skip jika baris kosong atau pesan "tidak ada siswa"
+                if (!namaSiswa || namaSiswa === 'Tidak ada siswa di kelas ini') {
+                    return;
+                }
+                
+                // Cek jika nilai kosong atau tidak ada
+                if (!nilaiCell || nilaiCell === '' || nilaiCell === '-' || nilaiCell === '0') {
+                    // Gunakan Map untuk menghindari duplikasi nama siswa
+                    if (!siswaMap.has(namaSiswa)) {
+                        siswaMap.set(namaSiswa, true);
+                        nilaiKosong.push(namaSiswa);
+                    }
+                }
+            }
+        });
+        
+        // Jika ada nilai yang kosong, tampilkan peringatan
+        if (nilaiKosong.length > 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Nilai Belum Lengkap!',
+                html: `Masih ada <strong>${nilaiKosong.length}</strong> siswa yang belum memiliki nilai:<br><br>` +
+                      `<ul style="text-align: left; max-height: 200px; overflow-y: auto; padding-left: 20px;">` +
+                      nilaiKosong.map(nama => `<li>${nama}</li>`).join('') +
+                      `</ul><br>Silakan lengkapi semua nilai terlebih dahulu sebelum mengirim.`,
+                confirmButtonColor: '#2d5016',
+                width: '600px'
+            });
+            return;
+        }
+        
         Swal.fire({
             title: 'Kirim Nilai?',
             text: 'Apakah Anda yakin ingin mengirim nilai? Setelah dikirim, nilai tidak dapat diubah kecuali dibatalkan terlebih dahulu.',

@@ -126,7 +126,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $tanggal_lahir = $_POST['tanggal_lahir'] ?? null;
             $pendidikan = trim($_POST['pendidikan'] ?? '');
             $nuptk = trim($_POST['nuptk'] ?? '');
-            $role = $_POST['role'] ?? 'guru';
+            
+            // Role ditentukan dari data kelas, bukan dari form
+            // Cek apakah user adalah wali kelas di tabel kelas
+            $is_wali_kelas = false;
+            try {
+                $stmt_check = $conn->prepare("SELECT id FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
+                $stmt_check->bind_param("i", $id);
+                $stmt_check->execute();
+                $result_check = $stmt_check->get_result();
+                $is_wali_kelas = ($result_check->num_rows > 0);
+                $stmt_check->close();
+            } catch (Exception $e) {
+                // Jika error, default ke guru
+                $is_wali_kelas = false;
+            }
+            
+            $role = $is_wali_kelas ? 'wali_kelas' : 'guru';
             
             // Validasi input
             if (empty($nama)) {
@@ -260,14 +276,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // Ambil data untuk edit
 $edit_data = null;
+$is_wali_kelas = false; // Flag untuk menentukan apakah user adalah wali kelas
 if (isset($_GET['edit'])) {
     $id = intval($_GET['edit']);
     try {
+        // Ambil data user
         $stmt = $conn->prepare("SELECT * FROM pengguna WHERE id = ? AND role IN ('guru', 'wali_kelas')");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
         $edit_data = $result->fetch_assoc();
+        
+        // Cek apakah user adalah wali kelas dari tabel kelas
+        if ($edit_data) {
+            $stmt_kelas = $conn->prepare("SELECT id FROM kelas WHERE wali_kelas_id = ? LIMIT 1");
+            $stmt_kelas->bind_param("i", $id);
+            $stmt_kelas->execute();
+            $result_kelas = $stmt_kelas->get_result();
+            $is_wali_kelas = ($result_kelas->num_rows > 0);
+            $stmt_kelas->close();
+            
+            // Update role di edit_data berdasarkan data kelas
+            $edit_data['role'] = $is_wali_kelas ? 'wali_kelas' : 'guru';
+        }
     } catch (Exception $e) {
         $error = 'Error: ' . $e->getMessage();
     }
@@ -472,7 +503,7 @@ try {
                 <h5 class="modal-title" id="modalTitle">Tambah Data Guru</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="formGuru" enctype="multipart/form-data">
+            <form method="POST" id="formGuru" enctype="multipart/form-data" onsubmit="return handleFormSubmit(event)">
                 <div class="modal-body">
                     <input type="hidden" name="action" id="formAction" value="add">
                     <input type="hidden" name="id" id="formId">
@@ -523,6 +554,7 @@ try {
                                 <option value="guru">Guru</option>
                                 <option value="wali_kelas">Wali Kelas</option>
                             </select>
+                            <small class="text-muted" id="roleHint">Role ditentukan dari data kelas. Untuk mengubah role, ubah di menu Kelas.</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Foto</label>
@@ -769,6 +801,12 @@ try {
         $('#passwordInfo').show();
         $('#password').attr('type', 'password');
         $('#password').attr('placeholder', 'Masukkan password baru');
+        
+        // Enable role field kembali (untuk tambah baru)
+        $('#role').prop('disabled', false);
+        $('#role').css('background-color', '');
+        $('#roleHint').html('Role ditentukan dari data kelas. Untuk mengubah role, ubah di menu Kelas.');
+        
         const toggleIcon = document.getElementById('togglePasswordIcon');
         if (toggleIcon) {
             toggleIcon.classList.remove('fa-eye-slash');
@@ -801,6 +839,12 @@ try {
         $('#pendidikan').val('<?php echo addslashes($edit_data['pendidikan'] ?? ''); ?>');
         $('#nuptk').val('<?php echo addslashes($edit_data['nuptk'] ?? $edit_data['username'] ?? ''); ?>');
         $('#role').val('<?php echo $edit_data['role']; ?>');
+        
+        // Disable role field saat edit (role ditentukan dari data kelas)
+        $('#role').prop('disabled', true);
+        $('#role').css('background-color', '#e9ecef');
+        $('#roleHint').html('<i class="fas fa-info-circle text-warning"></i> Role ditentukan dari data kelas. Untuk mengubah role, ubah di menu <strong>Kelas</strong>.');
+        
         $('#modalTitle').text('Edit Data Guru');
         $('#passwordRequired').hide();
         $('#passwordHint').show();
@@ -1229,6 +1273,21 @@ try {
     
     function downloadTemplateGuru() {
         window.location.href = 'template_guru.php';
+    }
+    
+    // Handle form submit untuk memastikan role disabled tidak dikirim
+    // Handle form submit untuk memastikan role disabled tidak dikirim
+    function handleFormSubmit(event) {
+        const formAction = document.getElementById('formAction').value;
+        const roleField = document.getElementById('role');
+        
+        // Jika edit, hapus role dari form sebelum submit (karena role ditentukan dari kelas di backend)
+        if (formAction === 'edit' && roleField && roleField.disabled) {
+            // Hapus name attribute dari role field yang disabled agar tidak dikirim
+            roleField.removeAttribute('name');
+        }
+        
+        return true; // Lanjutkan submit (role akan diambil dari kelas di backend)
     }
 </script>
 

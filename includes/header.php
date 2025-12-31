@@ -11,6 +11,20 @@ try {
     $stmt->execute();
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
+    
+    // Validasi dan sinkronisasi role dari database
+    // Pastikan role di session sesuai dengan role di database
+    if ($user && isset($user['role'])) {
+        $role_db = $user['role'];
+        
+        // Jika role di session berbeda dengan database, update session
+        if (!isset($_SESSION['role']) || $_SESSION['role'] != $role_db) {
+            $_SESSION['role'] = $role_db;
+        }
+        
+        // Update user array dengan role yang benar
+        $user['role'] = $_SESSION['role'];
+    }
 } catch (Exception $e) {
     $user = null;
 }

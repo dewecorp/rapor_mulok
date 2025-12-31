@@ -40,6 +40,43 @@ function isLoggedIn() {
 
 // Cek Role
 function hasRole($role) {
+    // Pastikan session aktif
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Validasi role dari database hanya sekali per request (gunakan flag)
+    if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && !isset($_SESSION['_role_validated'])) {
+        try {
+            require_once __DIR__ . '/database.php';
+            $conn = getConnection();
+            $user_id = $_SESSION['user_id'];
+            
+            $stmt = $conn->prepare("SELECT role FROM pengguna WHERE id = ? LIMIT 1");
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result && $result->num_rows > 0) {
+                $user_db = $result->fetch_assoc();
+                $role_db = $user_db['role'] ?? null;
+                
+                // Jika role di database berbeda dengan session, update session
+                if ($role_db && $_SESSION['role'] != $role_db) {
+                    $_SESSION['role'] = $role_db;
+                }
+            }
+            
+            // Set flag bahwa role sudah divalidasi untuk request ini
+            $_SESSION['_role_validated'] = true;
+            
+            $stmt->close();
+            $conn->close();
+        } catch (Exception $e) {
+            // Jika error, gunakan role dari session
+        }
+    }
+    
     return isset($_SESSION['role']) && $_SESSION['role'] == $role;
 }
 
