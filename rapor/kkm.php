@@ -189,19 +189,13 @@ try {
                             <label class="form-label">Kelas <span class="text-danger">*</span></label>
                             <select class="form-select" name="kelas_id" id="kelasId" required>
                                 <option value="">-- Pilih Kelas --</option>
-                                <?php 
-                                $kelas_list->data_seek(0);
-                                while ($kelas = $kelas_list->fetch_assoc()): 
-                                    // Skip kelas Alumni dari dropdown
-                                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
-                                        continue;
-                                    }
-                                ?>
-                                    <option value="<?php echo $kelas['id']; ?>"><?php echo htmlspecialchars($kelas['nama_kelas']); ?></option>
-                                <?php endwhile; ?>
                                 <?php if ($kelas_list): 
                                     $kelas_list->data_seek(0);
                                     while ($kelas = $kelas_list->fetch_assoc()): 
+                                        // Skip kelas Alumni dari dropdown
+                                        if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
+                                            continue;
+                                        }
                                 ?>
                                     <option value="<?php echo $kelas['id']; ?>">
                                         <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
