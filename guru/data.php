@@ -364,14 +364,23 @@ try {
                             <td><?php echo htmlspecialchars($row['nuptk'] ?? $row['username'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($row['wali_kelas_nama'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td>
-                                <span style="font-family: monospace; font-size: 0.9em; color: #333;">
-                                    <?php 
-                                    // Tampilkan password default sebagai teks
-                                    // Password default adalah "123456" untuk semua user baru
-                                    // Untuk user yang sudah ada, tampilkan "123456" (default reset)
-                                    echo htmlspecialchars('123456');
-                                    ?>
-                                </span>
+                                <?php 
+                                // Cek apakah password masih default (123456) atau sudah diubah
+                                $password_hash = $row['password'] ?? '';
+                                $is_default_password = password_verify('123456', $password_hash);
+                                
+                                if ($is_default_password) {
+                                    // Password masih default
+                                    echo '<span class="badge bg-warning text-dark" title="Password default: 123456">';
+                                    echo '<i class="fas fa-key"></i> Default';
+                                    echo '</span>';
+                                } else {
+                                    // Password sudah diubah
+                                    echo '<span class="badge bg-success" title="Password sudah diubah">';
+                                    echo '<i class="fas fa-lock"></i> Diubah';
+                                    echo '</span>';
+                                }
+                                ?>
                             </td>
                             <td>
                                 <button class="btn btn-sm btn-info" onclick="resetPassword(<?php echo $row['id']; ?>)" title="Reset Password">
