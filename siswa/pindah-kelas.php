@@ -820,6 +820,15 @@ if (!empty($kelas_tujuan_ids)) {
             warnings.push('Silahkan klik pada siswa yang akan dipindah');
         }
         
+        // Cek apakah kelas tujuan sudah kosong
+        if (kelasTujuanId) {
+            var siswaTujuanRows = $('#tableTujuan tbody tr').not(':has(.text-muted)');
+            var jumlahSiswaTujuan = siswaTujuanRows.length;
+            if (jumlahSiswaTujuan > 0) {
+                warnings.push('Kelas tujuan masih memiliki ' + jumlahSiswaTujuan + ' siswa. Pastikan kelas tujuan sudah kosong sebelum melakukan pindah kelas.');
+            }
+        }
+        
         if (warnings.length > 0) {
             $('#warningListAsal').empty();
             warnings.forEach(function(warning) {
@@ -830,17 +839,6 @@ if (!empty($kelas_tujuan_ids)) {
         }
         
         $('#warningBoxAsal').hide();
-        
-        // Pastikan hidden field terisi sebelum submit
-        $('#kelasLamaId').val(kelasAsalId);
-        $('#kelasBaruId').val(kelasTujuanId);
-        
-        // Pastikan semua checkbox yang tercentang memiliki name yang benar
-        checkedBoxes.forEach(function(cb) {
-            if (!cb.name || cb.name !== 'siswa_ids[]') {
-                cb.name = 'siswa_ids[]';
-            }
-        });
         
         Swal.fire({
             title: 'Apakah Anda yakin?',
@@ -853,31 +851,7 @@ if (!empty($kelas_tujuan_ids)) {
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Pastikan sekali lagi sebelum submit
-                $('#kelasLamaId').val(kelasAsalId);
-                $('#kelasBaruId').val(kelasTujuanId);
-                
-                // Debug: log data yang akan dikirim
-                var siswaIds = [];
-                checkedBoxes.forEach(function(cb) {
-                    siswaIds.push(cb.value);
-                });
-                console.log('Kelas Asal ID:', kelasAsalId);
-                console.log('Kelas Tujuan ID:', kelasTujuanId);
-                console.log('Siswa IDs:', siswaIds);
-                
-                // Submit form
-                var form = document.getElementById('formPindahKelas');
-                if (form) {
-                    form.submit();
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Form tidak ditemukan!',
-                        confirmButtonColor: '#2d5016'
-                    });
-                }
+                document.getElementById('formPindahKelas').submit();
             }
         });
     }
