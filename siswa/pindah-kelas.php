@@ -267,7 +267,7 @@ if (!empty($kelas_tujuan_ids)) {
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> Pindah Kelas</h5>
-        <p class="mb-0 text-muted" style="font-size: 14px;">Menu ini digunakan untuk memindahkan siswa ke kelas lain.</p>
+        <p class="mb-0 text-white" style="font-size: 14px;">Menu ini digunakan untuk memindahkan siswa ke kelas lain.</p>
     </div>
     <div class="card-body">
         <?php if ($error): ?>
