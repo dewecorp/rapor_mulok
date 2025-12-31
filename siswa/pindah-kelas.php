@@ -259,22 +259,18 @@ if (!empty($kelas_tujuan_ids)) {
             </div>
         <?php endif; ?>
         
-        <form method="POST" id="formPindahKelas">
-            <input type="hidden" name="action" value="pindah">
-            <input type="hidden" name="kelas_lama_id" id="kelasLamaId" value="<?php echo $kelas_asal_filter; ?>">
-            <input type="hidden" name="kelas_baru_id" id="kelasBaruId" value="<?php echo $kelas_tujuan_filter; ?>">
-            <input type="hidden" name="kelas_asal" value="<?php echo $kelas_asal_filter; ?>">
-            <input type="hidden" name="kelas_tujuan" value="<?php echo $kelas_tujuan_filter; ?>">
-            <input type="hidden" name="status_tingkat" value="<?php echo $status_tingkat_filter; ?>">
-            
-            <div class="row">
-                <!-- Panel Kelas Asal -->
-                <div class="col-md-6">
-                    <div class="card border-primary">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0"><i class="fas fa-school"></i> Kelas Asal</h6>
-                        </div>
-                        <div class="card-body">
+        <div class="row">
+            <!-- Panel Kelas Asal -->
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-school"></i> Kelas Asal</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="formPindahKelas">
+                            <input type="hidden" name="action" value="pindah">
+                            <input type="hidden" name="kelas_lama_id" id="kelasLamaId" value="<?php echo $kelas_asal_filter; ?>">
+                            <input type="hidden" name="kelas_baru_id" id="kelasBaruId" value="<?php echo $kelas_tujuan_filter; ?>">
                             <div class="mb-3">
                                 <label class="form-label">Kelas</label>
                                 <select class="form-select" id="kelasAsal" onchange="updateKelasAsal()">
