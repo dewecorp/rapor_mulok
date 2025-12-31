@@ -345,18 +345,26 @@ if (!empty($kelas_tujuan_ids)) {
                                     <i class="fas fa-info-circle"></i> Pilih kelas untuk melihat data siswa.
                                 </div>
                             <?php endif; ?>
-                        </div>
+                            
+                            <!-- Warning Box Asal -->
+                            <div class="alert alert-danger mt-3" id="warningBoxAsal" style="display: none;">
+                                <strong>Perhatikan:</strong>
+                                <ul class="mb-0" id="warningListAsal">
+                                </ul>
+                            </div>
+                        </form>
                     </div>
                 </div>
-                
-                <!-- Panel Kelas Tujuan -->
-                <div class="col-md-6">
-                    <div class="card border-success">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="fas fa-arrow-right"></i> Kelas Tujuan</h6>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" id="formBatalPindah">
+            </div>
+            
+            <!-- Panel Kelas Tujuan -->
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-arrow-right"></i> Kelas Tujuan</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="formBatalPindah">
                                 <input type="hidden" name="action" value="batal_pindah">
                                 <input type="hidden" name="kelas_asal_id" id="kelasAsalIdBatal" value="<?php echo $kelas_asal_filter; ?>">
                                 <input type="hidden" name="kelas_tujuan_id" id="kelasTujuanIdBatal" value="<?php echo $kelas_tujuan_filter; ?>">
