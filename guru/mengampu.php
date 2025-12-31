@@ -272,7 +272,6 @@ try {
                     <tr>
                         <th width="50">No</th>
                         <th>Materi Mulok</th>
-                        <th>Jumlah Jam</th>
                         <th>Guru</th>
                         <th width="100">Aksi</th>
                     </tr>
@@ -288,14 +287,12 @@ try {
                             $guru_id = $row['guru_id'] ?? null;
                             $nama_guru = $row['nama_guru'] ?? null;
                             $nama_mulok = $row['nama_mulok'] ?? '';
-                            $jumlah_jam = $row['jumlah_jam'] ?? 0;
                             $materi_id = $row['id'] ?? 0; // id dari materi_mulok (karena query menggunakan m.*)
                             $nama_kelas = $row['nama_kelas'] ?? '';
                         ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
                             <td><?php echo htmlspecialchars($nama_mulok); ?></td>
-                            <td><?php echo htmlspecialchars($jumlah_jam); ?> Jam</td>
                             <td>
                                 <?php if ($nama_guru): ?>
                                     <span class="badge bg-success"><?php echo htmlspecialchars($nama_guru); ?></span>
@@ -328,7 +325,7 @@ try {
                     else:
                     ?>
                         <tr>
-                            <td colspan="5" class="text-center text-muted">
+                            <td colspan="4" class="text-center text-muted">
                                 <i class="fas fa-info-circle"></i> Belum ada data materi mulok. Silakan tambah materi mulok terlebih dahulu.
                             </td>
                         </tr>
@@ -354,17 +351,44 @@ try {
                     
                     <div class="mb-3">
                         <label class="form-label">Materi Mulok <span class="text-danger">*</span></label>
-                        <select class="form-select" name="materi_mulok_id" required>
+                        <select class="form-select" name="materi_mulok_id" id="materiMulokIdModal" required>
                             <option value="">-- Pilih Materi Mulok --</option>
                             <?php 
-                            $materi_list->data_seek(0);
-                            while ($materi = $materi_list->fetch_assoc()): 
+                            // Filter materi berdasarkan kelas yang dipilih dan semester aktif
+                            if (!empty($kelas_filter) && $has_kelas_id && $has_semester) {
+                                $kelas_id_modal = intval($kelas_filter);
+                                $query_materi_filtered = "SELECT * FROM materi_mulok 
+                                                          WHERE kelas_id = ? AND semester = ? 
+                                                          ORDER BY nama_mulok";
+                                $stmt_materi = $conn->prepare($query_materi_filtered);
+                                $stmt_materi->bind_param("is", $kelas_id_modal, $semester_aktif);
+                                $stmt_materi->execute();
+                                $materi_list_filtered = $stmt_materi->get_result();
+                                if ($materi_list_filtered) {
+                                    while ($materi = $materi_list_filtered->fetch_assoc()): 
                             ?>
                                 <option value="<?php echo $materi['id']; ?>">
                                     <?php echo htmlspecialchars($materi['nama_mulok']); ?>
                                 </option>
-                            <?php endwhile; ?>
+                            <?php 
+                                    endwhile;
+                                }
+                            } else {
+                                // Jika struktur lama atau kelas belum dipilih, tampilkan semua
+                                $materi_list->data_seek(0);
+                                while ($materi = $materi_list->fetch_assoc()): 
+                            ?>
+                                <option value="<?php echo $materi['id']; ?>">
+                                    <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                </option>
+                            <?php 
+                                endwhile;
+                            }
+                            ?>
                         </select>
+                        <?php if (empty($kelas_filter)): ?>
+                            <small class="text-muted">Pilih kelas terlebih dahulu untuk melihat materi yang tersedia.</small>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="mb-3">
