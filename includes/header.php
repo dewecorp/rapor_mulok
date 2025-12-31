@@ -161,8 +161,8 @@ $basePath = getBasePath();
         .user-info {
             display: flex;
             align-items: center;
-            gap: 10px;
-            min-width: 200px;
+            gap: 15px;
+            min-width: 250px;
             position: relative;
         }
         
@@ -171,6 +171,8 @@ $basePath = getBasePath();
             display: flex;
             flex-direction: column;
             align-items: flex-end;
+            flex: 1;
+            min-width: 0;
         }
         
         .user-name {
@@ -178,6 +180,10 @@ $basePath = getBasePath();
             font-size: 15px;
             color: white;
             margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
         
         .user-role {
@@ -185,12 +191,14 @@ $basePath = getBasePath();
             align-items: center;
             gap: 8px;
             justify-content: flex-end;
+            white-space: nowrap;
         }
         
         .user-role-text {
             font-size: 13px;
             color: white;
             opacity: 0.9;
+            white-space: nowrap;
         }
         
         .user-avatar {
