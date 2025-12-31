@@ -58,16 +58,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if ($check_pendidikan->num_rows == 0) {
                         $conn->query("ALTER TABLE pengguna ADD COLUMN pendidikan VARCHAR(100) AFTER tanggal_lahir");
                     }
+                    // Cek dan tambahkan kolom password_plain untuk menyimpan password yang bisa dilihat admin
+                    $check_password_plain = $conn->query("SHOW COLUMNS FROM pengguna LIKE 'password_plain'");
+                    if ($check_password_plain->num_rows == 0) {
+                        $conn->query("ALTER TABLE pengguna ADD COLUMN password_plain VARCHAR(255) NULL AFTER password");
+                    }
                     
                     // Username untuk guru/wali_kelas/proktor diisi dengan NUPTK
                     // Untuk guru: username = NUPTK (untuk login menggunakan NUPTK)
                     $username = $nuptk; // Username sama dengan NUPTK
+                    $password_plain = $_POST['password'] ?? '123456'; // Simpan password plain text untuk admin
                     
-                    $stmt = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, password_plain, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $tempat_lahir_null = empty($tempat_lahir) ? null : $tempat_lahir;
                     $tanggal_lahir_null = empty($tanggal_lahir) ? null : $tanggal_lahir;
                     $pendidikan_null = empty($pendidikan) ? null : $pendidikan;
-                    $stmt->bind_param("ssssssssss", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $foto, $role);
+                    $stmt->bind_param("sssssssssss", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $password_plain, $foto, $role);
                     
                     if ($stmt->execute()) {
                         // Redirect untuk mencegah resubmit dan refresh data
@@ -164,14 +170,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $tanggal_lahir_null = empty($tanggal_lahir) ? null : $tanggal_lahir;
                     $pendidikan_null = empty($pendidikan) ? null : $pendidikan;
                     
+                    // Cek dan tambahkan kolom password_plain jika belum ada
+                    $check_password_plain = $conn->query("SHOW COLUMNS FROM pengguna LIKE 'password_plain'");
+                    if ($check_password_plain->num_rows == 0) {
+                        $conn->query("ALTER TABLE pengguna ADD COLUMN password_plain VARCHAR(255) NULL AFTER password");
+                    }
+                    
                     // Update username dengan NUPTK (username selalu sama dengan NUPTK)
                     // Untuk guru: username = NUPTK (untuk login menggunakan NUPTK)
                     $username = $nuptk; // Username sama dengan NUPTK
                     
                     if (!empty($_POST['password'])) {
                         $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-                        $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, password=?, foto=?, role=? WHERE id=?");
-                        $stmt->bind_param("ssssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $foto, $role, $id);
+                        $password_plain = $_POST['password']; // Simpan password plain text untuk admin
+                        $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, password=?, password_plain=?, foto=?, role=? WHERE id=?");
+                        $stmt->bind_param("sssssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $password_plain, $foto, $role, $id);
                     } else {
                         $stmt = $conn->prepare("UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, foto=?, role=? WHERE id=?");
                         $stmt->bind_param("sssssssssi", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $foto, $role, $id);
@@ -365,20 +378,40 @@ try {
                             <td><?php echo htmlspecialchars($row['wali_kelas_nama'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td>
                                 <?php 
-                                // Cek apakah password masih default (123456) atau sudah diubah
+                                // Tampilkan password dari password_plain jika ada, atau cek apakah default
+                                $password_plain = $row['password_plain'] ?? '';
                                 $password_hash = $row['password'] ?? '';
-                                $is_default_password = password_verify('123456', $password_hash);
                                 
-                                if ($is_default_password) {
-                                    // Password masih default
-                                    echo '<span class="badge bg-warning text-dark" title="Password default: 123456">';
-                                    echo '<i class="fas fa-key"></i> Default';
-                                    echo '</span>';
+                                // Jika password_plain kosong, cek apakah password masih default
+                                if (empty($password_plain)) {
+                                    $is_default_password = password_verify('123456', $password_hash);
+                                    if ($is_default_password) {
+                                        $password_plain = '123456';
+                                    }
+                                }
+                                
+                                if (!empty($password_plain)) {
+                                    // Tampilkan password dengan badge status
+                                    $is_default = ($password_plain === '123456');
+                                    if ($is_default) {
+                                        echo '<span class="badge bg-warning text-dark me-2" title="Password default">';
+                                        echo '<i class="fas fa-key"></i> Default';
+                                        echo '</span>';
+                                    } else {
+                                        echo '<span class="badge bg-success me-2" title="Password sudah diubah">';
+                                        echo '<i class="fas fa-lock"></i> Diubah';
+                                        echo '</span>';
+                                    }
+                                    echo '<code style="font-size: 0.9em; color: #333; font-weight: 500;" id="password_' . $row['id'] . '">' . htmlspecialchars($password_plain) . '</code>';
+                                    echo '<button class="btn btn-sm btn-link p-0 ms-1" onclick="copyPassword(' . $row['id'] . ', \'' . htmlspecialchars($password_plain, ENT_QUOTES) . '\')" title="Copy Password">';
+                                    echo '<i class="fas fa-copy text-primary"></i>';
+                                    echo '</button>';
                                 } else {
-                                    // Password sudah diubah
-                                    echo '<span class="badge bg-success" title="Password sudah diubah">';
-                                    echo '<i class="fas fa-lock"></i> Diubah';
+                                    // Password tidak diketahui (untuk data lama)
+                                    echo '<span class="badge bg-secondary me-2">';
+                                    echo '<i class="fas fa-question"></i> Tidak Diketahui';
                                     echo '</span>';
+                                    echo '<br><small class="text-muted">Gunakan Reset untuk set ke default</small>';
                                 }
                                 ?>
                             </td>
