@@ -343,12 +343,12 @@ if (!empty($kelas_tujuan_ids)) {
                                 </table>
                             </div>
                             <!-- Tombol Pindah Kelas -->
-                            <div class="mt-3 mb-2" id="btnPindahContainer" style="display: none;">
+                            <div class="mt-3" id="btnPindahContainer" style="display: none;">
                                 <button type="button" class="btn btn-primary btn-lg w-100" onclick="pindahKelas()">
                                     <i class="fas fa-exchange-alt"></i> Pindah Kelas
                                 </button>
                             </div>
-                            <div class="text-center">
+                            <div class="mt-2 text-center">
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasAsal()">
                                     <i class="fas fa-redo"></i> Reset
                                 </button>
@@ -492,12 +492,12 @@ if (!empty($kelas_tujuan_ids)) {
                                     </table>
                                 </div>
                                 <!-- Tombol Batal Pindah -->
-                                <div class="mt-3 mb-2" id="btnBatalContainer" style="display: none;">
+                                <div class="mt-3" id="btnBatalContainer" style="display: none;">
                                     <button type="button" class="btn btn-warning btn-lg w-100" onclick="batalPindah()">
                                         <i class="fas fa-undo"></i> Batal Pindah
                                     </button>
                                 </div>
-                                <div class="text-center">
+                                <div class="mt-2 text-center">
                                     <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
                                         <i class="fas fa-redo"></i> Reset
                                     </button>
