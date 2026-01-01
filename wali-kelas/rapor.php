@@ -56,11 +56,25 @@ $page_title = 'Rapor';
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-file-pdf"></i> Cetak Rapor - <?php echo htmlspecialchars($kelas_data['nama_kelas'] ?? 'Tidak Ada Kelas'); ?></h5>
-        <?php if ($kelas_id): ?>
-            <button type="button" class="btn btn-primary btn-sm" onclick="cetakSemuaRapor()">
-                <i class="fas fa-print"></i> Semua Rapor
-            </button>
-        <?php endif; ?>
+        <div>
+            <?php if ($kelas_id): ?>
+                <a href="../rapor/cetak_semua_rapor.php?kelas=<?php echo $kelas_id; ?>" target="_blank" class="btn btn-primary btn-sm" onclick="return true;">
+                    <i class="fas fa-print"></i> Semua Rapor
+                </a>
+                <a href="../rapor/cetak_nilai.php?kelas=<?php echo $kelas_id; ?>" target="_blank" class="btn btn-info btn-sm" onclick="return true;">
+                    <i class="fas fa-file-alt"></i> Semua Nilai
+                </a>
+                <a href="../rapor/cetak_sampul.php?kelas=<?php echo $kelas_id; ?>" target="_blank" class="btn btn-secondary btn-sm" onclick="return true;">
+                    <i class="fas fa-book"></i> Cetak Sampul
+                </a>
+                <a href="../rapor/export_legger.php?format=excel&kelas=<?php echo $kelas_id; ?>" class="btn btn-success btn-sm" onclick="return true;">
+                    <i class="fas fa-file-excel"></i> Legger Excel
+                </a>
+                <a href="../rapor/export_legger.php?format=pdf&kelas=<?php echo $kelas_id; ?>" target="_blank" class="btn btn-danger btn-sm" onclick="return true;">
+                    <i class="fas fa-file-pdf"></i> Legger PDF
+                </a>
+            <?php endif; ?>
+        </div>
     </div>
     <div class="card-body">
         <?php if (isset($error) && $error): ?>
@@ -109,9 +123,25 @@ $page_title = 'Rapor';
                             <td><?php echo (($row['jenis_kelamin'] ?? '') == 'L') ? 'L' : 'P'; ?></td>
                             <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo !empty($row['tanggal_lahir']) ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
                             <td>
-                                <button class="btn btn-sm btn-primary" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
-                                    <i class="fas fa-print"></i> Cetak
-                                </button>
+                                <div class="btn-group" role="group">
+                                    <a href="../rapor/cetak_rapor.php?siswa=<?php echo $siswa_id; ?>" target="_blank" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-print"></i> Rapor
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <span class="visually-hidden">Toggle Dropdown</span>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="../rapor/cetak_rapor.php?siswa=<?php echo $siswa_id; ?>" target="_blank">
+                                            <i class="fas fa-file-alt"></i> Cetak Rapor
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="../rapor/cetak_sampul.php?siswa=<?php echo $siswa_id; ?>" target="_blank">
+                                            <i class="fas fa-book"></i> Cetak Sampul
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="../rapor/cetak_nilai.php?siswa=<?php echo $siswa_id; ?>" target="_blank">
+                                            <i class="fas fa-file-alt"></i> Cetak Nilai
+                                        </a></li>
+                                    </ul>
+                                </div>
                             </td>
                         </tr>
                     <?php 
@@ -150,14 +180,5 @@ $page_title = 'Rapor';
         }
         <?php endif; ?>
     });
-    
-    function cetakRaporSiswa(siswaId) {
-        window.open('../rapor/cetak_rapor.php?siswa=' + siswaId, '_blank');
-    }
-    
-    function cetakSemuaRapor() {
-        var kelasId = <?php echo $kelas_id; ?>;
-        window.open('../rapor/cetak_rapor.php?kelas=' + kelasId + '&semua=1', '_blank');
-    }
 </script>
 

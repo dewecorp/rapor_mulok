@@ -1,7 +1,11 @@
 <?php
 require_once '../config/config.php';
 require_once '../config/database.php';
-requireRole('proktor');
+requireLogin();
+if (!hasRole('proktor') && !hasRole('wali_kelas')) {
+    header('Location: /index.php');
+    exit();
+}
 
 $conn = getConnection();
 
