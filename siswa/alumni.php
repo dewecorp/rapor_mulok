@@ -311,26 +311,28 @@ $page_title = 'Data Alumni';
             </div>
         <?php endif; ?>
         
-        <div class="mb-3 d-flex align-items-center gap-3">
-            <div>
-                <label class="form-label">Filter Tahun Ajaran</label>
-                <select class="form-select" id="filterTahunAjaran" onchange="filterTahunAjaran()" style="max-width: 300px;">
-                    <option value="">-- Semua Tahun Ajaran --</option>
-                    <?php 
-                    foreach ($tahun_ajaran_list as $tahun): 
-                    ?>
-                        <option value="<?php echo htmlspecialchars($tahun); ?>" <?php echo $tahun_ajaran_filter == $tahun ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($tahun); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <small class="text-muted">Pilih tahun ajaran untuk melihat alumni berdasarkan tahun ajaran tertentu</small>
+        <div class="mb-3">
+            <div class="d-flex align-items-end gap-2">
+                <div>
+                    <label class="form-label">Filter Tahun Ajaran</label>
+                    <select class="form-select" id="filterTahunAjaran" onchange="filterTahunAjaran()" style="max-width: 300px;">
+                        <option value="">-- Semua Tahun Ajaran --</option>
+                        <?php 
+                        foreach ($tahun_ajaran_list as $tahun): 
+                        ?>
+                            <option value="<?php echo htmlspecialchars($tahun); ?>" <?php echo $tahun_ajaran_filter == $tahun ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($tahun); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <span class="badge bg-info" style="font-size: 14px; padding: 8px 12px;">
+                        <i class="fas fa-users"></i> Total Alumni: <strong><?php echo count($alumni_data); ?></strong>
+                    </span>
+                </div>
             </div>
-            <div class="mt-4">
-                <span class="badge bg-info" style="font-size: 14px; padding: 8px 12px;">
-                    <i class="fas fa-users"></i> Total Alumni: <strong><?php echo count($alumni_data); ?></strong>
-                </span>
-            </div>
+            <small class="text-muted">Pilih tahun ajaran untuk melihat alumni berdasarkan tahun ajaran tertentu</small>
         </div>
         
         <?php if (!$kelas_alumni_id): ?>
