@@ -64,6 +64,9 @@ try {
     $result = null;
     $siswa_data = [];
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Cetak Rapor';
 ?>
 <?php include '../includes/header.php'; ?>
 

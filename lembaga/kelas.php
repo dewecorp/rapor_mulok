@@ -322,6 +322,9 @@ try {
 } catch (Exception $e) {
     $guru_list = null;
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Kelas';
 ?>
 <?php include '../includes/header.php'; ?>
 

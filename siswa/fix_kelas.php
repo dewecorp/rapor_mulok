@@ -41,6 +41,9 @@ if ($result_kelas) {
         $kelas_list[] = $row;
     }
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Perbaiki Kelas Siswa';
 ?>
 <?php include '../includes/header.php'; ?>
 

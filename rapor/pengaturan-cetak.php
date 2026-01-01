@@ -48,6 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = 'Data pengaturan tidak ditemukan!';
     }
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Pengaturan Cetak';
 ?>
 <?php include '../includes/header.php'; ?>
 

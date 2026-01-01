@@ -298,6 +298,9 @@ if (!empty($kelas_tujuan_ids)) {
     // Debug: log jika kelas_tujuan_ids kosong
     error_log("kelas_tujuan_ids is empty. kelas_asal_filter: " . ($kelas_asal_filter ?? 'NULL') . ", tingkat_tujuan: " . ($tingkat_tujuan ?? 'NULL'));
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Naik Kelas';
 ?>
 <?php include '../includes/header.php'; ?>
 

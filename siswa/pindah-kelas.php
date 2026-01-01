@@ -261,6 +261,9 @@ if (!empty($kelas_tujuan_ids)) {
         error_log("Error preparing siswa tujuan query: " . $conn->error);
     }
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Pindah Kelas';
 ?>
 <?php include '../includes/header.php'; ?>
 

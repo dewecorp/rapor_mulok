@@ -142,6 +142,9 @@ try {
     $error = 'Error: ' . $e->getMessage();
     $result = null;
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Pengguna';
 ?>
 <?php include '../includes/header.php'; ?>
 

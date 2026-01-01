@@ -327,6 +327,9 @@ try {
     // Tabel backup mungkin belum ada, tidak masalah
     $backup_list = null;
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Backup & Restore';
 ?>
 <?php include '../includes/header.php'; ?>
 

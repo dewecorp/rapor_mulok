@@ -95,6 +95,9 @@ try {
 } catch (Exception $e) {
     $kelas_list = null;
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Nilai KKM';
 ?>
 <?php include '../includes/header.php'; ?>
 

@@ -226,6 +226,9 @@ if ($use_kelas_semester) {
     }
 }
 
+// Set page title (variabel lokal)
+$page_title = 'Materi Mulok';
+
 include '../includes/header.php';
 ?>
 

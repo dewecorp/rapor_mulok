@@ -196,6 +196,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file_excel'])) {
     }
 }
 
+// Set page title (variabel lokal)
+$page_title = 'Impor Data Guru';
+
 end:
 ?>
 <?php include '../includes/header.php'; ?>

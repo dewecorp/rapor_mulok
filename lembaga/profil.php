@@ -138,6 +138,9 @@ if (isset($_SESSION['success_message'])) {
 
 $result = $conn->query($query);
 $profil = $result->fetch_assoc();
+
+// Set page title (variabel lokal)
+$page_title = 'Profil Madrasah';
 ?>
 <?php include '../includes/header.php'; ?>
 

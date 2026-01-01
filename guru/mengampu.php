@@ -219,6 +219,9 @@ try {
     $result = null;
     $mengampu_data = [];
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Mengampu Materi';
 ?>
 <?php include '../includes/header.php'; ?>
 

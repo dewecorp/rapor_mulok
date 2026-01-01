@@ -108,6 +108,9 @@ try {
     $total_materi = 0;
     $materi_terkirim = 0;
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Materi yang Diampu';
 ?>
 <?php include '../includes/header.php'; ?>
 

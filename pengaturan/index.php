@@ -209,6 +209,9 @@ try {
 } catch (Exception $e) {
     $profil = null;
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Pengaturan';
 ?>
 <?php include '../includes/header.php'; ?>
 

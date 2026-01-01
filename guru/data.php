@@ -357,6 +357,9 @@ try {
     $result = null;
     $guru_data = [];
 }
+
+// Set page title (variabel lokal)
+$page_title = 'Data Guru';
 ?>
 <?php include '../includes/header.php'; ?>
 
