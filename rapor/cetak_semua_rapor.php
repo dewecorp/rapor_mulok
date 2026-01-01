@@ -568,7 +568,7 @@ try {
                     <table class="info-table">
                         <tr>
                             <td>Nama Madrasah</td>
-                            <td>: <?php echo htmlspecialchars($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO'); ?></td>
+                            <td>: <?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></td>
                         </tr>
                         <tr>
                             <td>NPSN</td>
@@ -628,7 +628,7 @@ try {
                         </div>
                     </div>
                     
-                    <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO'); ?></h1>
+                    <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></h1>
                 </div>
                 
                 <!-- Identitas Siswa -->

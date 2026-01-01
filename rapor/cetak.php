@@ -162,9 +162,25 @@ $page_title = 'Cetak Rapor';
                             <td><?php echo (($row['jenis_kelamin'] ?? '') == 'L') ? 'L' : 'P'; ?></td>
                             <td><?php echo htmlspecialchars($row['tempat_lahir'] ?? '-'); ?>, <?php echo !empty($row['tanggal_lahir']) ? date('d/m/Y', strtotime($row['tanggal_lahir'])) : '-'; ?></td>
                             <td>
-                                <button class="btn btn-sm btn-primary" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
-                                    <i class="fas fa-print"></i> Cetak
-                                </button>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
+                                        <i class="fas fa-print"></i> Rapor
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <span class="visually-hidden">Toggle Dropdown</span>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="cetakRaporSiswa(<?php echo $siswa_id; ?>)">
+                                            <i class="fas fa-file-alt"></i> Cetak Rapor
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="cetakSampulSiswa(<?php echo $siswa_id; ?>)">
+                                            <i class="fas fa-book"></i> Cetak Sampul
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="cetakNilaiSiswa(<?php echo $siswa_id; ?>)">
+                                            <i class="fas fa-file-alt"></i> Cetak Nilai
+                                        </a></li>
+                                    </ul>
+                                </div>
                             </td>
                         </tr>
                     <?php 
@@ -236,6 +252,10 @@ $page_title = 'Cetak Rapor';
         window.open('cetak_sampul.php?siswa=' + siswaId, '_blank');
     }
     
+    function cetakNilaiSiswa(siswaId) {
+        window.open('cetak_nilai.php?siswa=' + siswaId, '_blank');
+    }
+    
     function cetakIdentitas() {
         var kelasId = $('#filterKelas').val();
         window.open('cetak_identitas.php?kelas=' + kelasId, '_blank');
@@ -248,7 +268,7 @@ $page_title = 'Cetak Rapor';
     
     function exportLeggerPDF() {
         var kelasId = $('#filterKelas').val();
-        window.location.href = 'export_legger.php?format=pdf&kelas=' + kelasId;
+        window.open('export_legger.php?format=pdf&kelas=' + kelasId, '_blank');
     }
 </script>
 

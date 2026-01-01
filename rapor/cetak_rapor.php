@@ -8,7 +8,6 @@ $conn = getConnection();
 // Ambil parameter
 $siswa_id = isset($_GET['siswa']) ? intval($_GET['siswa']) : 0;
 $kelas_id = isset($_GET['kelas']) ? intval($_GET['kelas']) : 0;
-$semua = isset($_GET['semua']) ? true : false;
 
 // Fungsi untuk menghitung predikat
 function hitungPredikat($nilai) {
@@ -55,11 +54,53 @@ try {
     // Handle error
 }
 
+// Ambil data pengaturan cetak
+$pengaturan_cetak = null;
+try {
+    $query_pengaturan = "SELECT * FROM pengaturan_cetak LIMIT 1";
+    $result_pengaturan = $conn->query($query_pengaturan);
+    if ($result_pengaturan && $result_pengaturan->num_rows > 0) {
+        $pengaturan_cetak = $result_pengaturan->fetch_assoc();
+    }
+} catch (Exception $e) {
+    // Handle error
+}
+
+// Fungsi untuk format tanggal Indonesia
+function formatTanggalIndonesia($tanggal) {
+    if (empty($tanggal)) {
+        return '';
+    }
+    
+    $bulan = [
+        1 => 'Januari',
+        2 => 'Februari',
+        3 => 'Maret',
+        4 => 'April',
+        5 => 'Mei',
+        6 => 'Juni',
+        7 => 'Juli',
+        8 => 'Agustus',
+        9 => 'September',
+        10 => 'Oktober',
+        11 => 'November',
+        12 => 'Desember'
+    ];
+    
+    $timestamp = strtotime($tanggal);
+    $hari = date('d', $timestamp);
+    $bulan_num = (int)date('m', $timestamp);
+    $tahun = date('Y', $timestamp);
+    
+    return $hari . ' ' . $bulan[$bulan_num] . ' ' . $tahun;
+}
+
 $semester_aktif = $profil_madrasah['semester_aktif'] ?? '1';
 $tahun_ajaran = $profil_madrasah['tahun_ajaran_aktif'] ?? '';
 
-// Ambil data siswa
+// Ambil data siswa dan tentukan kelas_id
 $siswa_list = [];
+$kelas_id_from_siswa = 0;
 if ($siswa_id > 0) {
     $stmt = $conn->prepare("SELECT s.*, k.nama_kelas, k.wali_kelas_id FROM siswa s LEFT JOIN kelas k ON s.kelas_id = k.id WHERE s.id = ?");
     $stmt->bind_param("i", $siswa_id);
@@ -67,6 +108,7 @@ if ($siswa_id > 0) {
     $result = $stmt->get_result();
     if ($row = $result->fetch_assoc()) {
         $siswa_list[] = $row;
+        $kelas_id_from_siswa = $row['kelas_id'] ?? 0;
     }
     $stmt->close();
 } elseif ($kelas_id > 0) {
@@ -86,6 +128,20 @@ if ($siswa_id > 0) {
     $stmt->close();
 }
 
+// Tentukan kelas_id yang akan digunakan
+$final_kelas_id = ($kelas_id > 0) ? $kelas_id : $kelas_id_from_siswa;
+
+// Ambil data kelas dengan wali kelas
+$kelas_data = null;
+if ($final_kelas_id > 0) {
+    $stmt = $conn->prepare("SELECT k.*, p.nama as wali_kelas_nama FROM kelas k LEFT JOIN pengguna p ON k.wali_kelas_id = p.id WHERE k.id = ?");
+    $stmt->bind_param("i", $final_kelas_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $kelas_data = $result->fetch_assoc();
+    $stmt->close();
+}
+
 // Cek apakah kolom kategori_mulok ada
 $has_kategori_mulok = false;
 try {
@@ -102,13 +158,9 @@ try {
     // Ignore
 }
 
-// Proses setiap siswa
-$rapor_data = [];
-foreach ($siswa_list as $siswa) {
-    $siswa_kelas_id = $siswa['kelas_id'] ?? 0;
-    $siswa_semester = $semester_aktif;
-    
-    // Ambil semua materi untuk kelas dan semester ini
+// Ambil semua materi untuk kelas dan semester ini
+$materi_list = [];
+if ($final_kelas_id > 0) {
     $materi_query = "SELECT m.* FROM materi_mulok m WHERE m.kelas_id = ? AND m.semester = ? ORDER BY ";
     if ($has_kategori_mulok) {
         $materi_query .= "m.kategori_mulok, ";
@@ -116,91 +168,44 @@ foreach ($siswa_list as $siswa) {
     $materi_query .= "m.nama_mulok";
     
     $stmt_materi = $conn->prepare($materi_query);
-    $stmt_materi->bind_param("is", $siswa_kelas_id, $siswa_semester);
+    $stmt_materi->bind_param("is", $final_kelas_id, $semester_aktif);
     $stmt_materi->execute();
     $result_materi = $stmt_materi->get_result();
     
-    $nilai_items = [];
-    $total_nilai = 0;
-    $count_nilai = 0;
-    $no = 1;
-    $current_kategori = '';
-    
     while ($materi = $result_materi->fetch_assoc()) {
-        // Ambil nilai siswa untuk materi ini
-        $stmt_nilai = $conn->prepare("SELECT * FROM nilai_siswa WHERE siswa_id = ? AND materi_mulok_id = ? AND semester = ? AND tahun_ajaran = ?");
-        $stmt_nilai->bind_param("iiss", $siswa['id'], $materi['id'], $siswa_semester, $tahun_ajaran);
-        $stmt_nilai->execute();
-        $result_nilai = $stmt_nilai->get_result();
-        $nilai_data = $result_nilai->fetch_assoc();
-        $stmt_nilai->close();
-        
-        $kategori = '';
-        if ($has_kategori_mulok && !empty($materi['kategori_mulok'])) {
-            $kategori = $materi['kategori_mulok'];
-        }
-        
-        $nilai_value = $nilai_data ? ($nilai_data['nilai_pengetahuan'] ?? $nilai_data['harian'] ?? '') : '';
-        $predikat = $nilai_data ? ($nilai_data['predikat'] ?? '') : '';
-        $deskripsi = $nilai_data ? ($nilai_data['deskripsi'] ?? '') : '';
-        
-        if (empty($predikat) && !empty($nilai_value)) {
-            $predikat = hitungPredikat($nilai_value);
-        }
-        
-        if (!empty($predikat) && $predikat != '-' && !empty($materi['nama_mulok'])) {
-            if (empty($deskripsi)) {
-                $deskripsi = hitungDeskripsi($predikat, $materi['nama_mulok'], $kategori);
-            }
-        }
-        
-        // Tampilkan kategori sebagai header jika berbeda
-        $show_kategori = false;
-        if (!empty($kategori) && $kategori != $current_kategori) {
-            $show_kategori = true;
-            $current_kategori = $kategori;
-        }
-        
-        $nilai_items[] = [
-            'no' => $no++,
-            'show_kategori' => $show_kategori,
-            'kategori' => $kategori,
-            'materi' => $materi['nama_mulok'],
-            'nilai' => $nilai_value,
-            'predikat' => $predikat,
-            'deskripsi' => $deskripsi
-        ];
-        
-        if (!empty($nilai_value)) {
-            $total_nilai += floatval($nilai_value);
-            $count_nilai++;
-        }
+        $materi_list[] = $materi;
     }
     $stmt_materi->close();
+}
+
+// Ambil semua nilai untuk siswa
+$nilai_data = [];
+if (!empty($siswa_list) && !empty($materi_list)) {
+    $siswa_ids = array_column($siswa_list, 'id');
+    $materi_ids = array_column($materi_list, 'id');
     
-    // Ambil data wali kelas
-    $wali_kelas = null;
-    $wali_kelas_id = $siswa['wali_kelas_id'] ?? 0;
-    if ($wali_kelas_id > 0) {
-        $stmt_wali = $conn->prepare("SELECT nama FROM pengguna WHERE id = ?");
-        $stmt_wali->bind_param("i", $wali_kelas_id);
-        $stmt_wali->execute();
-        $result_wali = $stmt_wali->get_result();
-        $wali_kelas = $result_wali->fetch_assoc();
-        $stmt_wali->close();
+    if (!empty($siswa_ids) && !empty($materi_ids)) {
+        $placeholders_siswa = implode(',', array_fill(0, count($siswa_ids), '?'));
+        $placeholders_materi = implode(',', array_fill(0, count($materi_ids), '?'));
+        
+        $query_nilai = "SELECT * FROM nilai_siswa WHERE siswa_id IN ($placeholders_siswa) AND materi_mulok_id IN ($placeholders_materi) AND semester = ? AND tahun_ajaran = ?";
+        $stmt_nilai = $conn->prepare($query_nilai);
+        
+        $params = array_merge($siswa_ids, $materi_ids);
+        $params[] = $semester_aktif;
+        $params[] = $tahun_ajaran;
+        
+        $types = str_repeat('i', count($siswa_ids)) . str_repeat('i', count($materi_ids)) . 'ss';
+        $stmt_nilai->bind_param($types, ...$params);
+        $stmt_nilai->execute();
+        $result_nilai = $stmt_nilai->get_result();
+        
+        while ($nilai = $result_nilai->fetch_assoc()) {
+            $key = $nilai['siswa_id'] . '_' . $nilai['materi_mulok_id'];
+            $nilai_data[$key] = $nilai;
+        }
+        $stmt_nilai->close();
     }
-    
-    // Ambil catatan kompetensi (jika ada)
-    $catatan_kompetensi = '';
-    // TODO: Ambil dari database jika ada tabel catatan
-    
-    $rapor_data[] = [
-        'siswa' => $siswa,
-        'nilai_items' => $nilai_items,
-        'rata_rata' => $count_nilai > 0 ? round($total_nilai / $count_nilai, 0) : 0,
-        'wali_kelas' => $wali_kelas,
-        'catatan_kompetensi' => $catatan_kompetensi
-    ];
 }
 
 $conn->close();
@@ -210,17 +215,17 @@ function getSemesterText($semester) {
     return ($semester == '1') ? 'Gasal' : 'Genap';
 }
 
-// Konversi nama kelas
-function getKelasText($nama_kelas) {
-    $romawi = [
-        'I' => 'I (SATU)',
-        'II' => 'II (DUA)',
-        'III' => 'III (TIGA)',
-        'IV' => 'IV (EMPAT)',
-        'V' => 'V (LIMA)',
-        'VI' => 'VI (ENAM)'
-    ];
-    return $romawi[$nama_kelas] ?? $nama_kelas;
+// Cek apakah kolom desa/kelurahan ada
+$has_desa = false;
+try {
+    $conn_check = getConnection();
+    $check_cols = $conn_check->query("SHOW COLUMNS FROM profil_madrasah LIKE 'desa'");
+    if ($check_cols && $check_cols->num_rows > 0) {
+        $has_desa = true;
+    }
+    $conn_check->close();
+} catch (Exception $e) {
+    $has_desa = false;
 }
 ?>
 <!DOCTYPE html>
@@ -233,7 +238,7 @@ function getKelasText($nama_kelas) {
         @media print {
             @page {
                 size: A4;
-                margin: 2cm;
+                margin: 1.5cm;
             }
             body {
                 margin: 0;
@@ -241,6 +246,25 @@ function getKelasText($nama_kelas) {
             }
             .no-print {
                 display: none;
+            }
+            .cover-page {
+                page-break-after: always;
+            }
+            .nilai-page {
+                page-break-after: always;
+                page-break-inside: auto;
+            }
+            .nilai-page:last-child {
+                page-break-after: auto;
+            }
+            .nilai-table {
+                page-break-inside: auto;
+            }
+            .nilai-table tr {
+                page-break-inside: avoid;
+            }
+            .ttd-row, .ttd-center {
+                page-break-inside: avoid;
             }
         }
         
@@ -258,9 +282,119 @@ function getKelasText($nama_kelas) {
             background-color: #fff;
         }
         
+        /* Cover Page Styles */
+        .logo-container {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .logo {
+            width: 150px;
+            height: 150px;
+            display: inline-block;
+            padding: 10px;
+            background-color: #fff;
+        }
+        
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .title {
+            text-align: center;
+            margin: 20px 0 15px 0;
+        }
+        
+        .title h1 {
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .info-container {
+            border: 2px solid #000;
+            padding: 15px;
+            margin: 70px 0 15px 0;
+        }
+        
+        .info-siswa-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .info-siswa-table td {
+            padding: 5px 10px;
+            vertical-align: top;
+            font-size: 12pt;
+        }
+        
+        .info-siswa-table td:first-child {
+            text-align: left;
+            width: 35%;
+            padding-right: 15px;
+        }
+        
+        .info-siswa-table td:last-child {
+            text-align: left;
+            width: 65%;
+        }
+        
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .info-table td {
+            padding: 5px 10px;
+            vertical-align: top;
+            font-size: 12pt;
+        }
+        
+        .info-table td:first-child {
+            text-align: left;
+            width: 35%;
+            padding-right: 15px;
+        }
+        
+        .info-table td:last-child {
+            text-align: left;
+            width: 65%;
+        }
+        
+        .footer {
+            margin-top: 120px;
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+        }
+        
+        /* Nilai Page Styles */
         .header {
             text-align: center;
             margin-bottom: 20px;
+        }
+        
+        .logo-container-nilai {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .logo-nilai {
+            width: 100px;
+            height: 100px;
+            display: inline-block;
+            padding: 5px;
+            background-color: #fff;
+        }
+        
+        .logo-nilai img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
         
         .header h1 {
@@ -273,22 +407,29 @@ function getKelasText($nama_kelas) {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            font-size: 11pt;
         }
         
         .identitas-table td {
             padding: 5px 10px;
-            font-size: 12pt;
-        }
-        
-        .identitas-table td:first-child {
-            text-align: right;
-            width: 25%;
-            padding-right: 15px;
-        }
-        
-        .identitas-table td:last-child {
             text-align: left;
-            width: 75%;
+        }
+        
+        .identitas-table td.label {
+            width: 18%;
+        }
+        
+        .identitas-table td.colon {
+            width: 2%;
+            padding: 5px 5px;
+        }
+        
+        .identitas-table td.value {
+            width: 35%;
+        }
+        
+        .identitas-table tr:last-child td.value {
+            width: 50%;
         }
         
         .nilai-table {
@@ -309,33 +450,28 @@ function getKelasText($nama_kelas) {
             background-color: #f0f0f0;
             font-weight: bold;
             text-align: center;
-            font-size: 12pt;
         }
         
-        .nilai-table td {
-            font-size: 12pt;
-        }
-        
-        .nilai-table .no-col {
+        .no-col {
             width: 5%;
             text-align: center;
         }
         
-        .nilai-table .materi-col {
+        .materi-col {
             width: 30%;
         }
         
-        .nilai-table .nilai-col {
+        .nilai-col {
             width: 10%;
             text-align: center;
         }
         
-        .nilai-table .predikat-col {
+        .predikat-col {
             width: 10%;
             text-align: center;
         }
         
-        .nilai-table .deskripsi-col {
+        .deskripsi-col {
             width: 45%;
         }
         
@@ -344,22 +480,17 @@ function getKelasText($nama_kelas) {
             background-color: #e0e0e0;
         }
         
-        .catatan-box {
-            border: 1px solid #000;
-            padding: 10px;
-            margin: 20px 0;
-            min-height: 60px;
+        .tanggal {
+            text-align: right;
+            margin-bottom: 20px;
+            margin-top: 20px;
             font-size: 12pt;
-        }
-        
-        .ttd-container {
-            margin-top: 40px;
         }
         
         .ttd-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 60px;
+            margin-bottom: 30px;
         }
         
         .ttd-item {
@@ -381,12 +512,12 @@ function getKelasText($nama_kelas) {
         
         .ttd-center {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 10px;
         }
         
         .ttd-center label {
             display: block;
-            margin-bottom: 50px;
+            margin-bottom: 40px;
             font-size: 12pt;
         }
         
@@ -394,21 +525,6 @@ function getKelasText($nama_kelas) {
             font-weight: bold;
             margin-top: 5px;
             font-size: 12pt;
-        }
-        
-        .tanggal {
-            text-align: right;
-            margin-bottom: 20px;
-            font-size: 12pt;
-        }
-        
-        .student-page {
-            page-break-after: always;
-            margin-bottom: 50px;
-        }
-        
-        .student-page:last-child {
-            page-break-after: auto;
         }
     </style>
     <script>
@@ -420,132 +536,247 @@ function getKelasText($nama_kelas) {
 </head>
 <body>
     <div class="container">
-        <?php foreach ($rapor_data as $index => $rapor): 
-            $siswa = $rapor['siswa'];
-            $nilai_items = $rapor['nilai_items'];
-            $rata_rata = $rapor['rata_rata'];
-            $wali_kelas = $rapor['wali_kelas'];
-        ?>
-        <div class="student-page">
-            <!-- Header -->
-            <div class="header">
-                <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO'); ?></h1>
-            </div>
-            
-            <!-- Identitas Siswa -->
-            <table class="identitas-table">
-                <tr>
-                    <td>Nama Siswa</td>
-                    <td>: <?php echo htmlspecialchars(strtoupper($siswa['nama'] ?? '-')); ?></td>
-                </tr>
-                <tr>
-                    <td>NISN</td>
-                    <td>: <?php echo htmlspecialchars($siswa['nisn'] ?? '-'); ?></td>
-                </tr>
-                <tr>
-                    <td>Semester</td>
-                    <td>: <?php echo getSemesterText($semester_aktif); ?></td>
-                </tr>
-                <tr>
-                    <td>Kelas</td>
-                    <td>: <?php echo getKelasText($siswa['nama_kelas'] ?? '-'); ?></td>
-                </tr>
-                <tr>
-                    <td>Tahun Ajaran</td>
-                    <td>: <?php echo htmlspecialchars($tahun_ajaran); ?></td>
-                </tr>
-            </table>
-            
-            <!-- Tabel Nilai -->
-            <table class="nilai-table">
-                <thead>
-                    <tr>
-                        <th class="no-col">No</th>
-                        <th class="materi-col">Materi</th>
-                        <th class="nilai-col">Nilai</th>
-                        <th class="predikat-col">Predikat</th>
-                        <th class="deskripsi-col">Deskripsi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php 
-                    $no = 1;
-                    foreach ($nilai_items as $item): 
-                        if ($item['show_kategori'] && !empty($item['kategori'])):
-                    ?>
-                        <tr class="kategori-header">
-                            <td colspan="5"><?php echo htmlspecialchars($item['kategori']); ?></td>
+        <?php foreach ($siswa_list as $index => $siswa): ?>
+            <!-- Cover Page -->
+            <div class="cover-page">
+                <!-- Logo -->
+                <div class="logo-container">
+                    <div class="logo">
+                        <?php if (!empty($profil_madrasah['logo'])): ?>
+                            <img src="../uploads/<?php echo htmlspecialchars($profil_madrasah['logo']); ?>" alt="Logo Madrasah">
+                        <?php else: ?>
+                            <div style="text-align: center; padding-top: 30px; color: #2d5016; font-weight: bold;">
+                                <div style="font-size: 10pt;">MADRASAH</div>
+                                <div style="font-size: 10pt;">IBTIDAIYAH</div>
+                                <div style="font-size: 12pt; margin-top: 5px;">SULTAN</div>
+                                <div style="font-size: 12pt;">FATTAH</div>
+                                <div style="font-size: 9pt; margin-top: 5px;">SUKOSONO</div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- Judul -->
+                <div class="title">
+                    <h1>LAPORAN PENILAIAN<br>MULOK KHUSUS</h1>
+                </div>
+                
+                <!-- Container untuk semua info (siswa + madrasah) -->
+                <div class="info-container">
+                    <!-- Info Siswa -->
+                    <div class="info-siswa-box">
+                        <table class="info-siswa-table">
+                            <tr>
+                                <td>Nama Siswa</td>
+                                <td>: <?php echo htmlspecialchars(strtoupper($siswa['nama'] ?? '-')); ?></td>
+                            </tr>
+                            <tr>
+                                <td>NISN</td>
+                                <td>: <?php echo htmlspecialchars($siswa['nisn'] ?? '-'); ?></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <hr style="border: 1px solid #000; margin: 20px 0;">
+                    
+                    <!-- Info Madrasah -->
+                    <table class="info-table">
+                        <tr>
+                            <td>Nama Madrasah</td>
+                            <td>: <?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></td>
                         </tr>
-                    <?php endif; ?>
-                    <tr>
-                        <td class="no-col"><?php echo $no++; ?></td>
-                        <td class="materi-col">
-                            <?php if (!empty($item['kategori']) && !$item['show_kategori']): ?>
-                                &nbsp;&nbsp;&nbsp;&nbsp;a. 
-                            <?php elseif (!empty($item['kategori'])): ?>
-                                a. 
+                        <tr>
+                            <td>NPSN</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['npsn'] ?? '-'); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Alamat</td>
+                            <td>: <?php 
+                                $alamat = $profil_madrasah['alamat'] ?? '';
+                                if ($has_desa && !empty($profil_madrasah['desa'])) {
+                                    $alamat .= ', ' . $profil_madrasah['desa'];
+                                }
+                                echo htmlspecialchars($alamat); 
+                            ?></td>
+                        </tr>
+                        <tr>
+                            <td>Kecamatan</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['kecamatan'] ?? '-'); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Kabupaten</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['kabupaten'] ?? '-'); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Provinsi</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['provinsi'] ?? '-'); ?></td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <!-- Footer -->
+                <div class="footer">
+                    <div>YAYASAN SULTAN FATTAH JEPARA</div>
+                    <div>MADRASAH IBTIDAIYAH SULTAN FATTAH</div>
+                    <div>SUKOSONO KEDUNG JEPARA</div>
+                </div>
+            </div>
+            
+            <!-- Nilai Page -->
+            <div class="nilai-page">
+                <!-- Header -->
+                <div class="header">
+                    <!-- Logo -->
+                    <div class="logo-container-nilai">
+                        <div class="logo-nilai">
+                            <?php if (!empty($profil_madrasah['logo'])): ?>
+                                <img src="../uploads/<?php echo htmlspecialchars($profil_madrasah['logo']); ?>" alt="Logo Madrasah">
+                            <?php else: ?>
+                                <div style="text-align: center; padding-top: 25px; color: #2d5016; font-weight: bold;">
+                                    <div style="font-size: 9pt;">MADRASAH</div>
+                                    <div style="font-size: 9pt;">IBTIDAIYAH</div>
+                                    <div style="font-size: 11pt; margin-top: 3px;">SULTAN</div>
+                                    <div style="font-size: 11pt;">FATTAH</div>
+                                    <div style="font-size: 8pt; margin-top: 3px;">SUKOSONO</div>
+                                </div>
                             <?php endif; ?>
-                            <?php echo htmlspecialchars($item['materi']); ?>
-                        </td>
-                        <td class="nilai-col"><?php echo htmlspecialchars($item['nilai'] ?: '-'); ?></td>
-                        <td class="predikat-col"><?php echo htmlspecialchars($item['predikat'] ?: '-'); ?></td>
-                        <td class="deskripsi-col"><?php echo htmlspecialchars($item['deskripsi'] ?: '-'); ?></td>
-                    </tr>
-                    <?php endforeach; ?>
+                        </div>
+                    </div>
+                    
+                    <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></h1>
+                </div>
+                
+                <!-- Identitas Siswa -->
+                <table class="identitas-table">
                     <tr>
-                        <td colspan="2" style="font-weight: bold; text-align: right;">RERATA</td>
-                        <td class="nilai-col" style="font-weight: bold;"><?php echo $rata_rata; ?></td>
-                        <td colspan="2"></td>
+                        <td class="label">Nama Siswa</td>
+                        <td class="colon">:</td>
+                        <td class="value"><?php echo htmlspecialchars(strtoupper($siswa['nama'] ?? '-')); ?></td>
+                        <td class="label">Kelas</td>
+                        <td class="colon">:</td>
+                        <td class="value"><?php echo htmlspecialchars($kelas_data['nama_kelas'] ?? '-'); ?></td>
                     </tr>
-                </tbody>
-            </table>
-            
-            <!-- Catatan Kompetensi -->
-            <div class="catatan-box">
-                <strong>CATATAN KOMPETENSI</strong><br>
-                <?php 
-                $catatan = $rapor['catatan_kompetensi'];
-                if (empty($catatan)) {
-                    // Generate catatan otomatis berdasarkan rata-rata
-                    $nama_siswa = strtoupper($siswa['nama']);
-                    if ($rata_rata < 60) {
-                        $catatan = "ANANDA $nama_siswa KURANG DALAM KOMPETENSI PENDIDIKAN MUATAN LOKAL KHUSUS MADRASAH. MOHON ORANG TUA/WALI MENINGKATKAN BIMBINGAN";
-                    } else {
-                        $catatan = "ANANDA $nama_siswa SUDAH MENGIKUTI PEMBELAJARAN PENDIDIKAN MUATAN LOKAL KHUSUS MADRASAH DENGAN BAIK";
-                    }
-                }
-                echo htmlspecialchars($catatan);
-                ?>
-            </div>
-            
-            <!-- Tanda Tangan -->
-            <div class="tanggal">
-                Jepara, <?php echo date('d F Y'); ?>
-            </div>
-            
-            <div class="ttd-row">
-                <div class="ttd-item">
-                    <label>Wali Murid,</label>
-                    <div class="nama">(___________________)</div>
+                    <tr>
+                        <td class="label">NISN</td>
+                        <td class="colon">:</td>
+                        <td class="value"><?php echo htmlspecialchars($siswa['nisn'] ?? '-'); ?></td>
+                        <td class="label">Tahun Ajaran</td>
+                        <td class="colon">:</td>
+                        <td class="value"><?php echo htmlspecialchars($tahun_ajaran); ?></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Semester</td>
+                        <td class="colon">:</td>
+                        <td class="value"><?php echo getSemesterText($semester_aktif); ?></td>
+                        <td colspan="3"></td>
+                    </tr>
+                </table>
+                
+                <!-- Tabel Nilai -->
+                <table class="nilai-table">
+                    <thead>
+                        <tr>
+                            <th class="no-col">No</th>
+                            <th class="materi-col">Materi</th>
+                            <th class="nilai-col">Nilai</th>
+                            <th class="predikat-col">Predikat</th>
+                            <th class="deskripsi-col">Deskripsi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        $no = 1;
+                        $total_nilai = 0;
+                        $count_nilai = 0;
+                        $current_kategori = '';
+                        
+                        foreach ($materi_list as $materi): 
+                            $key = $siswa['id'] . '_' . $materi['id'];
+                            $nilai = $nilai_data[$key] ?? null;
+                            
+                            $kategori = '';
+                            if ($has_kategori_mulok && !empty($materi['kategori_mulok'])) {
+                                $kategori = $materi['kategori_mulok'];
+                            }
+                            
+                            $nilai_value = $nilai ? ($nilai['nilai_pengetahuan'] ?? $nilai['harian'] ?? '') : '';
+                            $predikat = $nilai ? ($nilai['predikat'] ?? '') : '';
+                            $deskripsi = $nilai ? ($nilai['deskripsi'] ?? '') : '';
+                            
+                            if (empty($predikat) && !empty($nilai_value)) {
+                                $predikat = hitungPredikat($nilai_value);
+                            }
+                            
+                            if (!empty($predikat) && $predikat != '-' && !empty($materi['nama_mulok'])) {
+                                if (empty($deskripsi)) {
+                                    $deskripsi = hitungDeskripsi($predikat, $materi['nama_mulok'], $kategori);
+                                }
+                            }
+                            
+                            // Tampilkan kategori sebagai header jika berbeda
+                            $show_kategori = false;
+                            if (!empty($kategori) && $kategori != $current_kategori) {
+                                $show_kategori = true;
+                                $current_kategori = $kategori;
+                            }
+                            
+                            if ($show_kategori && !empty($kategori)):
+                        ?>
+                            <tr class="kategori-header">
+                                <td colspan="5"><?php echo htmlspecialchars($kategori); ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <tr>
+                            <td class="no-col"><?php echo $no++; ?></td>
+                            <td class="materi-col">
+                                <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                            </td>
+                            <td class="nilai-col"><?php echo htmlspecialchars($nilai_value ?: '-'); ?></td>
+                            <td class="predikat-col"><?php echo htmlspecialchars($predikat ?: '-'); ?></td>
+                            <td class="deskripsi-col"><?php echo htmlspecialchars($deskripsi ?: '-'); ?></td>
+                        </tr>
+                        <?php 
+                            if (!empty($nilai_value)) {
+                                $total_nilai += floatval($nilai_value);
+                                $count_nilai++;
+                            }
+                        endforeach; 
+                        ?>
+                        <tr>
+                            <td colspan="2" style="font-weight: bold; text-align: right;">RERATA</td>
+                            <td class="nilai-col" style="font-weight: bold;"><?php echo $count_nilai > 0 ? round($total_nilai / $count_nilai, 0) : 0; ?></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <!-- Tanda Tangan -->
+                <div class="tanggal">
+                    <?php 
+                    $tempat_cetak = $pengaturan_cetak['tempat_cetak'] ?? 'Jepara';
+                    $tanggal_cetak = $pengaturan_cetak['tanggal_cetak'] ?? date('Y-m-d');
+                    echo htmlspecialchars($tempat_cetak) . ', ' . formatTanggalIndonesia($tanggal_cetak);
+                    ?>
                 </div>
-                <div class="ttd-item">
-                    <label>Wali Kelas,</label>
-                    <div class="nama">(<?php echo htmlspecialchars($wali_kelas['nama'] ?? '-'); ?>)</div>
+                
+                <div class="ttd-row">
+                    <div class="ttd-item">
+                        <label>Wali Murid,</label>
+                        <div class="nama">(<?php echo htmlspecialchars($siswa['orangtua_wali'] ?? '___________________'); ?>)</div>
+                    </div>
+                    <div class="ttd-item">
+                        <label>Wali Kelas,</label>
+                        <div class="nama">(<?php echo htmlspecialchars($kelas_data['wali_kelas_nama'] ?? '-'); ?>)</div>
+                    </div>
+                </div>
+                
+                <div class="ttd-center">
+                    <div style="margin-bottom: 5px;">Mengetahui</div>
+                    <div style="margin-bottom: 50px;">Kepala MI,</div>
+                    <div class="nama">(<?php echo htmlspecialchars($profil_madrasah['nama_kepala'] ?? '-'); ?>)</div>
                 </div>
             </div>
-            
-            <div class="ttd-center">
-                <label>Mengetahui</label>
-                <div style="margin-bottom: 10px; margin-top: 10px;">Kepala MI,</div>
-                <div class="nama">(<?php echo htmlspecialchars($profil_madrasah['nama_kepala'] ?? '-'); ?>)</div>
-            </div>
-        </div>
-        
-        <?php if ($index < count($rapor_data) - 1): ?>
-            <div style="page-break-after: always;"></div>
-        <?php endif; ?>
         <?php endforeach; ?>
     </div>
 </body>
 </html>
-

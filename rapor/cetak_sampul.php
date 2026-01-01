@@ -97,7 +97,7 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 2cm;
+                margin: 2cm 2cm 0.5cm 2cm;
             }
             body {
                 margin: 0;
@@ -114,13 +114,6 @@ try {
             body::before,
             body::after {
                 display: none !important;
-            }
-        }
-        
-        /* Sembunyikan URL di print preview */
-        @media print {
-            @page {
-                margin: 2cm;
             }
         }
         
@@ -248,6 +241,10 @@ try {
         
         /* Page break untuk setiap siswa */
         @media print {
+            @page {
+                size: A4;
+                margin: 2cm 2cm 0.5cm 2cm;
+            }
             .page-break {
                 page-break-after: always;
             }

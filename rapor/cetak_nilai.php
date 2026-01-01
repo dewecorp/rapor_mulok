@@ -7,6 +7,7 @@ $conn = getConnection();
 
 // Ambil parameter
 $kelas_id = isset($_GET['kelas']) ? intval($_GET['kelas']) : 0;
+$siswa_id = isset($_GET['siswa']) ? intval($_GET['siswa']) : 0;
 
 // Fungsi untuk menghitung predikat
 function hitungPredikat($nilai) {
@@ -109,20 +110,30 @@ try {
     // Handle error
 }
 
-// Ambil data kelas dengan wali kelas
-$kelas_data = null;
-if ($kelas_id > 0) {
-    $stmt = $conn->prepare("SELECT k.*, p.nama as wali_kelas_nama FROM kelas k LEFT JOIN pengguna p ON k.wali_kelas_id = p.id WHERE k.id = ?");
-    $stmt->bind_param("i", $kelas_id);
+// Ambil data siswa terlebih dahulu untuk mendapatkan kelas_id
+$siswa_list = [];
+if ($siswa_id > 0) {
+    // Jika ada siswa_id spesifik, ambil hanya siswa tersebut
+    $stmt = $conn->prepare("SELECT s.* FROM siswa s WHERE s.id = ?");
+    $stmt->bind_param("i", $siswa_id);
     $stmt->execute();
     $result = $stmt->get_result();
-    $kelas_data = $result->fetch_assoc();
+    $siswa_row = $result->fetch_assoc();
+    if ($siswa_row) {
+        $nama_siswa = trim($siswa_row['nama'] ?? '');
+        if (!empty($nama_siswa)) {
+            $nama_lower = strtolower($nama_siswa);
+            if ($nama_lower !== 'administrator' && $nama_lower !== 'admin' && $nama_lower !== 'proktor') {
+                $siswa_list[] = $siswa_row;
+                // Set kelas_id dari siswa untuk mengambil materi dan kelas data
+                if (empty($kelas_id)) {
+                    $kelas_id = $siswa_row['kelas_id'] ?? 0;
+                }
+            }
+        }
+    }
     $stmt->close();
-}
-
-// Ambil data siswa
-$siswa_list = [];
-if ($kelas_id > 0) {
+} elseif ($kelas_id > 0) {
     $stmt = $conn->prepare("SELECT s.* FROM siswa s WHERE s.kelas_id = ? ORDER BY s.nama");
     $stmt->bind_param("i", $kelas_id);
     $stmt->execute();
@@ -136,6 +147,17 @@ if ($kelas_id > 0) {
             }
         }
     }
+    $stmt->close();
+}
+
+// Ambil data kelas dengan wali kelas setelah mendapatkan kelas_id
+$kelas_data = null;
+if ($kelas_id > 0) {
+    $stmt = $conn->prepare("SELECT k.*, p.nama as wali_kelas_nama FROM kelas k LEFT JOIN pengguna p ON k.wali_kelas_id = p.id WHERE k.id = ?");
+    $stmt->bind_param("i", $kelas_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $kelas_data = $result->fetch_assoc();
     $stmt->close();
 }
 
@@ -224,7 +246,7 @@ function getSemesterText($semester) {
         @media print {
             @page {
                 size: A4;
-                margin: 1.5cm;
+                margin: 1.5cm 1.5cm 0.5cm 1.5cm;
             }
             body {
                 margin: 0;
@@ -234,14 +256,29 @@ function getSemesterText($semester) {
                 display: none;
             }
             .student-page {
-                page-break-inside: avoid;
+                page-break-after: always;
+                page-break-inside: auto;
+                min-height: 0;
+            }
+            .student-page:last-child {
+                page-break-after: auto;
             }
             .nilai-table {
                 page-break-inside: auto;
             }
             .nilai-table tr {
                 page-break-inside: avoid;
-                page-break-after: auto;
+            }
+            .tanggal {
+                page-break-after: avoid;
+            }
+            .ttd-row {
+                page-break-inside: avoid;
+                page-break-after: avoid;
+            }
+            .ttd-center {
+                page-break-inside: avoid;
+                page-break-before: avoid;
             }
         }
         
@@ -420,28 +457,6 @@ function getSemesterText($semester) {
             font-size: 12pt;
         }
         
-        .student-page {
-            margin-bottom: 50px;
-        }
-        
-        @media print {
-            .student-page {
-                page-break-after: always;
-                page-break-inside: auto;
-            }
-            .student-page:last-child {
-                page-break-after: auto;
-            }
-            .nilai-table {
-                page-break-inside: auto;
-            }
-            .nilai-table tr {
-                page-break-inside: avoid;
-            }
-            .ttd-row, .ttd-center {
-                page-break-inside: avoid;
-            }
-        }
     </style>
     <script>
         // Auto print saat halaman dimuat (mode windows print)
@@ -473,7 +488,7 @@ function getSemesterText($semester) {
                     </div>
                 </div>
                 
-                <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO'); ?></h1>
+                <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></h1>
             </div>
             
             <!-- Identitas Siswa -->
