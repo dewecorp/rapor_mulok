@@ -18,12 +18,30 @@
     <!-- Select2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js?v=<?php echo $cache_version; ?>"></script>
     
-    <!-- Script untuk toggle sidebar di mobile -->
+    <!-- Script untuk toggle sidebar di mobile dan desktop -->
     <script>
+    // Fungsi untuk toggle sidebar collapsed
+    function toggleSidebar() {
+        var sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+            // Simpan state ke localStorage
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+    }
+    
+    // Load state sidebar dari localStorage saat halaman dimuat
     document.addEventListener('DOMContentLoaded', function() {
+        var sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            var isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            }
+        }
+        
         // Toggle sidebar untuk mobile
         var sidebarToggle = document.querySelector('.sidebar-toggle');
-        var sidebar = document.querySelector('.sidebar');
         var mainContent = document.querySelector('.main-content');
         var sidebarOverlay = null;
         

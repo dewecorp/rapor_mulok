@@ -463,6 +463,80 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%);
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
             overflow-x: hidden;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+        
+        .sidebar.collapsed {
+            width: 70px !important;
+        }
+        
+        .sidebar.collapsed .nav-link {
+            padding: 10px;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .nav-link .float-end {
+            display: none !important;
+        }
+        
+        .sidebar.collapsed .nav-link i {
+            margin-right: 0;
+            font-size: 18px;
+        }
+        
+        .sidebar.collapsed .collapse {
+            display: none !important;
+        }
+        
+        @media (min-width: 992px) {
+            .sidebar.collapsed {
+                width: 70px !important;
+                flex: 0 0 70px !important;
+                max-width: 70px !important;
+            }
+            
+            .row .sidebar.collapsed ~ .content-wrapper {
+                flex: 0 0 calc(100% - 70px) !important;
+                max-width: calc(100% - 70px) !important;
+                width: calc(100% - 70px) !important;
+            }
+        }
+        
+        @media (max-width: 991px) {
+            .sidebar.collapsed {
+                width: 70px !important;
+            }
+        }
+        
+        .sidebar-toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(45, 80, 22, 0.1);
+            border: none;
+            color: #2d5016;
+            padding: 8px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 10;
+            transition: background-color 0.2s ease;
+        }
+        
+        .sidebar-toggle-btn:hover {
+            background: rgba(45, 80, 22, 0.2);
+        }
+        
+        .sidebar.collapsed .sidebar-toggle-btn {
+            right: 5px;
+            left: 5px;
+            width: auto;
+        }
+        
+        .sidebar.collapsed .sidebar-toggle-btn i {
+            transform: rotate(180deg);
         }
         
         .sidebar .nav-link {
@@ -1366,94 +1440,97 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
     
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-3 col-lg-2 sidebar p-0">
+            <div class="col-md-3 col-lg-2 sidebar p-0" id="sidebar">
+                <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
                 <nav class="nav flex-column mt-3">
                     <?php if ($user['role'] == 'proktor'): ?>
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
-                            <i class="fas fa-home"></i> Dashboard
+                            <i class="fas fa-home"></i> <span>Dashboard</span>
                         </a>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#lembagaMenu" onclick="event.stopPropagation();">
-                            <i class="fas fa-school"></i> Lembaga <i class="fas fa-chevron-down float-end"></i>
+                            <i class="fas fa-school"></i> <span>Lembaga</span> <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="lembagaMenu" data-bs-parent=".sidebar">
                         <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/profil.php">
-                            <i class="fas fa-circle"></i> Profil Madrasah
+                            <i class="fas fa-circle"></i> <span>Profil Madrasah</span>
                         </a>
                         <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/materi.php">
-                            <i class="fas fa-circle"></i> Materi Mulok
+                            <i class="fas fa-circle"></i> <span>Materi Mulok</span>
                         </a>
                         <a class="nav-link ps-5" href="<?php echo $basePath; ?>lembaga/kelas.php">
-                            <i class="fas fa-circle"></i> Kelas
+                            <i class="fas fa-circle"></i> <span>Kelas</span>
                         </a>
                         </div>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#guruMenu" onclick="event.stopPropagation();">
-                            <i class="fas fa-chalkboard-teacher"></i> Guru <i class="fas fa-chevron-down float-end"></i>
+                            <i class="fas fa-chalkboard-teacher"></i> <span>Guru</span> <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="guruMenu" data-bs-parent=".sidebar">
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/data.php">
-                                <i class="fas fa-circle"></i> Data Guru
+                                <i class="fas fa-circle"></i> <span>Data Guru</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/mengampu.php">
-                                <i class="fas fa-circle"></i> Mengampu Materi
+                                <i class="fas fa-circle"></i> <span>Mengampu Materi</span>
                             </a>
                         </div>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#siswaMenu" onclick="event.stopPropagation();">
-                            <i class="fas fa-user-graduate"></i> Siswa <i class="fas fa-chevron-down float-end"></i>
+                            <i class="fas fa-user-graduate"></i> <span>Siswa</span> <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="siswaMenu" data-bs-parent=".sidebar">
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/index.php">
-                                <i class="fas fa-circle"></i> Data Siswa
+                                <i class="fas fa-circle"></i> <span>Data Siswa</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/pindah-kelas.php">
-                                <i class="fas fa-circle"></i> Pindah Kelas
+                                <i class="fas fa-circle"></i> <span>Pindah Kelas</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/naik-kelas.php">
-                                <i class="fas fa-circle"></i> Naik Kelas
+                                <i class="fas fa-circle"></i> <span>Naik Kelas</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/alumni.php">
-                                <i class="fas fa-circle"></i> Data Alumni
+                                <i class="fas fa-circle"></i> <span>Data Alumni</span>
                             </a>
                         </div>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#raporMenu" onclick="event.stopPropagation();">
-                            <i class="fas fa-file-alt"></i> Rapor <i class="fas fa-chevron-down float-end"></i>
+                            <i class="fas fa-file-alt"></i> <span>Rapor</span> <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="raporMenu" data-bs-parent=".sidebar">
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/pengaturan-cetak.php">
-                                <i class="fas fa-circle"></i> Pengaturan Cetak
+                                <i class="fas fa-circle"></i> <span>Pengaturan Cetak</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/status-nilai.php">
-                                <i class="fas fa-circle"></i> Status Nilai
+                                <i class="fas fa-circle"></i> <span>Status Nilai</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>rapor/cetak.php">
-                                <i class="fas fa-circle"></i> Cetak Rapor
+                                <i class="fas fa-circle"></i> <span>Cetak Rapor</span>
                             </a>
                         </div>
                         <a class="nav-link" href="<?php echo $basePath; ?>pengguna/index.php">
-                            <i class="fas fa-users"></i> Pengguna
+                            <i class="fas fa-users"></i> <span>Pengguna</span>
                         </a>
                         <a class="nav-link" href="<?php echo $basePath; ?>pengaturan/index.php">
-                            <i class="fas fa-cog"></i> Pengaturan
+                            <i class="fas fa-cog"></i> <span>Pengaturan</span>
                         </a>
                         <a class="nav-link" href="<?php echo $basePath; ?>backup/index.php">
-                            <i class="fas fa-database"></i> Backup & Restore
+                            <i class="fas fa-database"></i> <span>Backup & Restore</span>
                         </a>
                     <?php elseif ($user['role'] == 'wali_kelas'): ?>
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
-                            <i class="fas fa-home"></i> Dashboard
+                            <i class="fas fa-home"></i> <span>Dashboard</span>
                         </a>
                         <?php if (!empty($materi_wali_kelas_by_kategori)): ?>
                             <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenu" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> Materi Mulok <i class="fas fa-chevron-down float-end"></i>
+                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
                             </a>
                             <div class="collapse" id="materiMenu" data-bs-parent=".sidebar">
                                 <?php foreach ($materi_wali_kelas_by_kategori as $kategori => $materi_list): ?>
                                     <a class="nav-link ps-5" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#kategoriMenu<?php echo md5($kategori); ?>" onclick="event.stopPropagation();">
-                                        <i class="fas fa-folder"></i> <?php echo htmlspecialchars($kategori); ?> <i class="fas fa-chevron-down float-end"></i>
+                                        <i class="fas fa-folder"></i> <span><?php echo htmlspecialchars($kategori); ?></span> <i class="fas fa-chevron-down float-end"></i>
                                     </a>
                                     <div class="collapse" id="kategoriMenu<?php echo md5($kategori); ?>">
                                         <?php foreach ($materi_list as $materi): ?>
                                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/materi.php?id=<?php echo $materi['id']; ?>" style="padding-left: 3rem !important;">
-                                                <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                                <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
                                             </a>
                                         <?php endforeach; ?>
                                     </div>
@@ -1461,51 +1538,51 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                             </div>
                         <?php elseif (!empty($materi_wali_kelas)): ?>
                             <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenu" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> Materi Mulok <i class="fas fa-chevron-down float-end"></i>
+                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
                             </a>
                             <div class="collapse" id="materiMenu" data-bs-parent=".sidebar">
                                 <?php foreach ($materi_wali_kelas as $materi): ?>
                                     <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/materi.php?id=<?php echo $materi['id']; ?>">
-                                        <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                        <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
                                     </a>
                                 <?php endforeach; ?>
                             </div>
                         <?php else: ?>
                             <a class="nav-link" href="<?php echo $basePath; ?>wali-kelas/materi.php">
-                                <i class="fas fa-book"></i> Materi Mulok
+                                <i class="fas fa-book"></i> <span>Materi Mulok</span>
                             </a>
                         <?php endif; ?>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#waliMenu" onclick="event.stopPropagation();">
-                            <i class="fas fa-user-tie"></i> Wali Kelas <i class="fas fa-chevron-down float-end"></i>
+                            <i class="fas fa-user-tie"></i> <span>Wali Kelas</span> <i class="fas fa-chevron-down float-end"></i>
                         </a>
                         <div class="collapse" id="waliMenu" data-bs-parent=".sidebar">
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/siswa.php">
-                                <i class="fas fa-circle"></i> Data Siswa
+                                <i class="fas fa-circle"></i> <span>Data Siswa</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/status-nilai.php">
-                                <i class="fas fa-circle"></i> Status Nilai
+                                <i class="fas fa-circle"></i> <span>Status Nilai</span>
                             </a>
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>wali-kelas/rapor.php">
-                                <i class="fas fa-circle"></i> Rapor
+                                <i class="fas fa-circle"></i> <span>Rapor</span>
                             </a>
                         </div>
                     <?php elseif ($user['role'] == 'guru'): ?>
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
-                            <i class="fas fa-home"></i> Dashboard
+                            <i class="fas fa-home"></i> <span>Dashboard</span>
                         </a>
                         <?php if (!empty($materi_guru_by_kategori)): ?>
                             <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenuGuru" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> Materi Mulok <i class="fas fa-chevron-down float-end"></i>
+                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
                             </a>
                             <div class="collapse" id="materiMenuGuru" data-bs-parent=".sidebar">
                                 <?php foreach ($materi_guru_by_kategori as $kategori => $materi_list): ?>
                                     <a class="nav-link ps-5" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#kategoriMenuGuru<?php echo md5($kategori); ?>" onclick="event.stopPropagation();">
-                                        <i class="fas fa-folder"></i> <?php echo htmlspecialchars($kategori); ?> <i class="fas fa-chevron-down float-end"></i>
+                                        <i class="fas fa-folder"></i> <span><?php echo htmlspecialchars($kategori); ?></span> <i class="fas fa-chevron-down float-end"></i>
                                     </a>
                                     <div class="collapse" id="kategoriMenuGuru<?php echo md5($kategori); ?>">
                                         <?php foreach ($materi_list as $materi): ?>
                                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>" style="padding-left: 3rem !important;">
-                                                <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                                <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
                                             </a>
                                         <?php endforeach; ?>
                                     </div>
@@ -1513,23 +1590,23 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                             </div>
                         <?php elseif (!empty($materi_guru)): ?>
                             <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenuGuru" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> Materi Mulok <i class="fas fa-chevron-down float-end"></i>
+                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
                             </a>
                             <div class="collapse" id="materiMenuGuru" data-bs-parent=".sidebar">
                                 <?php foreach ($materi_guru as $materi): ?>
                                     <a class="nav-link ps-5" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>">
-                                        <i class="fas fa-circle"></i> <?php echo htmlspecialchars($materi['nama_mulok']); ?>
+                                        <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
                                     </a>
                                 <?php endforeach; ?>
                             </div>
                         <?php else: ?>
                             <a class="nav-link" href="<?php echo $basePath; ?>guru/materi-diampu.php">
-                                <i class="fas fa-book"></i> Materi yang Diampu
+                                <i class="fas fa-book"></i> <span>Materi yang Diampu</span>
                             </a>
                         <?php endif; ?>
                     <?php endif; ?>
                     <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                        <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
                     </a>
                 </nav>
             </div>
