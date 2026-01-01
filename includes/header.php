@@ -169,10 +169,12 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         <link rel="shortcut icon" type="image/png" href="<?php echo $basePath; ?>uploads/logo.png">
     <?php endif; ?>
     
-    <!-- Cache busting version - menggunakan timestamp untuk force refresh -->
+    <!-- Cache busting version - gunakan APP_VERSION saja untuk production -->
     <?php 
-    // Gunakan timestamp yang selalu berubah untuk memaksa browser reload
-    $cache_version = APP_VERSION . '.' . time(); 
+    // Untuk development, gunakan timestamp. Untuk production, gunakan APP_VERSION saja
+    // Ubah ke time() jika perlu force refresh saat development
+    $cache_version = APP_VERSION; // Gunakan APP_VERSION untuk cache yang lebih baik
+    // $cache_version = APP_VERSION . '.' . time(); // Uncomment untuk development
     ?>
     
     <!-- Bootstrap CSS -->
@@ -201,6 +203,9 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f5f5f5;
             font-size: 14px;
+            /* Optimasi rendering */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
         /* Perbesar semua font untuk keterbacaan yang lebih baik */
@@ -419,6 +424,13 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             white-space: nowrap;
         }
         
+        /* Sembunyikan jam di mode mobile dan tablet */
+        @media (max-width: 991px) {
+            .datetime-info {
+                display: none !important;
+            }
+        }
+        
         .navbar .container-fluid {
             display: flex;
             align-items: center;
@@ -458,12 +470,14 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             color: #2d5016;
             padding: 10px 20px;
             border-left: 4px solid transparent;
-            transition: all 0.3s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
             font-weight: 500;
             margin: 1px 8px;
             border-radius: 8px;
             font-size: 14px;
             line-height: 1.4;
+            /* Optimasi rendering */
+            will-change: background-color, border-color, transform;
         }
         
         .sidebar .nav-link:hover {
@@ -850,9 +864,10 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                 left: -250px;
                 width: 250px;
                 z-index: 1000;
-                transition: left 0.3s ease;
+                transition: left 0.2s ease;
                 height: calc(100vh - 56px);
                 overflow-y: auto;
+                will-change: left;
             }
             
             .sidebar.show {

@@ -2,10 +2,11 @@
         </div>
     </div>
     
-    <!-- Cache busting version - menggunakan timestamp untuk force refresh -->
+    <!-- Cache busting version - gunakan APP_VERSION saja untuk production -->
     <?php 
-    // Gunakan timestamp yang selalu berubah untuk memaksa browser reload
-    $cache_version = defined('APP_VERSION') ? APP_VERSION . '.' . time() : time();
+    // Untuk development, gunakan timestamp. Untuk production, gunakan APP_VERSION saja
+    $cache_version = defined('APP_VERSION') ? APP_VERSION : '1.0.0';
+    // $cache_version = defined('APP_VERSION') ? APP_VERSION . '.' . time() : time(); // Uncomment untuk development
     ?>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js?v=<?php echo $cache_version; ?>"></script>

@@ -753,7 +753,8 @@ $page_title = 'Dashboard';
     position: relative;
     margin-bottom: 25px;
     padding-left: 40px;
-    animation: fadeInUp 0.5s ease-out;
+    /* Disable animation untuk performa yang lebih baik */
+    /* animation: fadeInUp 0.5s ease-out; */
 }
 
 .timeline-item:last-child {
@@ -793,7 +794,7 @@ $page_title = 'Dashboard';
     border-left: 3px solid #2d5016;
     padding: 12px;
     border-radius: 8px;
-    transition: all 0.3s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     font-size: 13px;
 }
 
@@ -889,7 +890,7 @@ $page_title = 'Dashboard';
 
 .position-relative.d-inline-block .btn {
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    transition: all 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .position-relative.d-inline-block .btn:hover {
