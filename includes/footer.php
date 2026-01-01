@@ -17,9 +17,54 @@
     <!-- Select2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js?v=<?php echo $cache_version; ?>"></script>
     
-    <!-- Script untuk toggle dropdown user -->
+    <!-- Script untuk toggle sidebar di mobile -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Toggle sidebar untuk mobile
+        var sidebarToggle = document.querySelector('.sidebar-toggle');
+        var sidebar = document.querySelector('.sidebar');
+        var mainContent = document.querySelector('.main-content');
+        var sidebarOverlay = null;
+        
+        if (sidebarToggle && sidebar) {
+            sidebarToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                sidebar.classList.toggle('show');
+                
+                // Tambahkan overlay untuk menutup sidebar saat klik di luar
+                if (sidebar.classList.contains('show')) {
+                    if (!sidebarOverlay) {
+                        sidebarOverlay = document.createElement('div');
+                        sidebarOverlay.className = 'sidebar-overlay';
+                        sidebarOverlay.style.cssText = 'position: fixed; top: 56px; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; display: none;';
+                        document.body.appendChild(sidebarOverlay);
+                    }
+                    sidebarOverlay.style.display = 'block';
+                    
+                    sidebarOverlay.addEventListener('click', function() {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.style.display = 'none';
+                    });
+                } else {
+                    if (sidebarOverlay) {
+                        sidebarOverlay.style.display = 'none';
+                    }
+                }
+            });
+        }
+        
+        // Tutup sidebar saat resize ke desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 991 && sidebar) {
+                sidebar.classList.remove('show');
+                if (sidebarOverlay) {
+                    sidebarOverlay.style.display = 'none';
+                }
+            }
+        });
+        
+        // Script untuk toggle dropdown user
         var userAvatar = document.getElementById('userAvatarDropdown');
         var userDropdown = document.getElementById('userDropdownMenu');
         

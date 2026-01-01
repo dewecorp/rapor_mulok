@@ -818,11 +818,470 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         .navbar .ms-auto {
             min-width: 0;
         }
+        
+        /* ============================================
+           RESPONSIVE DESIGN - MEDIA QUERIES
+           ============================================ */
+        
+        /* Sidebar toggle button */
+        .sidebar-toggle {
+            display: none;
+            border: none;
+            background: transparent;
+            color: white;
+            padding: 8px;
+            margin-right: 10px;
+        }
+        
+        .sidebar-toggle:focus {
+            outline: none;
+            box-shadow: none;
+        }
+        
+        /* Tablet dan Desktop Kecil (max-width: 991px) */
+        @media (max-width: 991px) {
+            .sidebar-toggle {
+                display: block;
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 56px;
+                left: -250px;
+                width: 250px;
+                z-index: 1000;
+                transition: left 0.3s ease;
+                height: calc(100vh - 56px);
+                overflow-y: auto;
+            }
+            
+            .sidebar.show {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0 !important;
+            }
+            
+            .sidebar-overlay {
+                display: none;
+            }
+            
+            .card-header h5 {
+                font-size: 1rem;
+            }
+            
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .btn-group {
+                flex-wrap: wrap;
+            }
+            
+            .btn-group .btn {
+                margin-bottom: 5px;
+            }
+        }
+        
+        /* Tablet (max-width: 768px) */
+        @media (max-width: 768px) {
+            .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            
+            .card {
+                margin-bottom: 15px;
+            }
+            
+            .card-body {
+                padding: 15px;
+            }
+            
+            .card-header {
+                padding: 10px 15px;
+            }
+            
+            .card-header .btn {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+            
+            .table {
+                font-size: 12px;
+            }
+            
+            .table th,
+            .table td {
+                padding: 8px 6px;
+            }
+            
+            .btn {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+            
+            .btn-sm {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+            
+            .form-control,
+            .form-select {
+                font-size: 14px;
+                padding: 8px 12px;
+            }
+            
+            .navbar-brand {
+                font-size: 14px;
+            }
+            
+            .navbar-brand-app-name {
+                font-size: 14px;
+            }
+            
+            .navbar-brand-school-name {
+                font-size: 11px;
+            }
+            
+            .navbar-brand-academic-info {
+                font-size: 10px;
+            }
+            
+            .modal-dialog {
+                margin: 10px;
+            }
+            
+            .modal-content {
+                border-radius: 8px;
+            }
+            
+            .modal-header,
+            .modal-body,
+            .modal-footer {
+                padding: 15px;
+            }
+            
+            /* Tabel responsive dengan scroll horizontal */
+            .table-responsive {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .table-responsive table {
+                width: 100%;
+                max-width: 100%;
+                margin-bottom: 0;
+            }
+            
+            /* Form responsive */
+            .row {
+                margin-left: -10px;
+                margin-right: -10px;
+            }
+            
+            .row > * {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            
+            /* Card columns untuk mobile */
+            .card-columns {
+                column-count: 1;
+            }
+        }
+        
+        /* Mobile (max-width: 576px) */
+        @media (max-width: 576px) {
+            body {
+                font-size: 13px;
+            }
+            
+            .container,
+            .container-fluid {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+            
+            .card {
+                border-radius: 8px;
+                margin-bottom: 10px;
+            }
+            
+            .card-header {
+                padding: 8px 12px;
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .card-header h5 {
+                font-size: 0.95rem;
+                margin-bottom: 8px;
+            }
+            
+            .card-header .btn-group,
+            .card-header .d-flex {
+                width: 100%;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .card-header .btn {
+                flex: 1 1 auto;
+                min-width: calc(50% - 5px);
+                font-size: 11px;
+                padding: 6px 8px;
+            }
+            
+            .card-body {
+                padding: 12px;
+            }
+            
+            .table {
+                font-size: 11px;
+            }
+            
+            .table th,
+            .table td {
+                padding: 6px 4px;
+                white-space: nowrap;
+            }
+            
+            .table th {
+                font-size: 11px;
+            }
+            
+            .btn {
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+            
+            .btn-sm {
+                padding: 4px 8px;
+                font-size: 10px;
+            }
+            
+            .btn i {
+                font-size: 11px;
+            }
+            
+            .form-label {
+                font-size: 12px;
+                margin-bottom: 5px;
+            }
+            
+            .form-control,
+            .form-select {
+                font-size: 14px;
+                padding: 8px 10px;
+            }
+            
+            .input-group {
+                flex-wrap: wrap;
+            }
+            
+            .input-group .form-control,
+            .input-group .btn {
+                flex: 1 1 100%;
+                margin-bottom: 5px;
+            }
+            
+            .navbar {
+                padding: 8px 10px;
+            }
+            
+            .navbar-brand {
+                font-size: 12px;
+            }
+            
+            .navbar-brand img {
+                height: 30px;
+                margin-right: 8px;
+            }
+            
+            .navbar-brand-app-name {
+                font-size: 12px;
+            }
+            
+            .navbar-brand-school-name {
+                font-size: 10px;
+            }
+            
+            .navbar-brand-academic-info {
+                font-size: 9px;
+            }
+            
+            .navbar-toggler {
+                padding: 4px 8px;
+                font-size: 14px;
+            }
+            
+            .user-info {
+                display: none;
+            }
+            
+            .user-avatar-wrapper {
+                width: 32px;
+                height: 32px;
+            }
+            
+            .user-avatar {
+                width: 32px;
+                height: 32px;
+            }
+            
+            .modal-dialog {
+                margin: 5px;
+            }
+            
+            .modal-header,
+            .modal-body,
+            .modal-footer {
+                padding: 12px;
+            }
+            
+            .modal-title {
+                font-size: 16px;
+            }
+            
+            .alert {
+                padding: 10px 12px;
+                font-size: 12px;
+            }
+            
+            .badge {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+            
+            .pagination {
+                font-size: 12px;
+            }
+            
+            .page-link {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .dropdown-menu {
+                font-size: 12px;
+            }
+            
+            .dropdown-item {
+                padding: 8px 15px;
+                font-size: 12px;
+            }
+            
+            /* Tabel dengan scroll horizontal di mobile */
+            .table-responsive {
+                border: none;
+            }
+            
+            .table-responsive table {
+                min-width: 600px;
+            }
+            
+            /* Form grid responsive */
+            .row.g-3 > *,
+            .row.g-2 > * {
+                margin-bottom: 10px;
+            }
+            
+            /* Card deck menjadi single column */
+            .card-deck {
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .card-deck .card {
+                margin-bottom: 15px;
+            }
+            
+            /* Button group menjadi vertical di mobile */
+            .btn-group-vertical {
+                width: 100%;
+            }
+            
+            .btn-group-vertical .btn {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+        
+        /* Extra Small Mobile (max-width: 400px) */
+        @media (max-width: 400px) {
+            .card-header .btn {
+                min-width: 100%;
+                margin-bottom: 5px;
+            }
+            
+            .table {
+                font-size: 10px;
+            }
+            
+            .table th,
+            .table td {
+                padding: 4px 3px;
+            }
+            
+            .btn {
+                font-size: 10px;
+                padding: 5px 8px;
+            }
+        }
+        
+        /* Desktop Large (min-width: 1200px) */
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1140px;
+            }
+            
+            .card {
+                margin-bottom: 20px;
+            }
+        }
+        
+        /* Print Media */
+        @media print {
+            .sidebar,
+            .navbar,
+            .btn,
+            .no-print {
+                display: none !important;
+            }
+            
+            .main-content {
+                margin-left: 0 !important;
+            }
+            
+            .card {
+                border: none;
+                box-shadow: none;
+            }
+        }
+        
+        /* Landscape Orientation */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .navbar {
+                padding: 5px 10px;
+            }
+            
+            .card-header {
+                padding: 8px 15px;
+            }
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container-fluid">
+            <button class="navbar-toggler d-lg-none sidebar-toggle" type="button" aria-label="Toggle sidebar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <a class="navbar-brand" href="<?php echo $basePath; ?>index.php">
                 <img src="<?php echo $basePath; ?>uploads/<?php echo htmlspecialchars($profil['logo'] ?? 'logo.png'); ?>" alt="Logo" onerror="this.onerror=null; this.style.display='none';">
                 <div class="navbar-brand-content">
