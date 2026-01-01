@@ -126,6 +126,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             foreach ($siswa_ids as $siswa_id) {
                 $siswa_id = intval($siswa_id);
                 if ($siswa_id > 0) {
+                    // Validasi: Pastikan siswa benar-benar dari kelas lama
+                    $stmt_validate = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
+                    $stmt_validate->bind_param("i", $siswa_id);
+                    $stmt_validate->execute();
+                    $result_validate = $stmt_validate->get_result();
+                    $siswa_data = $result_validate->fetch_assoc();
+                    $stmt_validate->close();
+                    
+                    // Skip jika siswa tidak ditemukan atau bukan dari kelas lama
+                    if (!$siswa_data || $siswa_data['kelas_id'] != $kelas_lama_id) {
+                        continue;
+                    }
+                    
                     // Jika kelas tujuan adalah Alumni, simpan tahun ajaran lulus
                     if ($is_kelas_alumni) {
                         // Jika tahun ajaran aktif kosong, coba ambil dari nilai siswa terakhir
@@ -153,7 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         $stmt->bind_param("isi", $kelas_baru_id, $tahun_ajaran_lulus, $siswa_id);
                     } else {
                         // Jika bukan Alumni, update kelas_id saja (jaga tahun_ajaran_lulus jika sudah ada)
-                        $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ? WHERE id = ?");
+                        // Reset tahun_ajaran_lulus jika bukan Alumni (untuk memastikan hanya alumni yang punya tahun lulus)
+                        $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ?, tahun_ajaran_lulus = NULL WHERE id = ?");
                         $stmt->bind_param("ii", $kelas_baru_id, $siswa_id);
                     }
                     if ($stmt->execute()) {
@@ -163,14 +177,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 }
             }
             
-            // Update jumlah siswa di kelas lama
+            // Update jumlah siswa di kelas lama (akan otomatis kosong jika semua siswa naik)
             $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_lama_id) WHERE id = $kelas_lama_id");
             
-            // Update jumlah siswa di kelas baru
+            // Update jumlah siswa di kelas baru (akan terisi dengan siswa yang naik)
             $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_baru_id) WHERE id = $kelas_baru_id");
             
             $conn->commit();
-            $success = "Berhasil menaikkan $naik_count siswa!";
+            
+            // Buat pesan sukses yang lebih informatif
+            $success_message = "Berhasil menaikkan $naik_count siswa dari kelas lama ke kelas baru!";
+            if ($naik_count > 0) {
+                // Cek apakah kelas lama sekarang kosong
+                $stmt_check_kosong = $conn->prepare("SELECT COUNT(*) as jumlah FROM siswa WHERE kelas_id = ?");
+                $stmt_check_kosong->bind_param("i", $kelas_lama_id);
+                $stmt_check_kosong->execute();
+                $result_check_kosong = $stmt_check_kosong->get_result();
+                $data_check_kosong = $result_check_kosong->fetch_assoc();
+                $stmt_check_kosong->close();
+                
+                if ($data_check_kosong['jumlah'] == 0) {
+                    $success_message .= " Kelas lama sekarang kosong dan siap diisi siswa baru.";
+                }
+            }
+            $success = $success_message;
         } catch (Exception $e) {
             $conn->rollback();
             $error = 'Gagal menaikkan siswa: ' . $e->getMessage();
