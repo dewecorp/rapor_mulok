@@ -232,6 +232,10 @@ $page_title = 'Cetak Rapor';
         window.open('cetak_sampul.php?kelas=' + kelasId, '_blank');
     }
     
+    function cetakSampulSiswa(siswaId) {
+        window.open('cetak_sampul.php?siswa=' + siswaId, '_blank');
+    }
+    
     function cetakIdentitas() {
         var kelasId = $('#filterKelas').val();
         window.open('cetak_identitas.php?kelas=' + kelasId, '_blank');
