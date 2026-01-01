@@ -84,9 +84,6 @@ $page_title = 'Cetak Rapor';
                 <button type="button" class="btn btn-secondary btn-sm" onclick="cetakSampul()">
                     <i class="fas fa-book"></i> Cetak Sampul
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="cetakIdentitas()">
-                    <i class="fas fa-id-card"></i> Identitas
-                </button>
                 <button type="button" class="btn btn-success btn-sm" onclick="exportLeggerExcel()">
                     <i class="fas fa-file-excel"></i> Legger Excel
                 </button>
@@ -254,11 +251,6 @@ $page_title = 'Cetak Rapor';
     
     function cetakNilaiSiswa(siswaId) {
         window.open('cetak_nilai.php?siswa=' + siswaId, '_blank');
-    }
-    
-    function cetakIdentitas() {
-        var kelasId = $('#filterKelas').val();
-        window.open('cetak_identitas.php?kelas=' + kelasId, '_blank');
     }
     
     function exportLeggerExcel() {

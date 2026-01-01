@@ -572,20 +572,25 @@ try {
                     <table class="info-table">
                         <tr>
                             <td>Nama Madrasah</td>
-                            <td>: <?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['nama_madrasah'] ?? 'MIS Sultan Fattah Sukosono'); ?></td>
                         </tr>
                         <tr>
-                            <td>NPSN</td>
-                            <td>: <?php echo htmlspecialchars($profil_madrasah['npsn'] ?? '-'); ?></td>
+                            <td>NSM</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['nsm'] ?? '-'); ?></td>
                         </tr>
                         <tr>
-                            <td>Alamat</td>
+                            <td>Alamat Madrasah</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['alamat'] ?? '-'); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Desa / Kelurahan</td>
                             <td>: <?php 
-                                $alamat = $profil_madrasah['alamat'] ?? '';
                                 if ($has_desa && !empty($profil_madrasah['desa'])) {
-                                    $alamat .= ', ' . $profil_madrasah['desa'];
+                                    echo htmlspecialchars($profil_madrasah['desa']);
+                                } else {
+                                    // Default dari alamat atau nama madrasah
+                                    echo 'Sukosono';
                                 }
-                                echo htmlspecialchars($alamat); 
                             ?></td>
                         </tr>
                         <tr>
@@ -593,13 +598,25 @@ try {
                             <td>: <?php echo htmlspecialchars($profil_madrasah['kecamatan'] ?? '-'); ?></td>
                         </tr>
                         <tr>
-                            <td>Kabupaten</td>
+                            <td>Kabupaten / Kota</td>
                             <td>: <?php echo htmlspecialchars($profil_madrasah['kabupaten'] ?? '-'); ?></td>
                         </tr>
                         <tr>
                             <td>Provinsi</td>
                             <td>: <?php echo htmlspecialchars($profil_madrasah['provinsi'] ?? '-'); ?></td>
                         </tr>
+                        <?php if (!empty($profil_madrasah['website'])): ?>
+                        <tr>
+                            <td>Website</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['website']); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if (!empty($profil_madrasah['email'])): ?>
+                        <tr>
+                            <td>Email</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['email']); ?></td>
+                        </tr>
+                        <?php endif; ?>
                     </table>
                 </div>
                 
