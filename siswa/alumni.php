@@ -327,8 +327,9 @@ $page_title = 'Data Alumni';
                     </select>
                 </div>
                 <div>
-                    <span class="badge bg-info" style="font-size: 14px; padding: 8px 12px;">
-                        <i class="fas fa-users"></i> Total Alumni: <strong><?php echo count($alumni_data); ?></strong>
+                    <label class="form-label" style="visibility: hidden;">Label</label>
+                    <span class="badge bg-info d-flex align-items-center" style="font-size: 14px; padding: 0.5rem 0.75rem; height: 40px; line-height: 1.5;">
+                        <i class="fas fa-users me-1"></i> Total Alumni: <strong><?php echo count($alumni_data); ?></strong>
                     </span>
                 </div>
             </div>
