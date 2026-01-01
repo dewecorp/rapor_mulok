@@ -49,31 +49,28 @@ try {
 }
 
 // Query status nilai per materi (sama persis dengan dashboard proktor)
-$materi_list = [];
+// Gunakan nama variabel yang berbeda untuk menghindari konflik dengan header.php
+$status_nilai_materi_list = [];
 $persentase_progress = 0;
 $total_materi = 0;
 $materi_terkirim = 0;
 
 if ($kelas_id && !empty($semester)) {
-    // Ambil semua materi yang diampu di kelas ini pada semester aktif beserta gurunya
-    // Menggunakan query dari mengampu_materi untuk mendapatkan semua materi yang benar-benar diampu
-    if ($has_semester) {
-        // Query dari mengampu_materi - ini akan mengambil semua materi yang diampu di kelas ini
-        $query_materi = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
-                         FROM mengampu_materi mm
-                         INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+    // COPY PASTE PERSIS dari test_query.php yang berhasil
+    if ($has_kelas_id && $has_semester) {
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+                         FROM materi_mulok m
+                         LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
-                         WHERE mm.kelas_id = ? AND m.semester = ?
+                         WHERE m.kelas_id = ? AND m.semester = ?
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
-        $stmt_materi->bind_param("is", $kelas_id, $semester);
+        $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
     } else {
-        // Struktur lama: ambil semua materi yang diampu di kelas ini
-        $query_materi = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
-                         FROM mengampu_materi mm
-                         INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+                         FROM materi_mulok m
+                         LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
-                         WHERE mm.kelas_id = ?
                          ORDER BY m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("i", $kelas_id);
@@ -82,52 +79,85 @@ if ($kelas_id && !empty($semester)) {
     $stmt_materi->execute();
     $materi_result = $stmt_materi->get_result();
     
-    // Hitung total materi dan materi yang sudah dikirim
-    $total_materi = 0;
-    $materi_terkirim = 0;
-    
+    // COPY PASTE PERSIS dari test_query.php - build array tanpa status dulu
+    $temp_materi_list = [];
     if ($materi_result) {
         while ($materi = $materi_result->fetch_assoc()) {
-            $total_materi++;
-            $materi_id = $materi['materi_id'];
-            $guru_id = $materi['guru_id'];
-            $nama_guru = $materi['nama_guru'];
-            
-            // Cek apakah ada nilai yang sudah dikirim untuk materi ini
-            $ada_nilai = false;
-            if (!empty($tahun_ajaran)) {
-                $query_cek_nilai = "SELECT status FROM nilai_kirim_status 
-                                   WHERE materi_mulok_id = ? 
-                                   AND kelas_id = ? 
-                                   AND semester = ? 
-                                   AND tahun_ajaran = ? 
-                                   AND status = 'terkirim'";
-                $stmt_cek = $conn->prepare($query_cek_nilai);
-                $stmt_cek->bind_param("iiss", $materi_id, $kelas_id, $semester, $tahun_ajaran);
-                $stmt_cek->execute();
-                $result_cek = $stmt_cek->get_result();
-                $ada_nilai = ($result_cek && $result_cek->num_rows > 0);
-                $stmt_cek->close();
-            }
-            
-            if ($ada_nilai) {
-                $materi_terkirim++;
-            }
-            
-            $materi_list[] = [
-                'materi_id' => $materi_id,
+            $temp_materi_list[] = [
+                'materi_id' => $materi['materi_id'],
                 'nama_mulok' => $materi['nama_mulok'],
-                'guru_id' => $guru_id,
-                'nama_guru' => (!empty($nama_guru) && $nama_guru !== null) ? $nama_guru : '-',
-                'status' => $ada_nilai ? 'terkirim' : 'belum'
+                'guru_id' => $materi['guru_id'],
+                'nama_guru' => $materi['nama_guru'] ?? '-'
             ];
         }
         $stmt_materi->close();
     }
     
+    // Sekarang cek status untuk semua materi (setelah loop selesai)
+    $total_materi = count($temp_materi_list);
+    $materi_terkirim = 0;
+    $status_nilai_materi_list = [];
+    
+    if (!empty($temp_materi_list) && !empty($tahun_ajaran)) {
+        $materi_ids = array_column($temp_materi_list, 'materi_id');
+        $ids_str = implode(',', array_map('intval', $materi_ids));
+        $kelas_id_safe = intval($kelas_id);
+        $semester_safe = $conn->real_escape_string($semester);
+        $tahun_ajaran_safe = $conn->real_escape_string($tahun_ajaran);
+        
+        $query_status = "SELECT materi_mulok_id FROM nilai_kirim_status 
+                        WHERE materi_mulok_id IN ($ids_str) 
+                        AND kelas_id = $kelas_id_safe 
+                        AND semester = '$semester_safe' 
+                        AND tahun_ajaran = '$tahun_ajaran_safe' 
+                        AND status = 'terkirim'";
+        $result_status = $conn->query($query_status);
+        
+        $terkirim_ids = [];
+        if ($result_status) {
+            while ($row = $result_status->fetch_assoc()) {
+                $terkirim_ids[] = intval($row['materi_mulok_id']);
+            }
+            $result_status->free();
+        }
+        
+        // Build final array dengan status
+        foreach ($temp_materi_list as $item) {
+            $ada_nilai = in_array($item['materi_id'], $terkirim_ids);
+            if ($ada_nilai) {
+                $materi_terkirim++;
+            }
+            
+            $status_nilai_materi_list[] = [
+                'materi_id' => $item['materi_id'],
+                'nama_mulok' => $item['nama_mulok'],
+                'guru_id' => $item['guru_id'],
+                'nama_guru' => $item['nama_guru'],
+                'status' => $ada_nilai ? 'terkirim' : 'belum'
+            ];
+        }
+    } else {
+        // Jika tidak ada tahun_ajaran, semua status 'belum'
+        foreach ($temp_materi_list as $item) {
+            $status_nilai_materi_list[] = [
+                'materi_id' => $item['materi_id'],
+                'nama_mulok' => $item['nama_mulok'],
+                'guru_id' => $item['guru_id'],
+                'nama_guru' => $item['nama_guru'],
+                'status' => 'belum'
+            ];
+        }
+    }
+    
+    // Assign ke $materi_list SETELAH semua proses selesai (sebelum include header)
+    $materi_list = $status_nilai_materi_list;
+    
     // Hitung persentase progress
     $persentase_progress = $total_materi > 0 ? round(($materi_terkirim / $total_materi) * 100, 2) : 0;
 }
+
+// DEBUG: Log jumlah materi yang ditemukan
+error_log("Status Nilai Wali Kelas - Kelas ID: $kelas_id, Semester: $semester, Total Materi: " . count($materi_list));
 
 // Set page title (variabel lokal)
 $page_title = 'Status Nilai';
@@ -139,6 +169,16 @@ $page_title = 'Status Nilai';
         <h5 class="mb-0"><i class="fas fa-tasks"></i> Status Nilai - <?php echo htmlspecialchars($kelas_data['nama_kelas'] ?? 'Tidak Ada Kelas'); ?></h5>
     </div>
     <div class="card-body">
+        <!-- DEBUG INFO -->
+        <div class="alert alert-info mb-3">
+            <strong>Debug Info:</strong><br>
+            Kelas ID: <?php echo $kelas_id; ?><br>
+            Semester: <?php echo $semester; ?><br>
+            Total Materi dalam Array: <?php echo count($materi_list); ?><br>
+            Total Materi Counter: <?php echo $total_materi; ?><br>
+            Materi Terkirim: <?php echo $materi_terkirim; ?><br>
+        </div>
+        
         <?php if ($kelas_id && !empty($materi_list)): ?>
             <!-- Progress Bar Materi Mulok -->
             <div class="card mb-4">
@@ -221,3 +261,4 @@ $page_title = 'Status Nilai';
         <?php endif; ?>
     });
 </script>
+
