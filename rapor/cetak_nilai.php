@@ -109,10 +109,10 @@ try {
     // Handle error
 }
 
-// Ambil data kelas
+// Ambil data kelas dengan wali kelas
 $kelas_data = null;
 if ($kelas_id > 0) {
-    $stmt = $conn->prepare("SELECT * FROM kelas WHERE id = ?");
+    $stmt = $conn->prepare("SELECT k.*, p.nama as wali_kelas_nama FROM kelas k LEFT JOIN pengguna p ON k.wali_kelas_id = p.id WHERE k.id = ?");
     $stmt->bind_param("i", $kelas_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -232,6 +232,16 @@ function getSemesterText($semester) {
             }
             .no-print {
                 display: none;
+            }
+            .student-page {
+                page-break-inside: avoid;
+            }
+            .nilai-table {
+                page-break-inside: auto;
+            }
+            .nilai-table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
             }
         }
         
@@ -373,7 +383,7 @@ function getSemesterText($semester) {
         .ttd-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 60px;
+            margin-bottom: 30px;
         }
         
         .ttd-item {
@@ -395,12 +405,12 @@ function getSemesterText($semester) {
         
         .ttd-center {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 10px;
         }
         
         .ttd-center label {
             display: block;
-            margin-bottom: 50px;
+            margin-bottom: 40px;
             font-size: 12pt;
         }
         
@@ -411,12 +421,26 @@ function getSemesterText($semester) {
         }
         
         .student-page {
-            page-break-after: always;
             margin-bottom: 50px;
         }
         
-        .student-page:last-child {
-            page-break-after: auto;
+        @media print {
+            .student-page {
+                page-break-after: always;
+                page-break-inside: auto;
+            }
+            .student-page:last-child {
+                page-break-after: auto;
+            }
+            .nilai-table {
+                page-break-inside: auto;
+            }
+            .nilai-table tr {
+                page-break-inside: avoid;
+            }
+            .ttd-row, .ttd-center {
+                page-break-inside: avoid;
+            }
         }
     </style>
     <script>
@@ -568,7 +592,7 @@ function getSemesterText($semester) {
             <div class="ttd-row">
                 <div class="ttd-item">
                     <label>Wali Murid,</label>
-                    <div class="nama">(___________________)</div>
+                    <div class="nama">(<?php echo htmlspecialchars($siswa['orangtua_wali'] ?? '___________________'); ?>)</div>
                 </div>
                 <div class="ttd-item">
                     <label>Wali Kelas,</label>
@@ -577,17 +601,14 @@ function getSemesterText($semester) {
             </div>
             
             <div class="ttd-center">
-                <label>Mengetahui</label>
-                <div style="margin-bottom: 10px; margin-top: 10px;">Kepala MI,</div>
+                <div style="margin-bottom: 5px;">Mengetahui</div>
+                <div style="margin-bottom: 50px;">Kepala MI,</div>
                 <div class="nama">(<?php echo htmlspecialchars($profil_madrasah['nama_kepala'] ?? '-'); ?>)</div>
             </div>
         </div>
-        
-        <?php if ($index < count($siswa_list) - 1): ?>
-            <div style="page-break-after: always;"></div>
-        <?php endif; ?>
         <?php endforeach; ?>
     </div>
 </body>
 </html>
+
 

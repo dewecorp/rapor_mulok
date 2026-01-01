@@ -219,7 +219,7 @@ $page_title = 'Cetak Rapor';
     
     function cetakSemuaRapor() {
         var kelasId = $('#filterKelas').val();
-        window.open('cetak_rapor.php?kelas=' + kelasId + '&semua=1', '_blank');
+        window.open('cetak_semua_rapor.php?kelas=' + kelasId, '_blank');
     }
     
     function cetakSemuaNilai() {
