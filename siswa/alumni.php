@@ -7,6 +7,54 @@ $conn = getConnection();
 $success = '';
 $error = '';
 
+// Handle delete multiple alumni
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'delete_multiple') {
+    $alumni_ids = $_POST['alumni_ids'] ?? [];
+    
+    if (empty($alumni_ids) || !is_array($alumni_ids)) {
+        $error = 'Pilih alumni yang akan dihapus!';
+    } else {
+        $delete_count = 0;
+        $conn->begin_transaction();
+        
+        try {
+            foreach ($alumni_ids as $alumni_id) {
+                $alumni_id = intval($alumni_id);
+                if ($alumni_id > 0) {
+                    // Validasi: Pastikan siswa benar-benar alumni
+                    $stmt_validate = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
+                    $stmt_validate->bind_param("i", $alumni_id);
+                    $stmt_validate->execute();
+                    $result_validate = $stmt_validate->get_result();
+                    $siswa_data = $result_validate->fetch_assoc();
+                    $stmt_validate->close();
+                    
+                    // Cek apakah siswa adalah alumni
+                    if ($siswa_data && $siswa_data['kelas_id'] == $kelas_alumni_id) {
+                        $stmt = $conn->prepare("DELETE FROM siswa WHERE id = ?");
+                        $stmt->bind_param("i", $alumni_id);
+                        if ($stmt->execute()) {
+                            $delete_count++;
+                        }
+                        $stmt->close();
+                    }
+                }
+            }
+            
+            // Update jumlah siswa di kelas alumni
+            if ($kelas_alumni_id) {
+                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_alumni_id) WHERE id = $kelas_alumni_id");
+            }
+            
+            $conn->commit();
+            $success = "Berhasil menghapus $delete_count data alumni!";
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error = 'Gagal menghapus data alumni: ' . $e->getMessage();
+        }
+    }
+}
+
 // Filter tahun ajaran
 $tahun_ajaran_filter = isset($_GET['tahun_ajaran']) && $_GET['tahun_ajaran'] !== '' ? $_GET['tahun_ajaran'] : '';
 
@@ -132,6 +180,58 @@ if ($kelas_alumni_id) {
     }
 }
 
+// Handle delete multiple alumni (setelah $kelas_alumni_id didefinisikan)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'delete_multiple') {
+    $alumni_ids = $_POST['alumni_ids'] ?? [];
+    
+    if (empty($alumni_ids) || !is_array($alumni_ids)) {
+        $error = 'Pilih alumni yang akan dihapus!';
+    } else {
+        $delete_count = 0;
+        $conn->begin_transaction();
+        
+        try {
+            foreach ($alumni_ids as $alumni_id) {
+                $alumni_id = intval($alumni_id);
+                if ($alumni_id > 0) {
+                    // Validasi: Pastikan siswa benar-benar alumni
+                    $stmt_validate = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
+                    $stmt_validate->bind_param("i", $alumni_id);
+                    $stmt_validate->execute();
+                    $result_validate = $stmt_validate->get_result();
+                    $siswa_data = $stmt_validate->fetch_assoc();
+                    $stmt_validate->close();
+                    
+                    // Cek apakah siswa adalah alumni
+                    if ($siswa_data && $siswa_data['kelas_id'] == $kelas_alumni_id) {
+                        $stmt = $conn->prepare("DELETE FROM siswa WHERE id = ?");
+                        $stmt->bind_param("i", $alumni_id);
+                        if ($stmt->execute()) {
+                            $delete_count++;
+                        }
+                        $stmt->close();
+                    }
+                }
+            }
+            
+            // Update jumlah siswa di kelas alumni
+            if ($kelas_alumni_id) {
+                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_alumni_id) WHERE id = $kelas_alumni_id");
+            }
+            
+            $conn->commit();
+            $success = "Berhasil menghapus $delete_count data alumni!";
+            
+            // Redirect untuk refresh data
+            header('Location: alumni.php' . (!empty($tahun_ajaran_filter) ? '?tahun_ajaran=' . urlencode($tahun_ajaran_filter) : ''));
+            exit();
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error = 'Gagal menghapus data alumni: ' . $e->getMessage();
+        }
+    }
+}
+
 // Query data alumni
 $alumni_data = [];
 try {
@@ -211,19 +311,26 @@ $page_title = 'Data Alumni';
             </div>
         <?php endif; ?>
         
-        <div class="mb-3">
-            <label class="form-label">Filter Tahun Ajaran</label>
-            <select class="form-select" id="filterTahunAjaran" onchange="filterTahunAjaran()" style="max-width: 300px;">
-                <option value="">-- Semua Tahun Ajaran --</option>
-                <?php 
-                foreach ($tahun_ajaran_list as $tahun): 
-                ?>
-                    <option value="<?php echo htmlspecialchars($tahun); ?>" <?php echo $tahun_ajaran_filter == $tahun ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($tahun); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <small class="text-muted">Pilih tahun ajaran untuk melihat alumni berdasarkan tahun ajaran tertentu</small>
+        <div class="mb-3 d-flex align-items-center gap-3">
+            <div>
+                <label class="form-label">Filter Tahun Ajaran</label>
+                <select class="form-select" id="filterTahunAjaran" onchange="filterTahunAjaran()" style="max-width: 300px;">
+                    <option value="">-- Semua Tahun Ajaran --</option>
+                    <?php 
+                    foreach ($tahun_ajaran_list as $tahun): 
+                    ?>
+                        <option value="<?php echo htmlspecialchars($tahun); ?>" <?php echo $tahun_ajaran_filter == $tahun ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($tahun); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <small class="text-muted">Pilih tahun ajaran untuk melihat alumni berdasarkan tahun ajaran tertentu</small>
+            </div>
+            <div class="mt-4">
+                <span class="badge bg-info" style="font-size: 14px; padding: 8px 12px;">
+                    <i class="fas fa-users"></i> Total Alumni: <strong><?php echo count($alumni_data); ?></strong>
+                </span>
+            </div>
         </div>
         
         <?php if (!$kelas_alumni_id): ?>
@@ -240,10 +347,21 @@ $page_title = 'Data Alumni';
                 <?php endif; ?>
             </div>
         <?php else: ?>
+        <form method="POST" id="formDeleteMultiple">
+            <input type="hidden" name="action" value="delete_multiple">
+            <div class="mb-3" id="btnDeleteMultipleContainer" style="display: none;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteMultipleAlumni()">
+                    <i class="fas fa-trash"></i> Hapus yang Dipilih (<span id="selectedCount">0</span>)
+                </button>
+            </div>
+        </form>
         <div class="table-responsive">
             <table class="table table-bordered table-striped" id="tableAlumni">
                 <thead>
                     <tr>
+                        <th width="30">
+                            <input type="checkbox" id="selectAllAlumni" onchange="toggleSelectAllAlumni()">
+                        </th>
                         <th width="50">No</th>
                         <th>NISN</th>
                         <th>Nama</th>
@@ -260,6 +378,9 @@ $page_title = 'Data Alumni';
                         foreach ($alumni_data as $row): 
                     ?>
                         <tr>
+                            <td>
+                                <input type="checkbox" name="alumni_ids[]" value="<?php echo $row['id']; ?>" class="alumni-checkbox" onchange="updateDeleteButton()">
+                            </td>
                             <td><?php echo $no++; ?></td>
                             <td><?php echo htmlspecialchars($row['nisn'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($row['nama'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
@@ -280,7 +401,7 @@ $page_title = 'Data Alumni';
                     else: 
                     ?>
                         <tr>
-                            <td colspan="7" class="text-center text-muted">Tidak ada data alumni</td>
+                            <td colspan="8" class="text-center text-muted">Tidak ada data alumni</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -327,6 +448,66 @@ $page_title = 'Data Alumni';
         });
     }
     
+    function toggleSelectAllAlumni() {
+        var selectAll = document.getElementById('selectAllAlumni');
+        var checkboxes = document.querySelectorAll('.alumni-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = selectAll.checked;
+        });
+        updateDeleteButton();
+    }
+    
+    function updateDeleteButton() {
+        var checkedBoxes = document.querySelectorAll('.alumni-checkbox:checked');
+        var btnContainer = document.getElementById('btnDeleteMultipleContainer');
+        var selectedCount = document.getElementById('selectedCount');
+        
+        if (btnContainer && selectedCount) {
+            if (checkedBoxes.length > 0) {
+                btnContainer.style.display = 'block';
+                selectedCount.textContent = checkedBoxes.length;
+            } else {
+                btnContainer.style.display = 'none';
+            }
+        }
+        
+        // Update select all checkbox
+        var selectAll = document.getElementById('selectAllAlumni');
+        var allCheckboxes = document.querySelectorAll('.alumni-checkbox');
+        if (selectAll && allCheckboxes.length > 0) {
+            selectAll.checked = checkedBoxes.length === allCheckboxes.length;
+        }
+    }
+    
+    function deleteMultipleAlumni() {
+        var checkedBoxes = document.querySelectorAll('.alumni-checkbox:checked');
+        
+        if (checkedBoxes.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Peringatan',
+                text: 'Pilih alumni yang akan dihapus!',
+                confirmButtonColor: '#2d5016'
+            });
+            return;
+        }
+        
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: 'Anda akan menghapus ' + checkedBoxes.length + ' data alumni secara permanen!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('formDeleteMultiple').submit();
+            }
+        });
+    }
+    
     $(document).ready(function() {
         // Inisialisasi DataTables
         <?php if (count($alumni_data) > 0): ?>
@@ -335,11 +516,21 @@ $page_title = 'Data Alumni';
                 language: {
                     url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
                 },
-                order: [[2, 'asc']],
-                pageLength: 25
+                order: [[3, 'asc']],
+                pageLength: 25,
+                columnDefs: [
+                    { orderable: false, targets: [0, 7] } // Checkbox dan Aksi tidak bisa di-sort
+                ],
+                drawCallback: function() {
+                    // Update visibility tombol setelah DataTables redraw
+                    updateDeleteButton();
+                }
             });
         }
         <?php endif; ?>
+        
+        // Inisialisasi visibility tombol saat halaman dimuat
+        updateDeleteButton();
     });
 </script>
 
