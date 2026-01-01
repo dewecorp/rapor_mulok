@@ -18,6 +18,82 @@ try {
     $tahun_ajaran = '';
 }
 
+// Fungsi untuk menghitung tahun ajaran tujuan (tahun ajaran aktif + 1 tahun)
+function hitungTahunAjaranTujuan($tahun_ajaran_aktif) {
+    if (empty($tahun_ajaran_aktif)) {
+        return '';
+    }
+    
+    // Format tahun ajaran: YYYY/YYYY atau YYYY-YYYY
+    // Contoh: 2025/2026 atau 2025-2026
+    $tahun_ajaran_aktif = trim($tahun_ajaran_aktif);
+    
+    // Cek apakah menggunakan slash atau dash
+    if (strpos($tahun_ajaran_aktif, '/') !== false) {
+        $parts = explode('/', $tahun_ajaran_aktif);
+    } elseif (strpos($tahun_ajaran_aktif, '-') !== false) {
+        $parts = explode('-', $tahun_ajaran_aktif);
+    } else {
+        // Jika format tidak sesuai, coba parse tahun pertama
+        if (preg_match('/^(\d{4})/', $tahun_ajaran_aktif, $matches)) {
+            $tahun_awal = intval($matches[1]);
+            $tahun_akhir = $tahun_awal + 1;
+            return $tahun_akhir . '/' . ($tahun_akhir + 1);
+        }
+        return '';
+    }
+    
+    if (count($parts) >= 2) {
+        $tahun_awal = intval(trim($parts[0]));
+        $tahun_akhir = intval(trim($parts[1]));
+        
+        // Validasi tahun
+        if ($tahun_awal > 0 && $tahun_akhir > 0 && $tahun_akhir == $tahun_awal + 1) {
+            // Tahun ajaran tujuan = tahun awal + 1 / tahun akhir + 1
+            $tahun_awal_tujuan = $tahun_awal + 1;
+            $tahun_akhir_tujuan = $tahun_akhir + 1;
+            
+            // Gunakan separator yang sama dengan tahun ajaran aktif
+            $separator = strpos($tahun_ajaran_aktif, '/') !== false ? '/' : '-';
+            return $tahun_awal_tujuan . $separator . $tahun_akhir_tujuan;
+        }
+    }
+    
+    return '';
+}
+
+// Hitung tahun ajaran tujuan
+$tahun_ajaran_tujuan = hitungTahunAjaranTujuan($tahun_ajaran);
+
+// Pastikan kolom tahun_ajaran_lulus ada di tabel siswa
+try {
+    $check_column = $conn->query("SHOW COLUMNS FROM siswa LIKE 'tahun_ajaran_lulus'");
+    if ($check_column->num_rows == 0) {
+        $conn->query("ALTER TABLE siswa ADD COLUMN tahun_ajaran_lulus VARCHAR(20) NULL AFTER kelas_id");
+    }
+} catch (Exception $e) {
+    // Kolom mungkin sudah ada atau ada error lain, lanjutkan saja
+}
+
+// Cek apakah kelas tujuan adalah kelas Alumni
+$is_kelas_alumni = false;
+if (isset($_POST['kelas_baru_id'])) {
+    $kelas_baru_id_check = intval($_POST['kelas_baru_id']);
+    if ($kelas_baru_id_check > 0) {
+        $stmt_check = $conn->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
+        $stmt_check->bind_param("i", $kelas_baru_id_check);
+        $stmt_check->execute();
+        $result_check = $stmt_check->get_result();
+        if ($row_check = $result_check->fetch_assoc()) {
+            $nama_kelas_baru = strtolower($row_check['nama_kelas']);
+            if (stripos($nama_kelas_baru, 'alumni') !== false || stripos($nama_kelas_baru, 'lulus') !== false) {
+                $is_kelas_alumni = true;
+            }
+        }
+        $stmt_check->close();
+    }
+}
+
 // Handle naik kelas
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'naik') {
     $kelas_lama_id = $_POST['kelas_lama_id'] ?? 0;
@@ -29,6 +105,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     } elseif (empty($siswa_ids) || !is_array($siswa_ids)) {
         $error = 'Pilih siswa yang akan naik kelas!';
     } else {
+        // Cek apakah kelas tujuan adalah kelas Alumni
+        $is_kelas_alumni = false;
+        $stmt_check_alumni = $conn->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
+        $stmt_check_alumni->bind_param("i", $kelas_baru_id);
+        $stmt_check_alumni->execute();
+        $result_check_alumni = $stmt_check_alumni->get_result();
+        if ($row_check_alumni = $result_check_alumni->fetch_assoc()) {
+            $nama_kelas_baru = strtolower($row_check_alumni['nama_kelas']);
+            if (stripos($nama_kelas_baru, 'alumni') !== false || stripos($nama_kelas_baru, 'lulus') !== false) {
+                $is_kelas_alumni = true;
+            }
+        }
+        $stmt_check_alumni->close();
+        
         $naik_count = 0;
         $conn->begin_transaction();
         
@@ -36,11 +126,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             foreach ($siswa_ids as $siswa_id) {
                 $siswa_id = intval($siswa_id);
                 if ($siswa_id > 0) {
-                    $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ? WHERE id = ?");
-                    $stmt->bind_param("ii", $kelas_baru_id, $siswa_id);
+                    // Jika kelas tujuan adalah Alumni, simpan tahun ajaran lulus
+                    if ($is_kelas_alumni && !empty($tahun_ajaran)) {
+                        $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ?, tahun_ajaran_lulus = ? WHERE id = ?");
+                        $stmt->bind_param("isi", $kelas_baru_id, $tahun_ajaran, $siswa_id);
+                    } else {
+                        // Jika bukan Alumni, update kelas_id saja (jaga tahun_ajaran_lulus jika sudah ada)
+                        $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ? WHERE id = ?");
+                        $stmt->bind_param("ii", $kelas_baru_id, $siswa_id);
+                    }
                     if ($stmt->execute()) {
                         $naik_count++;
                     }
+                    $stmt->close();
                 }
             }
             
@@ -433,7 +531,13 @@ $page_title = 'Naik Kelas';
             <div class="col-md-6">
                 <div class="card border-success">
                     <div class="card-header bg-success text-white">
-                        <h6 class="mb-0">Tahun Ajaran Tujuan</h6>
+                        <h6 class="mb-0">
+                            <?php if (!empty($tahun_ajaran_tujuan)): ?>
+                                <?php echo htmlspecialchars($tahun_ajaran_tujuan); ?> Tahun Ajaran Tujuan
+                            <?php else: ?>
+                                Tahun Ajaran Tujuan
+                            <?php endif; ?>
+                        </h6>
                     </div>
                     <div class="card-body">
                         <form method="POST" id="formBatalNaik">

@@ -1410,6 +1410,9 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                             <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/naik-kelas.php">
                                 <i class="fas fa-circle"></i> Naik Kelas
                             </a>
+                            <a class="nav-link ps-5" href="<?php echo $basePath; ?>siswa/alumni.php">
+                                <i class="fas fa-circle"></i> Data Alumni
+                            </a>
                         </div>
                         <a class="nav-link" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#raporMenu" onclick="event.stopPropagation();">
                             <i class="fas fa-file-alt"></i> Rapor <i class="fas fa-chevron-down float-end"></i>
