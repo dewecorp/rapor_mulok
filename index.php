@@ -1132,5 +1132,69 @@ document.getElementById('formEditFoto').addEventListener('submit', function(e) {
 });
 </script>
 
+<script>
+// Auto close alert sukses di dashboard wali dan guru
+$(document).ready(function() {
+    // Cek apakah role adalah wali_kelas atau guru
+    var role = '<?php echo $role; ?>';
+    
+    if (role === 'wali_kelas' || role === 'guru') {
+        // Fungsi untuk auto close alert sukses
+        function autoCloseSuccessAlert($alert) {
+            setTimeout(function() {
+                if ($alert.hasClass('alert-dismissible')) {
+                    // Gunakan Bootstrap alert close method
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                        var bsAlert = new bootstrap.Alert($alert[0]);
+                        bsAlert.close();
+                    } else {
+                        // Fallback: fade out dan remove
+                        $alert.fadeOut(300, function() {
+                            $(this).remove();
+                        });
+                    }
+                } else {
+                    // Fade out dan remove
+                    $alert.fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                }
+            }, 3000);
+        }
+        
+        // Cari semua alert sukses yang sudah ada
+        $('.alert-success').each(function() {
+            autoCloseSuccessAlert($(this));
+        });
+        
+        // Handle alert sukses yang muncul setelah halaman dimuat (menggunakan MutationObserver)
+        if (typeof MutationObserver !== 'undefined') {
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) { // Element node
+                            var $node = $(node);
+                            if ($node.hasClass('alert-success')) {
+                                autoCloseSuccessAlert($node);
+                            }
+                            // Juga cek child elements
+                            $node.find('.alert-success').each(function() {
+                                autoCloseSuccessAlert($(this));
+                            });
+                        }
+                    });
+                });
+            });
+            
+            // Observe perubahan di body
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        }
+    }
+});
+</script>
+
 <?php include 'includes/footer.php'; ?>
 
