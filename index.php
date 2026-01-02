@@ -170,6 +170,19 @@ if ($role == 'proktor') {
     } catch (Exception $e) {
         $is_wali_kelas = false;
     }
+    
+    // Ambil data lengkap user untuk identitas
+    $user_data = null;
+    try {
+        $stmt_user = $conn->prepare("SELECT nama, tempat_lahir, tanggal_lahir, pendidikan FROM pengguna WHERE id = ?");
+        $stmt_user->bind_param("i", $user_id);
+        $stmt_user->execute();
+        $result_user = $stmt_user->get_result();
+        $user_data = $result_user ? $result_user->fetch_assoc() : null;
+        $stmt_user->close();
+    } catch (Exception $e) {
+        $user_data = null;
+    }
 } elseif ($role == 'guru') {
     // Dashboard Guru - sama dengan wali kelas tapi tanpa menu wali kelas
     // Ambil semester aktif dan tahun ajaran aktif
@@ -240,6 +253,19 @@ if ($role == 'proktor') {
     if (!empty($materi_data)) {
         // Buat object result dummy untuk kompatibilitas
         $materi_diampu = (object)['num_rows' => count($materi_data)];
+    }
+    
+    // Ambil data lengkap user untuk identitas
+    $user_data = null;
+    try {
+        $stmt_user = $conn->prepare("SELECT nama, tempat_lahir, tanggal_lahir, pendidikan FROM pengguna WHERE id = ?");
+        $stmt_user->bind_param("i", $user_id);
+        $stmt_user->execute();
+        $result_user = $stmt_user->get_result();
+        $user_data = $result_user ? $result_user->fetch_assoc() : null;
+        $stmt_user->close();
+    } catch (Exception $e) {
+        $user_data = null;
     }
 }
 
@@ -532,27 +558,43 @@ $page_title = 'Dashboard';
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card bg-success text-white">
+                    <div class="card">
+                        <div class="card-header" style="background-color: #2d5016; color: white;">
+                            <h6 class="mb-0"><i class="fas fa-school"></i> Identitas Kelas</h6>
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Jumlah Siswa</h6>
-                                    <h2 class="mb-0"><?php echo $total_siswa; ?></h2>
-                                </div>
-                                <i class="fas fa-user-graduate fa-3x opacity-50"></i>
+                            <div class="mb-3">
+                                <strong><i class="fas fa-user-graduate"></i> Jumlah Siswa:</strong><br>
+                                <h4 class="mb-0 mt-1"><?php echo $total_siswa; ?></h4>
+                            </div>
+                            <div class="mb-0">
+                                <strong><i class="fas fa-book"></i> Materi yang Diampu:</strong><br>
+                                <h4 class="mb-0 mt-1"><?php echo !empty($materi_data) ? count($materi_data) : 0; ?></h4>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card bg-info text-white">
+                    <div class="card">
+                        <div class="card-header" style="background-color: #2d5016; color: white;">
+                            <h6 class="mb-0"><i class="fas fa-id-card"></i> Identitas Wali</h6>
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Materi yang Diampu</h6>
-                                    <h2 class="mb-0"><?php echo !empty($materi_data) ? count($materi_data) : 0; ?></h2>
-                                </div>
-                                <i class="fas fa-book fa-3x opacity-50"></i>
+                            <div class="mb-2">
+                                <strong><i class="fas fa-user"></i> Nama:</strong><br>
+                                <span><?php echo htmlspecialchars($user_data['nama'] ?? $nama_wali); ?></span>
+                            </div>
+                            <div class="mb-2">
+                                <strong><i class="fas fa-map-marker-alt"></i> Tempat Lahir:</strong><br>
+                                <span><?php echo htmlspecialchars($user_data['tempat_lahir'] ?? '-'); ?></span>
+                            </div>
+                            <div class="mb-2">
+                                <strong><i class="fas fa-calendar"></i> Tanggal Lahir:</strong><br>
+                                <span><?php echo !empty($user_data['tanggal_lahir']) ? date('d/m/Y', strtotime($user_data['tanggal_lahir'])) : '-'; ?></span>
+                            </div>
+                            <div class="mb-0">
+                                <strong><i class="fas fa-graduation-cap"></i> Pendidikan:</strong><br>
+                                <span><?php echo htmlspecialchars($user_data['pendidikan'] ?? '-'); ?></span>
                             </div>
                         </div>
                     </div>
@@ -642,6 +684,31 @@ $page_title = 'Dashboard';
                             </div>
                             <h5><?php echo htmlspecialchars($nama_guru); ?></h5>
                             <p class="text-muted"><?php echo ucfirst(str_replace('_', ' ', $_SESSION['role'])); ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header" style="background-color: #2d5016; color: white;">
+                            <h6 class="mb-0"><i class="fas fa-id-card"></i> Identitas Guru</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <strong><i class="fas fa-user"></i> Nama:</strong><br>
+                                <span><?php echo htmlspecialchars($user_data['nama'] ?? $nama_guru); ?></span>
+                            </div>
+                            <div class="mb-2">
+                                <strong><i class="fas fa-map-marker-alt"></i> Tempat Lahir:</strong><br>
+                                <span><?php echo htmlspecialchars($user_data['tempat_lahir'] ?? '-'); ?></span>
+                            </div>
+                            <div class="mb-2">
+                                <strong><i class="fas fa-calendar"></i> Tanggal Lahir:</strong><br>
+                                <span><?php echo !empty($user_data['tanggal_lahir']) ? date('d/m/Y', strtotime($user_data['tanggal_lahir'])) : '-'; ?></span>
+                            </div>
+                            <div class="mb-0">
+                                <strong><i class="fas fa-graduation-cap"></i> Pendidikan:</strong><br>
+                                <span><?php echo htmlspecialchars($user_data['pendidikan'] ?? '-'); ?></span>
+                            </div>
                         </div>
                     </div>
                 </div>
