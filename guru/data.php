@@ -768,11 +768,11 @@ $page_title = 'Data Guru';
     }
     
     function exportExcel() {
-        window.location.href = 'export_guru.php?format=excel';
+        window.open('export_guru.php?format=excel', '_blank');
     }
     
     function exportPDF() {
-        window.location.href = 'export_guru.php?format=pdf';
+        window.open('export_guru.php?format=pdf', '_blank');
     }
     
     // Fungsi untuk toggle password visibility

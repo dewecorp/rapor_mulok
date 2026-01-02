@@ -488,12 +488,12 @@ $page_title = 'Data Siswa';
     
     function exportExcel() {
         var kelas = $('#filterKelas').val();
-        window.location.href = 'export_siswa.php?format=excel&kelas=' + kelas;
+        window.open('export_siswa.php?format=excel&kelas=' + kelas, '_blank');
     }
     
     function exportPDF() {
         var kelas = $('#filterKelas').val();
-        window.location.href = 'export_siswa.php?format=pdf&kelas=' + kelas;
+        window.open('export_siswa.php?format=pdf&kelas=' + kelas, '_blank');
     }
     
     // Reset form saat modal ditutup

@@ -204,14 +204,89 @@ if (isset($_GET['edit']) && empty($success) && empty($error)) {
     }
 }
 
-// Ambil semua data dengan ORDER BY yang benar
+// Ambil parameter filter
+$filter_kategori = isset($_GET['filter_kategori']) ? trim($_GET['filter_kategori']) : '';
+$filter_nama = isset($_GET['filter_nama']) ? trim($_GET['filter_nama']) : '';
+$filter_kelas = isset($_GET['filter_kelas']) ? intval($_GET['filter_kelas']) : 0;
+$filter_semester = isset($_GET['filter_semester']) ? trim($_GET['filter_semester']) : '';
+
+// Ambil semua data dengan ORDER BY yang benar dan filter
 $materi_data = [];
 try {
     // Tentukan kolom untuk ORDER BY
     $order_by = $has_kategori_mulok ? 'kategori_mulok' : ($has_kode_mulok ? 'kode_mulok' : 'id');
     
-    $query = "SELECT * FROM materi_mulok ORDER BY $order_by ASC";
-    $result = $conn->query($query);
+    // Build query dengan filter
+    $params = [];
+    $types = '';
+    
+    if ($use_kelas_semester) {
+        $query = "SELECT m.*, k.nama_kelas 
+                  FROM materi_mulok m 
+                  LEFT JOIN kelas k ON m.kelas_id = k.id 
+                  WHERE 1=1";
+        
+        // Filter kategori/kode
+        if (!empty($filter_kategori)) {
+            $query .= " AND m.$kolom_kategori LIKE ?";
+            $params[] = '%' . $filter_kategori . '%';
+            $types .= 's';
+        }
+        
+        // Filter nama mulok
+        if (!empty($filter_nama)) {
+            $query .= " AND m.nama_mulok LIKE ?";
+            $params[] = '%' . $filter_nama . '%';
+            $types .= 's';
+        }
+        
+        // Filter kelas
+        if ($filter_kelas > 0) {
+            $query .= " AND m.kelas_id = ?";
+            $params[] = $filter_kelas;
+            $types .= 'i';
+        }
+        
+        // Filter semester
+        if (!empty($filter_semester)) {
+            $query .= " AND m.semester = ?";
+            $params[] = $filter_semester;
+            $types .= 's';
+        }
+        
+        $query .= " ORDER BY m.$order_by ASC";
+    } else {
+        $query = "SELECT * FROM materi_mulok WHERE 1=1";
+        
+        // Filter kategori/kode
+        if (!empty($filter_kategori)) {
+            $query .= " AND $kolom_kategori LIKE ?";
+            $params[] = '%' . $filter_kategori . '%';
+            $types .= 's';
+        }
+        
+        // Filter nama mulok
+        if (!empty($filter_nama)) {
+            $query .= " AND nama_mulok LIKE ?";
+            $params[] = '%' . $filter_nama . '%';
+            $types .= 's';
+        }
+        
+        $query .= " ORDER BY $order_by ASC";
+    }
+    
+    // Execute query
+    if (!empty($params)) {
+        $stmt = $conn->prepare($query);
+        if ($types) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        $result = $conn->query($query);
+    }
+    
     if (!$result) {
         $error = 'Error query: ' . $conn->error;
     } else {
@@ -221,6 +296,20 @@ try {
     }
 } catch (Exception $e) {
     $error = 'Error: ' . $e->getMessage();
+}
+
+// Ambil daftar kategori unik untuk dropdown filter
+$kategori_list = [];
+try {
+    $query_kategori = "SELECT DISTINCT $kolom_kategori FROM materi_mulok WHERE $kolom_kategori IS NOT NULL AND $kolom_kategori != '' ORDER BY $kolom_kategori";
+    $result_kategori = $conn->query($query_kategori);
+    if ($result_kategori) {
+        while ($row = $result_kategori->fetch_assoc()) {
+            $kategori_list[] = $row[$kolom_kategori];
+        }
+    }
+} catch (Exception $e) {
+    // Ignore
 }
 
 // Ambil data kelas untuk dropdown (jika menggunakan kelas_id)
@@ -248,6 +337,12 @@ include '../includes/header.php';
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-book"></i> Materi Mulok</h5>
         <div>
+            <button type="button" class="btn btn-light btn-sm" onclick="exportExcel()">
+                <i class="fas fa-file-excel"></i> Excel
+            </button>
+            <button type="button" class="btn btn-light btn-sm" onclick="exportPDF()">
+                <i class="fas fa-file-pdf"></i> PDF
+            </button>
             <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMateri">
                 <i class="fas fa-plus"></i> Tambah
             </button>
@@ -267,6 +362,67 @@ include '../includes/header.php';
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
+        
+        <!-- Filter Form -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="GET" action="materi.php" id="filterForm">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label"><?php echo $has_kategori_mulok ? 'Kategori' : 'Kode'; ?> Mulok</label>
+                            <select class="form-select form-select-sm" name="filter_kategori" id="filterKategori">
+                                <option value="">-- Semua <?php echo $has_kategori_mulok ? 'Kategori' : 'Kode'; ?> --</option>
+                                <?php foreach ($kategori_list as $kat): ?>
+                                    <option value="<?php echo htmlspecialchars($kat); ?>" <?php echo $filter_kategori == $kat ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($kat); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Nama Mulok</label>
+                            <input type="text" class="form-control form-control-sm" name="filter_nama" id="filterNama" 
+                                   value="<?php echo htmlspecialchars($filter_nama); ?>" 
+                                   placeholder="Cari nama mulok...">
+                        </div>
+                        <?php if ($use_kelas_semester): ?>
+                        <div class="col-md-2">
+                            <label class="form-label">Kelas</label>
+                            <select class="form-select form-select-sm" name="filter_kelas" id="filterKelas">
+                                <option value="">-- Semua Kelas --</option>
+                                <?php foreach ($kelas_data as $kelas): 
+                                    // Skip kelas Alumni dari filter
+                                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
+                                        continue;
+                                    }
+                                ?>
+                                    <option value="<?php echo $kelas['id']; ?>" <?php echo $filter_kelas == $kelas['id'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Semester</label>
+                            <select class="form-select form-select-sm" name="filter_semester" id="filterSemester">
+                                <option value="">-- Semua Semester --</option>
+                                <option value="1" <?php echo $filter_semester == '1' ? 'selected' : ''; ?>>Semester 1</option>
+                                <option value="2" <?php echo $filter_semester == '2' ? 'selected' : ''; ?>>Semester 2</option>
+                            </select>
+                        </div>
+                        <?php endif; ?>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary btn-sm me-2">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                            <a href="materi.php" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-redo"></i> Reset
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
         
         <div class="table-responsive">
             <table class="table table-bordered table-striped" id="tableMateri">
@@ -312,8 +468,11 @@ include '../includes/header.php';
                             <?php if ($use_kelas_semester): ?>
                                 <td>
                                     <?php 
-                                    if (!empty($row['kelas_id'])) {
-                                        // Ambil nama kelas
+                                    // Nama kelas sudah diambil dari JOIN, atau ambil dari row
+                                    if (!empty($row['nama_kelas'])) {
+                                        echo htmlspecialchars($row['nama_kelas']);
+                                    } elseif (!empty($row['kelas_id'])) {
+                                        // Fallback jika JOIN tidak berhasil
                                         try {
                                             $stmt_kelas = $conn->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
                                             $stmt_kelas->bind_param("i", $row['kelas_id']);
@@ -461,6 +620,40 @@ include '../includes/header.php';
                 form.submit();
             }
         });
+    }
+    
+    function exportExcel() {
+        // Ambil parameter filter dari URL
+        var urlParams = new URLSearchParams(window.location.search);
+        var filterKategori = urlParams.get('filter_kategori') || '';
+        var filterNama = urlParams.get('filter_nama') || '';
+        var filterKelas = urlParams.get('filter_kelas') || '';
+        var filterSemester = urlParams.get('filter_semester') || '';
+        
+        var exportUrl = 'export_materi.php?format=excel';
+        if (filterKategori) exportUrl += '&filter_kategori=' + encodeURIComponent(filterKategori);
+        if (filterNama) exportUrl += '&filter_nama=' + encodeURIComponent(filterNama);
+        if (filterKelas) exportUrl += '&filter_kelas=' + encodeURIComponent(filterKelas);
+        if (filterSemester) exportUrl += '&filter_semester=' + encodeURIComponent(filterSemester);
+        
+        window.open(exportUrl, '_blank');
+    }
+    
+    function exportPDF() {
+        // Ambil parameter filter dari URL
+        var urlParams = new URLSearchParams(window.location.search);
+        var filterKategori = urlParams.get('filter_kategori') || '';
+        var filterNama = urlParams.get('filter_nama') || '';
+        var filterKelas = urlParams.get('filter_kelas') || '';
+        var filterSemester = urlParams.get('filter_semester') || '';
+        
+        var exportUrl = 'export_materi.php?format=pdf';
+        if (filterKategori) exportUrl += '&filter_kategori=' + encodeURIComponent(filterKategori);
+        if (filterNama) exportUrl += '&filter_nama=' + encodeURIComponent(filterNama);
+        if (filterKelas) exportUrl += '&filter_kelas=' + encodeURIComponent(filterKelas);
+        if (filterSemester) exportUrl += '&filter_semester=' + encodeURIComponent(filterSemester);
+        
+        window.open(exportUrl, '_blank');
     }
     
     // Reset form saat modal ditutup
