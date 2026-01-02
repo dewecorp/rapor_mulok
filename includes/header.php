@@ -245,6 +245,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         .navbar-brand img {
             height: 40px;
             margin-right: 10px;
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
         }
         
         .navbar-brand-content {
@@ -1190,6 +1191,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             .navbar-brand img {
                 height: 30px;
                 margin-right: 8px;
+                filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
             }
             
             .navbar-brand-app-name {
