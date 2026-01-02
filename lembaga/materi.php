@@ -254,7 +254,7 @@ try {
             $types .= 's';
         }
         
-        $query .= " ORDER BY m.$order_by ASC";
+        $query .= " ORDER BY m.$kolom_kategori ASC, m.nama_mulok ASC";
     } else {
         $query = "SELECT * FROM materi_mulok WHERE 1=1";
         
@@ -272,7 +272,7 @@ try {
             $types .= 's';
         }
         
-        $query .= " ORDER BY $order_by ASC";
+        $query .= " ORDER BY $kolom_kategori ASC, nama_mulok ASC";
     }
     
     // Execute query
@@ -590,8 +590,11 @@ include '../includes/header.php';
             language: {
                 url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
             },
-            order: [[1, 'asc']],
-            pageLength: 25
+            order: [[1, 'asc'], [2, 'asc']], // Sort berdasarkan Kategori/Kode (kolom 1) lalu Nama Mulok (kolom 2)
+            pageLength: 25,
+            columnDefs: [
+                { orderable: false, targets: [<?php echo $use_kelas_semester ? '5' : ($has_jumlah_jam ? '4' : '3'); ?>] } // Kolom Aksi tidak bisa di-sort
+            ]
         });
         <?php endif; ?>
     });

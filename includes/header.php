@@ -254,7 +254,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         }
         
         .navbar-brand-app-name {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: bold;
             margin: 0;
             display: flex;
@@ -263,7 +263,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         }
         
         .navbar-brand-school-name {
-            font-size: 12px;
+            font-size: 16px;
             font-weight: normal;
             opacity: 0.9;
             margin: 0;
@@ -271,10 +271,10 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         }
         
         .navbar-brand-academic-info {
-            font-size: 11px;
+            font-size: 15px;
             font-weight: normal;
             opacity: 0.85;
-            padding: 2px 8px;
+            padding: 5px 12px;
             background-color: rgba(255, 255, 255, 0.15);
             border-radius: 4px;
             white-space: nowrap;
@@ -512,9 +512,9 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         }
         
         .sidebar-toggle-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
+            position: relative;
+            width: 100%;
+            margin: 10px 8px 0 8px;
             background: rgba(45, 80, 22, 0.1);
             border: none;
             color: #2d5016;
@@ -523,6 +523,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             cursor: pointer;
             z-index: 10;
             transition: background-color 0.2s ease;
+            text-align: center;
         }
         
         .sidebar-toggle-btn:hover {
@@ -530,8 +531,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         }
         
         .sidebar.collapsed .sidebar-toggle-btn {
-            right: 5px;
-            left: 5px;
+            margin: 10px 5px 0 5px;
             width: auto;
         }
         
@@ -1024,19 +1024,19 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             }
             
             .navbar-brand {
-                font-size: 14px;
+                font-size: 18px;
             }
             
             .navbar-brand-app-name {
-                font-size: 14px;
+                font-size: 18px;
             }
             
             .navbar-brand-school-name {
-                font-size: 11px;
+                font-size: 15px;
             }
             
             .navbar-brand-academic-info {
-                font-size: 10px;
+                font-size: 14px;
             }
             
             .modal-dialog {
@@ -1193,15 +1193,15 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             }
             
             .navbar-brand-app-name {
-                font-size: 12px;
+                font-size: 16px;
             }
             
             .navbar-brand-school-name {
-                font-size: 10px;
+                font-size: 14px;
             }
             
             .navbar-brand-academic-info {
-                font-size: 9px;
+                font-size: 13px;
             }
             
             .navbar-toggler {
@@ -1441,9 +1441,6 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-3 col-lg-2 sidebar p-0" id="sidebar">
-                <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
                 <nav class="nav flex-column mt-3">
                     <?php if ($user['role'] == 'proktor'): ?>
                         <a class="nav-link" href="<?php echo $basePath; ?>index.php">
@@ -1608,6 +1605,9 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                     <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
                         <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
                     </a>
+                    <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar" style="margin-top: 10px;">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
                 </nav>
             </div>
             <div class="col-md-9 col-lg-10 content-wrapper">
