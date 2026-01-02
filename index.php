@@ -690,6 +690,16 @@ $page_title = 'Dashboard';
                 <div class="col-md-4">
                     <div class="card">
                         <div class="card-header" style="background-color: #2d5016; color: white;">
+                            <h6 class="mb-0"><i class="fas fa-book"></i> Materi yang Diampu</h6>
+                        </div>
+                        <div class="card-body">
+                            <h2 class="mb-0"><?php echo !empty($materi_data) ? count($materi_data) : 0; ?></h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header" style="background-color: #2d5016; color: white;">
                             <h6 class="mb-0"><i class="fas fa-id-card"></i> Identitas Guru</h6>
                         </div>
                         <div class="card-body">
@@ -708,19 +718,6 @@ $page_title = 'Dashboard';
                             <div class="mb-0">
                                 <strong><i class="fas fa-graduation-cap"></i> Pendidikan:</strong><br>
                                 <span><?php echo htmlspecialchars($user_data['pendidikan'] ?? '-'); ?></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card bg-info text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Materi yang Diampu</h6>
-                                    <h2 class="mb-0"><?php echo !empty($materi_data) ? count($materi_data) : 0; ?></h2>
-                                </div>
-                                <i class="fas fa-book fa-3x opacity-50"></i>
                             </div>
                         </div>
                     </div>
