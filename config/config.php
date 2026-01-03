@@ -354,8 +354,8 @@ function logAktivitas($jenis_aktivitas, $deskripsi = '', $tabel_target = null, $
             KEY `idx_tabel_target` (`tabel_target`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         
-        // Hapus aktivitas yang lebih dari 7 hari (bukan 24 jam lagi karena sekarang lebih lengkap)
-        $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        // Hapus aktivitas yang lebih dari 24 jam
+        $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
         
         // Insert aktivitas
         $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';

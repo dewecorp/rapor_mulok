@@ -369,7 +369,7 @@ $page_title = 'Dashboard';
                 $info_aplikasi = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
             }
             
-            // Ambil aktivitas pengguna (7 hari terakhir)
+            // Ambil aktivitas pengguna (24 jam terakhir)
             $aktivitas_data = [];
             $total_aktivitas = 0;
             try {
@@ -402,7 +402,7 @@ $page_title = 'Dashboard';
                     $conn->query("INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, ip_address, user_agent, waktu)
                         SELECT user_id, nama, role, 'login', 'User login ke sistem', ip_address, user_agent, waktu_login
                         FROM aktivitas_login
-                        WHERE waktu_login >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                        WHERE waktu_login >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                         AND NOT EXISTS (
                             SELECT 1 FROM aktivitas_pengguna ap 
                             WHERE ap.user_id = aktivitas_login.user_id 
@@ -410,13 +410,14 @@ $page_title = 'Dashboard';
                         )");
                 }
                 
-                // Hapus aktivitas yang lebih dari 7 hari
-                $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+                // Hapus aktivitas yang lebih dari 24 jam
+                $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
                 
-                // Ambil aktivitas 7 hari terakhir dengan perhitungan selisih waktu dari database
+                // Ambil aktivitas 24 jam terakhir dengan perhitungan selisih waktu dari database
                 $query_aktivitas = "SELECT *, 
                     TIMESTAMPDIFF(SECOND, waktu, NOW()) as selisih_detik
                     FROM aktivitas_pengguna 
+                    WHERE waktu >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                     ORDER BY waktu DESC 
                     LIMIT 100";
                 $result_aktivitas = $conn->query($query_aktivitas);
@@ -451,7 +452,7 @@ $page_title = 'Dashboard';
             <div class="card mt-3">
                 <div class="card-header" style="background-color: #2d5016; color: white;">
                     <h6 class="mb-0">
-                        <i class="fas fa-history"></i> Aktivitas Pengguna (7 Hari Terakhir)
+                        <i class="fas fa-history"></i> Aktivitas Pengguna (24 Jam Terakhir)
                         <span class="badge bg-light text-dark ms-2"><?php echo $total_aktivitas; ?></span>
                     </h6>
                 </div>
@@ -601,7 +602,7 @@ $page_title = 'Dashboard';
                         </div>
                     <?php else: ?>
                         <p class="text-muted text-center py-3">
-                            <i class="fas fa-inbox"></i> Belum ada aktivitas pengguna dalam 7 hari terakhir.
+                            <i class="fas fa-inbox"></i> Belum ada aktivitas pengguna dalam 24 jam terakhir.
                         </p>
                     <?php endif; ?>
                 </div>

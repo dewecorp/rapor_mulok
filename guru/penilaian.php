@@ -187,6 +187,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 }
             }
             $conn->commit();
+            
+            // Log aktivitas - setelah commit berhasil
+            $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `user_id` int(11) NOT NULL,
+                `nama` varchar(255) NOT NULL,
+                `role` varchar(50) NOT NULL,
+                `jenis_aktivitas` varchar(50) NOT NULL,
+                `deskripsi` text DEFAULT NULL,
+                `tabel_target` varchar(100) DEFAULT NULL,
+                `record_id` int(11) DEFAULT NULL,
+                `ip_address` varchar(50) DEFAULT NULL,
+                `user_agent` text DEFAULT NULL,
+                `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_user_id` (`user_id`),
+                KEY `idx_waktu` (`waktu`),
+                KEY `idx_role` (`role`),
+                KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                KEY `idx_tabel_target` (`tabel_target`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+            $count_nilai = count($nilai_array);
+            $deskripsi_text = "Menyimpan nilai untuk $count_nilai siswa";
+            
+            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                        VALUES (
+                            " . (int)$_SESSION['user_id'] . ",
+                            '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                            '" . $conn->real_escape_string($_SESSION['role']) . "',
+                            'update',
+                            '" . $conn->real_escape_string($deskripsi_text) . "',
+                            'nilai_siswa',
+                            NULL,
+                            '" . $conn->real_escape_string($ip_address) . "',
+                            '" . $conn->real_escape_string($user_agent) . "'
+                        )";
+            $conn->query($sql_log);
+            
             $_SESSION['success_message'] = 'Nilai berhasil disimpan!';
             // Redirect untuk refresh data dengan parameter kelas_nama jika ada
             $redirect_url = 'penilaian.php?materi_id=' . $materi_id_post;
@@ -311,6 +352,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 }
             }
             $conn->commit();
+            
+            // Log aktivitas - setelah commit berhasil
+            $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `user_id` int(11) NOT NULL,
+                `nama` varchar(255) NOT NULL,
+                `role` varchar(50) NOT NULL,
+                `jenis_aktivitas` varchar(50) NOT NULL,
+                `deskripsi` text DEFAULT NULL,
+                `tabel_target` varchar(100) DEFAULT NULL,
+                `record_id` int(11) DEFAULT NULL,
+                `ip_address` varchar(50) DEFAULT NULL,
+                `user_agent` text DEFAULT NULL,
+                `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_user_id` (`user_id`),
+                KEY `idx_waktu` (`waktu`),
+                KEY `idx_role` (`role`),
+                KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                KEY `idx_tabel_target` (`tabel_target`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+            $count_nilai = count($nilai_array);
+            $deskripsi_text = "Menyimpan nilai untuk $count_nilai siswa";
+            
+            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                        VALUES (
+                            " . (int)$_SESSION['user_id'] . ",
+                            '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                            '" . $conn->real_escape_string($_SESSION['role']) . "',
+                            'update',
+                            '" . $conn->real_escape_string($deskripsi_text) . "',
+                            'nilai_siswa',
+                            NULL,
+                            '" . $conn->real_escape_string($ip_address) . "',
+                            '" . $conn->real_escape_string($user_agent) . "'
+                        )";
+            $conn->query($sql_log);
+            
             $_SESSION['success_message'] = 'Nilai berhasil disimpan!';
             // Redirect untuk refresh data dengan parameter kelas_nama jika ada
             $redirect_url = 'penilaian.php?materi_id=' . $materi_id_post;

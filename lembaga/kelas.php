@@ -302,14 +302,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $id = $_POST['id'] ?? 0;
             
             try {
-                // Ambil wali_kelas_id sebelum delete
+                // Ambil nama kelas dan wali_kelas_id sebelum delete
+                $nama_kelas_hapus = '';
                 $wali_kelas_id_hapus = null;
-                $stmt_get = $conn->prepare("SELECT wali_kelas_id FROM kelas WHERE id = ?");
+                $stmt_get = $conn->prepare("SELECT nama_kelas, wali_kelas_id FROM kelas WHERE id = ?");
                 $stmt_get->bind_param("i", $id);
                 $stmt_get->execute();
                 $result_get = $stmt_get->get_result();
                 if ($result_get && $result_get->num_rows > 0) {
                     $row_get = $result_get->fetch_assoc();
+                    $nama_kelas_hapus = $row_get['nama_kelas'] ?? '';
                     $wali_kelas_id_hapus = $row_get['wali_kelas_id'] ?? null;
                 }
                 $stmt_get->close();
@@ -337,6 +339,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $stmt_role->close();
                         }
                     }
+                    
+                    // Log aktivitas
+                    $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                        `id` int(11) NOT NULL AUTO_INCREMENT,
+                        `user_id` int(11) NOT NULL,
+                        `nama` varchar(255) NOT NULL,
+                        `role` varchar(50) NOT NULL,
+                        `jenis_aktivitas` varchar(50) NOT NULL,
+                        `deskripsi` text DEFAULT NULL,
+                        `tabel_target` varchar(100) DEFAULT NULL,
+                        `record_id` int(11) DEFAULT NULL,
+                        `ip_address` varchar(50) DEFAULT NULL,
+                        `user_agent` text DEFAULT NULL,
+                        `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (`id`),
+                        KEY `idx_user_id` (`user_id`),
+                        KEY `idx_waktu` (`waktu`),
+                        KEY `idx_role` (`role`),
+                        KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                        KEY `idx_tabel_target` (`tabel_target`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                    
+                    $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                    $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                    $deskripsi_text = "Menghapus data kelas: $nama_kelas_hapus";
+                    
+                    $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                                VALUES (
+                                    " . (int)$_SESSION['user_id'] . ",
+                                    '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                    '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                    'delete',
+                                    '" . $conn->real_escape_string($deskripsi_text) . "',
+                                    'kelas',
+                                    " . (int)$id . ",
+                                    '" . $conn->real_escape_string($ip_address) . "',
+                                    '" . $conn->real_escape_string($user_agent) . "'
+                                )";
+                    $conn->query($sql_log);
                     
                     $success = 'Kelas berhasil dihapus!';
                 } else {

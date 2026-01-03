@@ -36,6 +36,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->bind_param("sssssssss", $nama, $email, $jenis_kelamin, $tempat_lahir, $tanggal_lahir, $username, $password, $foto, $role);
             
             if ($stmt->execute()) {
+                $new_id = $conn->insert_id;
+                
+                // Log aktivitas
+                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `user_id` int(11) NOT NULL,
+                    `nama` varchar(255) NOT NULL,
+                    `role` varchar(50) NOT NULL,
+                    `jenis_aktivitas` varchar(50) NOT NULL,
+                    `deskripsi` text DEFAULT NULL,
+                    `tabel_target` varchar(100) DEFAULT NULL,
+                    `record_id` int(11) DEFAULT NULL,
+                    `ip_address` varchar(50) DEFAULT NULL,
+                    `user_agent` text DEFAULT NULL,
+                    `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    KEY `idx_user_id` (`user_id`),
+                    KEY `idx_waktu` (`waktu`),
+                    KEY `idx_role` (`role`),
+                    KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                    KEY `idx_tabel_target` (`tabel_target`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                $deskripsi_text = "Menambahkan data pengguna: $nama";
+                
+                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                            VALUES (
+                                " . (int)$_SESSION['user_id'] . ",
+                                '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                'create',
+                                '" . $conn->real_escape_string($deskripsi_text) . "',
+                                'pengguna',
+                                " . (int)$new_id . ",
+                                '" . $conn->real_escape_string($ip_address) . "',
+                                '" . $conn->real_escape_string($user_agent) . "'
+                            )";
+                $conn->query($sql_log);
+                
                 $success = 'Pengguna berhasil ditambahkan!';
             } else {
                 $error = 'Gagal menambahkan pengguna!';
@@ -80,6 +121,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->bind_param("ssssssssi", $nama, $email, $jenis_kelamin, $tempat_lahir, $tanggal_lahir, $username, $foto, $role, $id);
             
             if ($stmt->execute()) {
+                // Log aktivitas
+                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `user_id` int(11) NOT NULL,
+                    `nama` varchar(255) NOT NULL,
+                    `role` varchar(50) NOT NULL,
+                    `jenis_aktivitas` varchar(50) NOT NULL,
+                    `deskripsi` text DEFAULT NULL,
+                    `tabel_target` varchar(100) DEFAULT NULL,
+                    `record_id` int(11) DEFAULT NULL,
+                    `ip_address` varchar(50) DEFAULT NULL,
+                    `user_agent` text DEFAULT NULL,
+                    `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    KEY `idx_user_id` (`user_id`),
+                    KEY `idx_waktu` (`waktu`),
+                    KEY `idx_role` (`role`),
+                    KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                    KEY `idx_tabel_target` (`tabel_target`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                $deskripsi_text = "Memperbarui data pengguna: $nama";
+                
+                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                            VALUES (
+                                " . (int)$_SESSION['user_id'] . ",
+                                '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                'update',
+                                '" . $conn->real_escape_string($deskripsi_text) . "',
+                                'pengguna',
+                                " . (int)$id . ",
+                                '" . $conn->real_escape_string($ip_address) . "',
+                                '" . $conn->real_escape_string($user_agent) . "'
+                            )";
+                $conn->query($sql_log);
+                
                 $success = 'Pengguna berhasil diperbarui!';
             } else {
                 $error = 'Gagal memperbarui pengguna!';
@@ -101,10 +181,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($check['is_proktor_utama']) {
                 $error = 'Akun proktor utama tidak dapat dihapus!';
             } else {
+                // Ambil nama pengguna sebelum dihapus
+                $nama_pengguna_hapus = '';
+                try {
+                    $stmt_nama = $conn->prepare("SELECT nama FROM pengguna WHERE id = ?");
+                    $stmt_nama->bind_param("i", $id);
+                    $stmt_nama->execute();
+                    $result_nama = $stmt_nama->get_result();
+                    if ($result_nama && $result_nama->num_rows > 0) {
+                        $nama_pengguna_hapus = $result_nama->fetch_assoc()['nama'];
+                    }
+                    $stmt_nama->close();
+                } catch (Exception $e) {
+                    // Skip jika error
+                }
+                
                 $stmt = $conn->prepare("DELETE FROM pengguna WHERE id=?");
                 $stmt->bind_param("i", $id);
                 
                 if ($stmt->execute()) {
+                    // Log aktivitas
+                    $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                        `id` int(11) NOT NULL AUTO_INCREMENT,
+                        `user_id` int(11) NOT NULL,
+                        `nama` varchar(255) NOT NULL,
+                        `role` varchar(50) NOT NULL,
+                        `jenis_aktivitas` varchar(50) NOT NULL,
+                        `deskripsi` text DEFAULT NULL,
+                        `tabel_target` varchar(100) DEFAULT NULL,
+                        `record_id` int(11) DEFAULT NULL,
+                        `ip_address` varchar(50) DEFAULT NULL,
+                        `user_agent` text DEFAULT NULL,
+                        `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (`id`),
+                        KEY `idx_user_id` (`user_id`),
+                        KEY `idx_waktu` (`waktu`),
+                        KEY `idx_role` (`role`),
+                        KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                        KEY `idx_tabel_target` (`tabel_target`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                    
+                    $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                    $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                    $deskripsi_text = "Menghapus data pengguna: $nama_pengguna_hapus";
+                    
+                    $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                                VALUES (
+                                    " . (int)$_SESSION['user_id'] . ",
+                                    '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                    '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                    'delete',
+                                    '" . $conn->real_escape_string($deskripsi_text) . "',
+                                    'pengguna',
+                                    " . (int)$id . ",
+                                    '" . $conn->real_escape_string($ip_address) . "',
+                                    '" . $conn->real_escape_string($user_agent) . "'
+                                )";
+                    $conn->query($sql_log);
+                    
                     $success = 'Pengguna berhasil dihapus!';
                 } else {
                     $error = 'Gagal menghapus pengguna!';
