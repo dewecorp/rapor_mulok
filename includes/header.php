@@ -464,8 +464,17 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%);
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
             overflow-x: hidden;
+            overflow-y: auto;
             transition: width 0.3s ease;
             position: relative;
+        }
+        
+        @media (min-width: 992px) {
+            .sidebar {
+                position: sticky;
+                top: 56px;
+                height: calc(100vh - 56px);
+            }
         }
         
         .sidebar.collapsed {
