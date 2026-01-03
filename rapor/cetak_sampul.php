@@ -101,7 +101,8 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 2cm 2cm 0.5cm 2cm;
+                margin: 1cm 2cm 0.5cm 2cm;
+                margin-top: 1cm;
             }
             body {
                 margin: 0;
@@ -247,7 +248,8 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 2cm 2cm 0.5cm 2cm;
+                margin: 1cm 2cm 0.5cm 2cm;
+                margin-top: 1cm;
             }
             .page-break {
                 page-break-after: always;

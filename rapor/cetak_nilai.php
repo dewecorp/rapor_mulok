@@ -250,7 +250,8 @@ function getSemesterText($semester) {
         @media print {
             @page {
                 size: A4;
-                margin: 1.5cm 1.5cm 0.5cm 1.5cm;
+                margin: 1cm 1.5cm 0.5cm 1.5cm;
+                margin-top: 1cm;
             }
             body {
                 margin: 0;
@@ -301,19 +302,20 @@ function getSemesterText($semester) {
         }
         
         .header {
-            text-align: center;
+            display: flex;
+            align-items: center;
             margin-bottom: 20px;
+            gap: 15px;
         }
         
         .logo-container {
-            text-align: center;
-            margin-bottom: 15px;
+            flex-shrink: 0;
         }
         
         .logo {
-            width: 100px;
-            height: 100px;
-            display: inline-block;
+            width: 70px;
+            height: 70px;
+            display: block;
             padding: 5px;
             background-color: #fff;
         }
@@ -324,10 +326,15 @@ function getSemesterText($semester) {
             object-fit: contain;
         }
         
+        .header-content {
+            flex: 1;
+            text-align: center;
+        }
+        
         .header h1 {
             font-size: 14pt;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 0;
         }
         
         .identitas-table {
@@ -365,7 +372,7 @@ function getSemesterText($semester) {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
         .nilai-table th,
@@ -379,11 +386,11 @@ function getSemesterText($semester) {
             background-color: #f0f0f0;
             font-weight: bold;
             text-align: center;
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
         .nilai-table td {
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
         .nilai-table .no-col {
@@ -418,7 +425,7 @@ function getSemesterText($semester) {
             text-align: right;
             margin-bottom: 20px;
             margin-top: 20px;
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
         .ttd-row {
@@ -435,13 +442,13 @@ function getSemesterText($semester) {
         .ttd-item label {
             display: block;
             margin-bottom: 50px;
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
         .ttd-item .nama {
             font-weight: bold;
             margin-top: 5px;
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
         .ttd-center {
@@ -452,13 +459,13 @@ function getSemesterText($semester) {
         .ttd-center label {
             display: block;
             margin-bottom: 40px;
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
         .ttd-center .nama {
             font-weight: bold;
             margin-top: 5px;
-            font-size: 12pt;
+            font-size: 11pt;
         }
         
     </style>
@@ -481,18 +488,21 @@ function getSemesterText($semester) {
                         <?php if (!empty($profil_madrasah['logo'])): ?>
                             <img src="../uploads/<?php echo htmlspecialchars($profil_madrasah['logo']); ?>" alt="Logo Madrasah">
                         <?php else: ?>
-                            <div style="text-align: center; padding-top: 25px; color: #2d5016; font-weight: bold;">
-                                <div style="font-size: 9pt;">MADRASAH</div>
-                                <div style="font-size: 9pt;">IBTIDAIYAH</div>
-                                <div style="font-size: 11pt; margin-top: 3px;">SULTAN</div>
-                                <div style="font-size: 11pt;">FATTAH</div>
-                                <div style="font-size: 8pt; margin-top: 3px;">SUKOSONO</div>
+                            <div style="text-align: center; padding-top: 15px; color: #2d5016; font-weight: bold;">
+                                <div style="font-size: 8pt;">MADRASAH</div>
+                                <div style="font-size: 8pt;">IBTIDAIYAH</div>
+                                <div style="font-size: 10pt; margin-top: 2px;">SULTAN</div>
+                                <div style="font-size: 10pt;">FATTAH</div>
+                                <div style="font-size: 7pt; margin-top: 2px;">SUKOSONO</div>
                             </div>
                         <?php endif; ?>
                     </div>
                 </div>
                 
-                <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></h1>
+                <!-- Header Content -->
+                <div class="header-content">
+                    <h1>LAPORAN PENILAIAN MULOK KHUSUS<br><?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></h1>
+                </div>
             </div>
             
             <!-- Identitas Siswa -->
@@ -620,8 +630,8 @@ function getSemesterText($semester) {
             </div>
             
             <div class="ttd-center">
-                <div style="margin-bottom: 5px;">Mengetahui</div>
-                <div style="margin-bottom: 50px;">Kepala MI,</div>
+                <div style="margin-bottom: 5px; font-size: 11pt;">Mengetahui</div>
+                <div style="margin-bottom: 50px; font-size: 11pt;">Kepala MI,</div>
                 <div class="nama">(<?php echo htmlspecialchars($profil_madrasah['nama_kepala'] ?? '-'); ?>)</div>
             </div>
         </div>
