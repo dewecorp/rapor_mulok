@@ -506,6 +506,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             .content-wrapper {
                 margin-left: 250px;
                 transition: margin-left 0.3s ease;
+                padding-top: 30px;
             }
             
             .sidebar.collapsed ~ .content-wrapper,
@@ -734,6 +735,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         
         .content-wrapper {
             padding: 20px;
+            padding-top: 30px;
         }
         
         .card {
