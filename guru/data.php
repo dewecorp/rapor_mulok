@@ -76,6 +76,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $stmt->bind_param("sssssssssss", $nama, $jenis_kelamin, $tempat_lahir_null, $tanggal_lahir_null, $pendidikan_null, $username, $nuptk, $password, $password_plain, $foto, $role);
                     
                     if ($stmt->execute()) {
+                        $new_id = $conn->insert_id;
+                        
+                        // Log aktivitas - langsung insert ke database
+                        $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                            `id` int(11) NOT NULL AUTO_INCREMENT,
+                            `user_id` int(11) NOT NULL,
+                            `nama` varchar(255) NOT NULL,
+                            `role` varchar(50) NOT NULL,
+                            `jenis_aktivitas` varchar(50) NOT NULL,
+                            `deskripsi` text DEFAULT NULL,
+                            `tabel_target` varchar(100) DEFAULT NULL,
+                            `record_id` int(11) DEFAULT NULL,
+                            `ip_address` varchar(50) DEFAULT NULL,
+                            `user_agent` text DEFAULT NULL,
+                            `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                            PRIMARY KEY (`id`),
+                            KEY `idx_user_id` (`user_id`),
+                            KEY `idx_waktu` (`waktu`),
+                            KEY `idx_role` (`role`),
+                            KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                            KEY `idx_tabel_target` (`tabel_target`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                        
+                        $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                        $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                        $deskripsi_text = "Menambahkan data guru: $nama";
+                        
+                        $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                                    VALUES (
+                                        " . (int)$_SESSION['user_id'] . ",
+                                        '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                        '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                        'create',
+                                        '" . $conn->real_escape_string($deskripsi_text) . "',
+                                        'pengguna',
+                                        " . (int)$new_id . ",
+                                        '" . $conn->real_escape_string($ip_address) . "',
+                                        '" . $conn->real_escape_string($user_agent) . "'
+                                    )";
+                        $conn->query($sql_log);
+                        
                         // Redirect untuk mencegah resubmit dan refresh data
                         $_SESSION['success_message'] = 'Data guru berhasil ditambahkan!';
                         if (ob_get_level() > 0) {
@@ -207,6 +248,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                     
                     if ($stmt->execute()) {
+                        // Log aktivitas - langsung insert ke database
+                        $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                            `id` int(11) NOT NULL AUTO_INCREMENT,
+                            `user_id` int(11) NOT NULL,
+                            `nama` varchar(255) NOT NULL,
+                            `role` varchar(50) NOT NULL,
+                            `jenis_aktivitas` varchar(50) NOT NULL,
+                            `deskripsi` text DEFAULT NULL,
+                            `tabel_target` varchar(100) DEFAULT NULL,
+                            `record_id` int(11) DEFAULT NULL,
+                            `ip_address` varchar(50) DEFAULT NULL,
+                            `user_agent` text DEFAULT NULL,
+                            `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                            PRIMARY KEY (`id`),
+                            KEY `idx_user_id` (`user_id`),
+                            KEY `idx_waktu` (`waktu`),
+                            KEY `idx_role` (`role`),
+                            KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                            KEY `idx_tabel_target` (`tabel_target`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                        
+                        $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                        $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                        $deskripsi_text = "Memperbarui data guru: $nama";
+                        
+                        $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                                    VALUES (
+                                        " . (int)$_SESSION['user_id'] . ",
+                                        '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                        '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                        'update',
+                                        '" . $conn->real_escape_string($deskripsi_text) . "',
+                                        'pengguna',
+                                        " . (int)$id . ",
+                                        '" . $conn->real_escape_string($ip_address) . "',
+                                        '" . $conn->real_escape_string($user_agent) . "'
+                                    )";
+                        $conn->query($sql_log);
+                        
                         // Redirect untuk mencegah resubmit dan refresh data
                         $_SESSION['success_message'] = 'Data guru berhasil diperbarui!';
                         if (ob_get_level() > 0) {
@@ -251,10 +331,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif ($_POST['action'] == 'delete') {
             $id = $_POST['id'] ?? 0;
             
+            // Ambil nama guru sebelum dihapus untuk logging
+            $nama_guru = '';
+            try {
+                $stmt_nama = $conn->prepare("SELECT nama FROM pengguna WHERE id = ?");
+                $stmt_nama->bind_param("i", $id);
+                $stmt_nama->execute();
+                $result_nama = $stmt_nama->get_result();
+                if ($result_nama && $result_nama->num_rows > 0) {
+                    $nama_guru = $result_nama->fetch_assoc()['nama'];
+                }
+                $stmt_nama->close();
+            } catch (Exception $e) {
+                // Skip jika error
+            }
+            
             $stmt = $conn->prepare("DELETE FROM pengguna WHERE id=? AND is_proktor_utama=0");
             $stmt->bind_param("i", $id);
             
             if ($stmt->execute()) {
+                // Log aktivitas - langsung insert ke database
+                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `user_id` int(11) NOT NULL,
+                    `nama` varchar(255) NOT NULL,
+                    `role` varchar(50) NOT NULL,
+                    `jenis_aktivitas` varchar(50) NOT NULL,
+                    `deskripsi` text DEFAULT NULL,
+                    `tabel_target` varchar(100) DEFAULT NULL,
+                    `record_id` int(11) DEFAULT NULL,
+                    `ip_address` varchar(50) DEFAULT NULL,
+                    `user_agent` text DEFAULT NULL,
+                    `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    KEY `idx_user_id` (`user_id`),
+                    KEY `idx_waktu` (`waktu`),
+                    KEY `idx_role` (`role`),
+                    KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                    KEY `idx_tabel_target` (`tabel_target`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                $deskripsi_text = "Menghapus data guru: $nama_guru";
+                
+                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                            VALUES (
+                                " . (int)$_SESSION['user_id'] . ",
+                                '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                'delete',
+                                '" . $conn->real_escape_string($deskripsi_text) . "',
+                                'pengguna',
+                                " . (int)$id . ",
+                                '" . $conn->real_escape_string($ip_address) . "',
+                                '" . $conn->real_escape_string($user_agent) . "'
+                            )";
+                $conn->query($sql_log);
+                
                 // Redirect untuk mencegah resubmit dan refresh data
                 $_SESSION['success_message'] = 'Data guru berhasil dihapus!';
                 if (ob_get_level() > 0) {

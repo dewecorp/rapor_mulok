@@ -121,36 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_SESSION['foto'] = $user['foto'] ?? 'default.png';
                         
                         
-                        // Catat aktivitas login
-                        try {
-                            // Buat tabel aktivitas_login jika belum ada
-                            $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_login` (
-                                `id` int(11) NOT NULL AUTO_INCREMENT,
-                                `user_id` int(11) NOT NULL,
-                                `nama` varchar(255) NOT NULL,
-                                `role` varchar(50) NOT NULL,
-                                `ip_address` varchar(50) DEFAULT NULL,
-                                `user_agent` text DEFAULT NULL,
-                                `waktu_login` datetime DEFAULT CURRENT_TIMESTAMP,
-                                PRIMARY KEY (`id`),
-                                KEY `idx_user_id` (`user_id`),
-                                KEY `idx_waktu_login` (`waktu_login`),
-                                KEY `idx_role` (`role`)
-                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                            
-                            // Hapus aktivitas yang lebih dari 24 jam
-                            $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
-                            
-                            // Insert aktivitas login
-                            $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                            $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-                            $stmt_aktivitas = $conn->prepare("INSERT INTO aktivitas_login (user_id, nama, role, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)");
-                            $stmt_aktivitas->bind_param("issss", $user['id'], $user['nama'], $user['role'], $ip_address, $user_agent);
-                            $stmt_aktivitas->execute();
-                        } catch (Exception $e) {
-                            // Log error tapi jangan gagalkan login
-                            error_log("Error recording login activity: " . $e->getMessage());
-                        }
+                        // Catat aktivitas login menggunakan fungsi helper
+                        logAktivitas('login', 'User berhasil login ke sistem');
                         
                         // Set session untuk menampilkan sweet alert selamat datang
                         $_SESSION['show_welcome'] = true;
@@ -187,36 +159,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $_SESSION['role'] = $user['role'];
                             $_SESSION['foto'] = $user['foto'] ?? 'default.png';
                             
-                            // Catat aktivitas login
-                            try {
-                                // Buat tabel aktivitas_login jika belum ada
-                                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_login` (
-                                    `id` int(11) NOT NULL AUTO_INCREMENT,
-                                    `user_id` int(11) NOT NULL,
-                                    `nama` varchar(255) NOT NULL,
-                                    `role` varchar(50) NOT NULL,
-                                    `ip_address` varchar(50) DEFAULT NULL,
-                                    `user_agent` text DEFAULT NULL,
-                                    `waktu_login` datetime DEFAULT CURRENT_TIMESTAMP,
-                                    PRIMARY KEY (`id`),
-                                    KEY `idx_user_id` (`user_id`),
-                                    KEY `idx_waktu_login` (`waktu_login`),
-                                    KEY `idx_role` (`role`)
-                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                                
-                                // Hapus aktivitas yang lebih dari 24 jam
-                                $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
-                                
-                                // Insert aktivitas login
-                                $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                                $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-                                $stmt_aktivitas = $conn->prepare("INSERT INTO aktivitas_login (user_id, nama, role, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)");
-                                $stmt_aktivitas->bind_param("issss", $user['id'], $user['nama'], $user['role'], $ip_address, $user_agent);
-                                $stmt_aktivitas->execute();
-                            } catch (Exception $e) {
-                                // Log error tapi jangan gagalkan login
-                                error_log("Error recording login activity: " . $e->getMessage());
-                            }
+                            // Catat aktivitas login menggunakan fungsi helper
+                            logAktivitas('login', 'User berhasil login ke sistem');
                             
                             // Set session untuk menampilkan sweet alert selamat datang
                             $_SESSION['show_welcome'] = true;

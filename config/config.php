@@ -296,3 +296,135 @@ function setPageTitle($title) {
 function getPageTitle() {
     return $_SESSION['page_title'] ?? APP_SHORT;
 }
+
+// Fungsi untuk logging aktivitas pengguna
+// Parameter opsional $existing_conn: jika disediakan, gunakan koneksi yang sudah ada (tidak akan ditutup)
+function logAktivitas($jenis_aktivitas, $deskripsi = '', $tabel_target = null, $record_id = null, $existing_conn = null) {
+    // Pastikan session aktif
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Jika belum login, skip logging
+    if (!isset($_SESSION['user_id']) || !isset($_SESSION['nama']) || !isset($_SESSION['role'])) {
+        error_log("logAktivitas ERROR: Session tidak tersedia");
+        error_log("  - user_id: " . (isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'not set'));
+        error_log("  - nama: " . (isset($_SESSION['nama']) ? $_SESSION['nama'] : 'not set'));
+        error_log("  - role: " . (isset($_SESSION['role']) ? $_SESSION['role'] : 'not set'));
+        error_log("  - session_status: " . session_status());
+        return false;
+    }
+    
+    // Pastikan tidak ada output yang sudah dikirim
+    if (headers_sent()) {
+        error_log("logAktivitas WARNING: Headers already sent, but continuing...");
+    }
+    
+    $conn = null;
+    $should_close = true;
+    try {
+        // Gunakan koneksi yang sudah ada jika disediakan
+        if ($existing_conn !== null) {
+            $conn = $existing_conn;
+            $should_close = false;
+        } else {
+            require_once __DIR__ . '/database.php';
+            $conn = getConnection();
+            $should_close = true;
+        }
+        
+        // Buat tabel aktivitas_pengguna jika belum ada (migrasi dari aktivitas_login)
+        $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `user_id` int(11) NOT NULL,
+            `nama` varchar(255) NOT NULL,
+            `role` varchar(50) NOT NULL,
+            `jenis_aktivitas` varchar(50) NOT NULL,
+            `deskripsi` text DEFAULT NULL,
+            `tabel_target` varchar(100) DEFAULT NULL,
+            `record_id` int(11) DEFAULT NULL,
+            `ip_address` varchar(50) DEFAULT NULL,
+            `user_agent` text DEFAULT NULL,
+            `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_user_id` (`user_id`),
+            KEY `idx_waktu` (`waktu`),
+            KEY `idx_role` (`role`),
+            KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+            KEY `idx_tabel_target` (`tabel_target`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        // Hapus aktivitas yang lebih dari 7 hari (bukan 24 jam lagi karena sekarang lebih lengkap)
+        $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        
+        // Insert aktivitas
+        $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500); // Batasi panjang user_agent
+        
+        // Siapkan nilai untuk tabel_target dan record_id (handle null)
+        $tabel_target_sql = $tabel_target !== null ? "'" . $conn->real_escape_string($tabel_target) . "'" : "NULL";
+        $record_id_sql = $record_id !== null ? (int)$record_id : "NULL";
+        
+        // Escape deskripsi dengan benar
+        $deskripsi_escaped = $conn->real_escape_string($deskripsi);
+        
+        // Gunakan query langsung dengan escape yang aman untuk menghindari masalah bind_param dengan null
+        $sql = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                VALUES (
+                    " . (int)$_SESSION['user_id'] . ",
+                    '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                    '" . $conn->real_escape_string($_SESSION['role']) . "',
+                    '" . $conn->real_escape_string($jenis_aktivitas) . "',
+                    '" . $deskripsi_escaped . "',
+                    $tabel_target_sql,
+                    $record_id_sql,
+                    '" . $conn->real_escape_string($ip_address) . "',
+                    '" . $conn->real_escape_string($user_agent) . "'
+                )";
+        
+        // Jalankan query
+        error_log("logAktivitas: Executing SQL query");
+        $result = $conn->query($sql);
+        
+        // Cek error jika ada
+        if (!$result) {
+            $error_msg = $conn->error ?? 'Unknown error';
+            $error_code = $conn->errno ?? 0;
+            error_log("logAktivitas ERROR [$error_code]: " . $error_msg);
+            error_log("SQL: " . $sql);
+            error_log("User ID: " . ($_SESSION['user_id'] ?? 'not set'));
+            error_log("Jenis Aktivitas: " . $jenis_aktivitas);
+            error_log("Connection error: " . ($conn->error ?? 'none'));
+            
+            // Hanya tutup koneksi jika kita yang membuatnya
+            if ($should_close && $conn) {
+                $conn->close();
+            }
+            return false;
+        }
+        
+        error_log("logAktivitas: Query executed successfully");
+        
+        // Hanya tutup koneksi jika kita yang membuatnya
+        if ($should_close && $conn) {
+            $conn->close();
+        }
+        
+        return true;
+    } catch (Exception $e) {
+        // Log error tapi jangan gagalkan operasi utama
+        error_log("Error logging activity: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        if ($should_close && $conn) {
+            $conn->close();
+        }
+        return false;
+    } catch (Error $e) {
+        // Tangani fatal error juga
+        error_log("Fatal error logging activity: " . $e->getMessage());
+        if ($should_close && $conn) {
+            $conn->close();
+        }
+        return false;
+    }
+}

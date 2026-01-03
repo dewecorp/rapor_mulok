@@ -369,34 +369,56 @@ $page_title = 'Dashboard';
                 $info_aplikasi = 'Selamat datang di aplikasi Rapor Mulok Digital. Aplikasi ini digunakan untuk mengelola rapor mata pelajaran muatan lokal.';
             }
             
-            // Ambil aktivitas login (24 jam terakhir)
+            // Ambil aktivitas pengguna (7 hari terakhir)
             $aktivitas_data = [];
             $total_aktivitas = 0;
             try {
-                // Buat tabel jika belum ada
-                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_login` (
+                // Pastikan tabel aktivitas_pengguna ada (dibuat oleh fungsi logAktivitas)
+                // Migrasi data dari aktivitas_login jika ada
+                $conn->query("CREATE TABLE IF NOT EXISTS `aktivitas_pengguna` (
                     `id` int(11) NOT NULL AUTO_INCREMENT,
                     `user_id` int(11) NOT NULL,
                     `nama` varchar(255) NOT NULL,
                     `role` varchar(50) NOT NULL,
+                    `jenis_aktivitas` varchar(50) NOT NULL,
+                    `deskripsi` text DEFAULT NULL,
+                    `tabel_target` varchar(100) DEFAULT NULL,
+                    `record_id` int(11) DEFAULT NULL,
                     `ip_address` varchar(50) DEFAULT NULL,
                     `user_agent` text DEFAULT NULL,
-                    `waktu_login` datetime DEFAULT CURRENT_TIMESTAMP,
+                    `waktu` datetime DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (`id`),
                     KEY `idx_user_id` (`user_id`),
-                    KEY `idx_waktu_login` (`waktu_login`),
-                    KEY `idx_role` (`role`)
+                    KEY `idx_waktu` (`waktu`),
+                    KEY `idx_role` (`role`),
+                    KEY `idx_jenis_aktivitas` (`jenis_aktivitas`),
+                    KEY `idx_tabel_target` (`tabel_target`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                 
-                // Hapus aktivitas yang lebih dari 24 jam
-                $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+                // Migrasi data dari aktivitas_login jika tabel lama masih ada
+                $check_old = $conn->query("SHOW TABLES LIKE 'aktivitas_login'");
+                if ($check_old && $check_old->num_rows > 0) {
+                    // Migrasi data login dari tabel lama
+                    $conn->query("INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, ip_address, user_agent, waktu)
+                        SELECT user_id, nama, role, 'login', 'User login ke sistem', ip_address, user_agent, waktu_login
+                        FROM aktivitas_login
+                        WHERE waktu_login >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                        AND NOT EXISTS (
+                            SELECT 1 FROM aktivitas_pengguna ap 
+                            WHERE ap.user_id = aktivitas_login.user_id 
+                            AND ap.waktu = aktivitas_login.waktu_login
+                        )");
+                }
                 
-                // Ambil aktivitas 24 jam terakhir dengan perhitungan selisih waktu dari database
+                // Hapus aktivitas yang lebih dari 7 hari
+                $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+                
+                // Ambil aktivitas 7 hari terakhir dengan perhitungan selisih waktu dari database
                 $query_aktivitas = "SELECT *, 
-                    TIMESTAMPDIFF(SECOND, waktu_login, NOW()) as selisih_detik
-                    FROM aktivitas_login 
-                    ORDER BY waktu_login DESC 
-                    LIMIT 50";
+                    TIMESTAMPDIFF(SECOND, waktu, NOW()) as selisih_detik
+                    FROM aktivitas_pengguna 
+                    ORDER BY waktu DESC 
+                    LIMIT 100";
                 $result_aktivitas = $conn->query($query_aktivitas);
                 if ($result_aktivitas) {
                     while ($row = $result_aktivitas->fetch_assoc()) {
@@ -429,7 +451,7 @@ $page_title = 'Dashboard';
             <div class="card mt-3">
                 <div class="card-header" style="background-color: #2d5016; color: white;">
                     <h6 class="mb-0">
-                        <i class="fas fa-history"></i> Aktivitas Login (24 Jam Terakhir)
+                        <i class="fas fa-history"></i> Aktivitas Pengguna (7 Hari Terakhir)
                         <span class="badge bg-light text-dark ms-2"><?php echo $total_aktivitas; ?></span>
                     </h6>
                 </div>
@@ -443,8 +465,8 @@ $page_title = 'Dashboard';
                                         // Set timezone untuk DateTime
                                         $timezone = new DateTimeZone('Asia/Jakarta');
                                         
-                                        // Parse waktu login dari database dengan timezone
-                                        $waktu_login = new DateTime($aktivitas['waktu_login'], $timezone);
+                                        // Parse waktu dari database dengan timezone (gunakan 'waktu' bukan 'waktu_login')
+                                        $waktu_aktivitas = new DateTime($aktivitas['waktu'] ?? $aktivitas['waktu_login'] ?? 'now', $timezone);
                                         
                                         // Gunakan selisih waktu dari database (dalam detik)
                                         // Jika tidak ada, hitung manual
@@ -453,7 +475,7 @@ $page_title = 'Dashboard';
                                         } else {
                                             // Fallback: hitung manual
                                             $waktu_sekarang = new DateTime('now', $timezone);
-                                            $selisih = $waktu_sekarang->getTimestamp() - $waktu_login->getTimestamp();
+                                            $selisih = $waktu_sekarang->getTimestamp() - $waktu_aktivitas->getTimestamp();
                                         }
                                         
                                         // Pastikan selisih tidak negatif
@@ -479,18 +501,44 @@ $page_title = 'Dashboard';
                                         }
                                         
                                         // Format tanggal dan waktu lengkap
-                                        $waktu_timestamp = $waktu_login->getTimestamp();
-                                        $tanggal_waktu = $waktu_login->format('d/m/Y H:i:s');
+                                        $waktu_timestamp = $waktu_aktivitas->getTimestamp();
+                                        $tanggal_waktu = $waktu_aktivitas->format('d/m/Y H:i:s');
                                         $hari_nama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                                         $bulan_nama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                                        $hari_indonesia = $hari_nama[(int)$waktu_login->format('w')];
-                                        $tanggal_lengkap = $hari_indonesia . ', ' . $waktu_login->format('d') . ' ' . $bulan_nama[(int)$waktu_login->format('n') - 1] . ' ' . $waktu_login->format('Y') . ' pukul ' . $waktu_login->format('H:i:s');
+                                        $hari_indonesia = $hari_nama[(int)$waktu_aktivitas->format('w')];
+                                        $tanggal_lengkap = $hari_indonesia . ', ' . $waktu_aktivitas->format('d') . ' ' . $bulan_nama[(int)$waktu_aktivitas->format('n') - 1] . ' ' . $waktu_aktivitas->format('Y') . ' pukul ' . $waktu_aktivitas->format('H:i:s');
+                                        
+                                        // Icon dan warna berdasarkan jenis aktivitas
+                                        $jenis_aktivitas = $aktivitas['jenis_aktivitas'] ?? 'login';
+                                        $deskripsi = $aktivitas['deskripsi'] ?? '';
+                                        $icon_map = [
+                                            'login' => 'fa-sign-in-alt',
+                                            'logout' => 'fa-sign-out-alt',
+                                            'create' => 'fa-plus-circle',
+                                            'read' => 'fa-eye',
+                                            'update' => 'fa-edit',
+                                            'delete' => 'fa-trash'
+                                        ];
+                                        $color_map = [
+                                            'login' => 'success',
+                                            'logout' => 'warning',
+                                            'create' => 'primary',
+                                            'read' => 'info',
+                                            'update' => 'warning',
+                                            'delete' => 'danger'
+                                        ];
+                                        $icon = $icon_map[$jenis_aktivitas] ?? 'fa-circle';
+                                        $color = $color_map[$jenis_aktivitas] ?? 'secondary';
                                     } catch (Exception $e) {
                                         // Fallback jika parsing gagal
                                         $waktu_text = 'Waktu tidak valid';
-                                        $tanggal_waktu = $aktivitas['waktu_login'];
-                                        $tanggal_lengkap = $aktivitas['waktu_login'];
+                                        $tanggal_waktu = $aktivitas['waktu'] ?? $aktivitas['waktu_login'] ?? date('d/m/Y H:i:s');
+                                        $tanggal_lengkap = $tanggal_waktu;
                                         $waktu_timestamp = time();
+                                        $jenis_aktivitas = 'unknown';
+                                        $deskripsi = '';
+                                        $icon = 'fa-circle';
+                                        $color = 'secondary';
                                     }
                                     
                                     $role_badge = [
@@ -499,10 +547,21 @@ $page_title = 'Dashboard';
                                         'guru' => 'success'
                                     ];
                                     $badge_color = $role_badge[$aktivitas['role']] ?? 'secondary';
+                                    
+                                    // Label jenis aktivitas
+                                    $jenis_label = [
+                                        'login' => 'Login',
+                                        'logout' => 'Logout',
+                                        'create' => 'Tambah Data',
+                                        'read' => 'Lihat Data',
+                                        'update' => 'Ubah Data',
+                                        'delete' => 'Hapus Data'
+                                    ];
+                                    $label_jenis = $jenis_label[$jenis_aktivitas] ?? ucfirst($jenis_aktivitas);
                                 ?>
                                     <div class="timeline-item">
-                                        <div class="timeline-marker">
-                                            <i class="fas fa-user-circle"></i>
+                                        <div class="timeline-marker" style="background-color: var(--bs-<?php echo $color; ?>);">
+                                            <i class="fas <?php echo $icon; ?>"></i>
                                         </div>
                                         <div class="timeline-content">
                                             <div class="d-flex justify-content-between align-items-start">
@@ -512,7 +571,15 @@ $page_title = 'Dashboard';
                                                         <span class="badge bg-<?php echo $badge_color; ?> ms-2">
                                                             <?php echo ucfirst(str_replace('_', ' ', $aktivitas['role'])); ?>
                                                         </span>
+                                                        <span class="badge bg-<?php echo $color; ?> ms-2">
+                                                            <i class="fas <?php echo $icon; ?>"></i> <?php echo $label_jenis; ?>
+                                                        </span>
                                                     </h6>
+                                                    <?php if (!empty($deskripsi)): ?>
+                                                        <p class="mb-1" style="color: #495057; font-weight: 500;">
+                                                            <?php echo htmlspecialchars($deskripsi); ?>
+                                                        </p>
+                                                    <?php endif; ?>
                                                     <p class="text-muted mb-1">
                                                         <i class="fas fa-clock"></i> <strong><?php echo $waktu_text; ?></strong>
                                                         <span class="ms-2 text-muted" style="font-size: 0.9em;">
@@ -534,7 +601,7 @@ $page_title = 'Dashboard';
                         </div>
                     <?php else: ?>
                         <p class="text-muted text-center py-3">
-                            <i class="fas fa-inbox"></i> Belum ada aktivitas login dalam 24 jam terakhir.
+                            <i class="fas fa-inbox"></i> Belum ada aktivitas pengguna dalam 7 hari terakhir.
                         </p>
                     <?php endif; ?>
                 </div>

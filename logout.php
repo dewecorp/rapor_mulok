@@ -11,6 +11,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' || isset($_GET['confirm'])) {
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
+    
+    // Catat aktivitas logout sebelum session dihancurkan
+    if (isset($_SESSION['user_id'])) {
+        logAktivitas('logout', 'User logout dari sistem');
+    }
+    
     session_destroy();
     // Pastikan tidak ada output sebelum redirect
     if (ob_get_level() > 0) {
