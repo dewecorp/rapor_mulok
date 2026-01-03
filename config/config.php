@@ -12,6 +12,9 @@ if (ob_get_level() == 0) {
     ob_start();
 }
 
+// Set timezone ke Asia/Jakarta
+date_default_timezone_set('Asia/Jakarta');
+
 // Start session hanya jika belum aktif
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

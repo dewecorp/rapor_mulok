@@ -391,8 +391,12 @@ $page_title = 'Dashboard';
                 // Hapus aktivitas yang lebih dari 24 jam
                 $conn->query("DELETE FROM aktivitas_login WHERE waktu_login < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
                 
-                // Ambil aktivitas 24 jam terakhir
-                $query_aktivitas = "SELECT * FROM aktivitas_login ORDER BY waktu_login DESC LIMIT 50";
+                // Ambil aktivitas 24 jam terakhir dengan perhitungan selisih waktu dari database
+                $query_aktivitas = "SELECT *, 
+                    TIMESTAMPDIFF(SECOND, waktu_login, NOW()) as selisih_detik
+                    FROM aktivitas_login 
+                    ORDER BY waktu_login DESC 
+                    LIMIT 50";
                 $result_aktivitas = $conn->query($query_aktivitas);
                 if ($result_aktivitas) {
                     while ($row = $result_aktivitas->fetch_assoc()) {
@@ -434,31 +438,60 @@ $page_title = 'Dashboard';
                         <div class="timeline-container">
                             <div class="timeline">
                                 <?php foreach ($aktivitas_data as $index => $aktivitas): 
-                                    $waktu = strtotime($aktivitas['waktu_login']);
-                                    $selisih = time() - $waktu;
-                                    $menit = floor($selisih / 60);
-                                    $jam = floor($selisih / 3600);
-                                    $hari = floor($selisih / 86400);
-                                    
-                                    // Format waktu relatif
-                                    if ($menit < 1) {
-                                        $waktu_text = 'Baru saja';
-                                    } elseif ($menit < 60) {
-                                        $waktu_text = $menit . ' menit yang lalu';
-                                    } elseif ($jam < 24) {
-                                        $waktu_text = $jam . ' jam yang lalu';
-                                    } elseif ($hari == 1) {
-                                        $waktu_text = 'Kemarin';
-                                    } else {
-                                        $waktu_text = $hari . ' hari yang lalu';
+                                    // Gunakan selisih waktu dari database untuk perhitungan yang akurat
+                                    try {
+                                        // Set timezone untuk DateTime
+                                        $timezone = new DateTimeZone('Asia/Jakarta');
+                                        
+                                        // Parse waktu login dari database dengan timezone
+                                        $waktu_login = new DateTime($aktivitas['waktu_login'], $timezone);
+                                        
+                                        // Gunakan selisih waktu dari database (dalam detik)
+                                        // Jika tidak ada, hitung manual
+                                        if (isset($aktivitas['selisih_detik']) && $aktivitas['selisih_detik'] !== null) {
+                                            $selisih = (int)$aktivitas['selisih_detik'];
+                                        } else {
+                                            // Fallback: hitung manual
+                                            $waktu_sekarang = new DateTime('now', $timezone);
+                                            $selisih = $waktu_sekarang->getTimestamp() - $waktu_login->getTimestamp();
+                                        }
+                                        
+                                        // Pastikan selisih tidak negatif
+                                        if ($selisih < 0) {
+                                            $selisih = 0;
+                                        }
+                                        
+                                        $menit = floor($selisih / 60);
+                                        $jam = floor($selisih / 3600);
+                                        $hari = floor($selisih / 86400);
+                                        
+                                        // Format waktu relatif
+                                        if ($selisih < 60) {
+                                            $waktu_text = 'Baru saja';
+                                        } elseif ($menit < 60) {
+                                            $waktu_text = $menit . ' menit yang lalu';
+                                        } elseif ($jam < 24) {
+                                            $waktu_text = $jam . ' jam yang lalu';
+                                        } elseif ($hari == 1) {
+                                            $waktu_text = 'Kemarin';
+                                        } else {
+                                            $waktu_text = $hari . ' hari yang lalu';
+                                        }
+                                        
+                                        // Format tanggal dan waktu lengkap
+                                        $waktu_timestamp = $waktu_login->getTimestamp();
+                                        $tanggal_waktu = $waktu_login->format('d/m/Y H:i:s');
+                                        $hari_nama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                                        $bulan_nama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                                        $hari_indonesia = $hari_nama[(int)$waktu_login->format('w')];
+                                        $tanggal_lengkap = $hari_indonesia . ', ' . $waktu_login->format('d') . ' ' . $bulan_nama[(int)$waktu_login->format('n') - 1] . ' ' . $waktu_login->format('Y') . ' pukul ' . $waktu_login->format('H:i:s');
+                                    } catch (Exception $e) {
+                                        // Fallback jika parsing gagal
+                                        $waktu_text = 'Waktu tidak valid';
+                                        $tanggal_waktu = $aktivitas['waktu_login'];
+                                        $tanggal_lengkap = $aktivitas['waktu_login'];
+                                        $waktu_timestamp = time();
                                     }
-                                    
-                                    // Format tanggal dan waktu lengkap
-                                    $tanggal_waktu = date('d/m/Y H:i:s', $waktu);
-                                    $hari_nama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                                    $bulan_nama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                                    $hari_indonesia = $hari_nama[date('w', $waktu)];
-                                    $tanggal_lengkap = $hari_indonesia . ', ' . date('d', $waktu) . ' ' . $bulan_nama[date('n', $waktu) - 1] . ' ' . date('Y', $waktu) . ' pukul ' . date('H:i:s', $waktu);
                                     
                                     $role_badge = [
                                         'proktor' => 'danger',
