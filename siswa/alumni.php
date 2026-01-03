@@ -7,54 +7,6 @@ $conn = getConnection();
 $success = '';
 $error = '';
 
-// Handle delete multiple alumni
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'delete_multiple') {
-    $alumni_ids = $_POST['alumni_ids'] ?? [];
-    
-    if (empty($alumni_ids) || !is_array($alumni_ids)) {
-        $error = 'Pilih alumni yang akan dihapus!';
-    } else {
-        $delete_count = 0;
-        $conn->begin_transaction();
-        
-        try {
-            foreach ($alumni_ids as $alumni_id) {
-                $alumni_id = intval($alumni_id);
-                if ($alumni_id > 0) {
-                    // Validasi: Pastikan siswa benar-benar alumni
-                    $stmt_validate = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
-                    $stmt_validate->bind_param("i", $alumni_id);
-                    $stmt_validate->execute();
-                    $result_validate = $stmt_validate->get_result();
-                    $siswa_data = $result_validate->fetch_assoc();
-                    $stmt_validate->close();
-                    
-                    // Cek apakah siswa adalah alumni
-                    if ($siswa_data && $siswa_data['kelas_id'] == $kelas_alumni_id) {
-                        $stmt = $conn->prepare("DELETE FROM siswa WHERE id = ?");
-                        $stmt->bind_param("i", $alumni_id);
-                        if ($stmt->execute()) {
-                            $delete_count++;
-                        }
-                        $stmt->close();
-                    }
-                }
-            }
-            
-            // Update jumlah siswa di kelas alumni
-            if ($kelas_alumni_id) {
-                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_alumni_id) WHERE id = $kelas_alumni_id");
-            }
-            
-            $conn->commit();
-            $success = "Berhasil menghapus $delete_count data alumni!";
-        } catch (Exception $e) {
-            $conn->rollback();
-            $error = 'Gagal menghapus data alumni: ' . $e->getMessage();
-        }
-    }
-}
-
 // Filter tahun ajaran
 $tahun_ajaran_filter = isset($_GET['tahun_ajaran']) && $_GET['tahun_ajaran'] !== '' ? $_GET['tahun_ajaran'] : '';
 
@@ -81,8 +33,29 @@ try {
     // Handle error
 }
 
+// Ambil tahun ajaran aktif dari profil_madrasah
+$tahun_ajaran_aktif = '';
+$separator = '/';
+try {
+    $query_profil = "SELECT tahun_ajaran_aktif FROM profil_madrasah LIMIT 1";
+    $result_profil = $conn->query($query_profil);
+    $profil = $result_profil ? $result_profil->fetch_assoc() : null;
+    $tahun_ajaran_aktif = $profil['tahun_ajaran_aktif'] ?? '';
+    
+    // Tentukan separator
+    if (!empty($tahun_ajaran_aktif)) {
+        if (strpos($tahun_ajaran_aktif, '/') !== false) {
+            $separator = '/';
+        } elseif (strpos($tahun_ajaran_aktif, '-') !== false) {
+            $separator = '-';
+        }
+    }
+} catch (Exception $e) {
+    $tahun_ajaran_aktif = '';
+}
+
 // Ambil semua tahun ajaran unik dari kolom tahun_ajaran_lulus untuk siswa alumni
-$tahun_ajaran_list = [];
+$tahun_ajaran_alumni = [];
 if ($kelas_alumni_id) {
     try {
         // Ambil tahun ajaran unik dari kolom tahun_ajaran_lulus
@@ -90,21 +63,20 @@ if ($kelas_alumni_id) {
                         FROM siswa 
                         WHERE kelas_id = ? 
                         AND tahun_ajaran_lulus IS NOT NULL 
-                        AND tahun_ajaran_lulus != '' 
-                        ORDER BY tahun_ajaran_lulus DESC";
+                        AND tahun_ajaran_lulus != ''";
         $stmt_tahun = $conn->prepare($query_tahun);
         $stmt_tahun->bind_param("i", $kelas_alumni_id);
         $stmt_tahun->execute();
         $result_tahun = $stmt_tahun->get_result();
         while ($row = $result_tahun->fetch_assoc()) {
             if (!empty($row['tahun_ajaran_lulus'])) {
-                $tahun_ajaran_list[] = $row['tahun_ajaran_lulus'];
+                $tahun_ajaran_alumni[$row['tahun_ajaran_lulus']] = true;
             }
         }
         $stmt_tahun->close();
         
         // Jika tidak ada tahun ajaran dari tahun_ajaran_lulus, ambil dari nilai_siswa sebagai fallback
-        if (empty($tahun_ajaran_list)) {
+        if (empty($tahun_ajaran_alumni)) {
             // Ambil semua siswa alumni
             $query_siswa_alumni = "SELECT id FROM siswa WHERE kelas_id = ?";
             $stmt_siswa = $conn->prepare($query_siswa_alumni);
@@ -120,59 +92,18 @@ if ($kelas_alumni_id) {
             // Ambil tahun ajaran unik dari nilai_siswa untuk siswa alumni
             if (!empty($siswa_alumni_ids)) {
                 $placeholders = str_repeat('?,', count($siswa_alumni_ids) - 1) . '?';
-                $query_tahun_nilai = "SELECT DISTINCT tahun_ajaran FROM nilai_siswa WHERE siswa_id IN ($placeholders) AND tahun_ajaran IS NOT NULL AND tahun_ajaran != '' ORDER BY tahun_ajaran DESC";
+                $query_tahun_nilai = "SELECT DISTINCT tahun_ajaran FROM nilai_siswa WHERE siswa_id IN ($placeholders) AND tahun_ajaran IS NOT NULL AND tahun_ajaran != ''";
                 $stmt_tahun_nilai = $conn->prepare($query_tahun_nilai);
                 $types = str_repeat('i', count($siswa_alumni_ids));
                 $stmt_tahun_nilai->bind_param($types, ...$siswa_alumni_ids);
                 $stmt_tahun_nilai->execute();
                 $result_tahun_nilai = $stmt_tahun_nilai->get_result();
-                $tahun_ajaran_set = [];
                 while ($row = $result_tahun_nilai->fetch_assoc()) {
                     if (!empty($row['tahun_ajaran'])) {
-                        $tahun_ajaran_set[$row['tahun_ajaran']] = true;
+                        $tahun_ajaran_alumni[$row['tahun_ajaran']] = true;
                     }
                 }
                 $stmt_tahun_nilai->close();
-                $tahun_ajaran_list = array_keys($tahun_ajaran_set);
-                // Sort descending
-                rsort($tahun_ajaran_list);
-            }
-        }
-        
-        // Jika masih tidak ada tahun ajaran, ambil dari profil_madrasah dan generate beberapa tahun ke belakang
-        if (empty($tahun_ajaran_list)) {
-            try {
-                $query_profil = "SELECT tahun_ajaran_aktif FROM profil_madrasah LIMIT 1";
-                $result_profil = $conn->query($query_profil);
-                $profil = $result_profil ? $result_profil->fetch_assoc() : null;
-                $tahun_ajaran_aktif = $profil['tahun_ajaran_aktif'] ?? '';
-                
-                if (!empty($tahun_ajaran_aktif)) {
-                    // Parse tahun ajaran aktif
-                    if (strpos($tahun_ajaran_aktif, '/') !== false) {
-                        $parts = explode('/', $tahun_ajaran_aktif);
-                        $separator = '/';
-                    } elseif (strpos($tahun_ajaran_aktif, '-') !== false) {
-                        $parts = explode('-', $tahun_ajaran_aktif);
-                        $separator = '-';
-                    } else {
-                        $parts = [];
-                        $separator = '/';
-                    }
-                    
-                    if (count($parts) >= 2) {
-                        $tahun_awal = intval(trim($parts[0]));
-                        
-                        // Generate 10 tahun ke belakang
-                        for ($i = 0; $i < 10; $i++) {
-                            $tahun_start = $tahun_awal - $i;
-                            $tahun_end = $tahun_start + 1;
-                            $tahun_ajaran_list[] = $tahun_start . $separator . $tahun_end;
-                        }
-                    }
-                }
-            } catch (Exception $e) {
-                // Handle error
             }
         }
     } catch (Exception $e) {
@@ -180,54 +111,142 @@ if ($kelas_alumni_id) {
     }
 }
 
-// Handle delete multiple alumni (setelah $kelas_alumni_id didefinisikan)
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'delete_multiple') {
-    $alumni_ids = $_POST['alumni_ids'] ?? [];
+// Fungsi untuk mendapatkan tahun awal dari tahun ajaran
+function getTahunAwal($tahun_ajaran) {
+    if (preg_match('/^(\d{4})/', $tahun_ajaran, $matches)) {
+        return intval($matches[1]);
+    }
+    return 0;
+}
+
+// Filter tahun ajaran: hanya yang >= 2025/2026 dan ada di database
+$tahun_ajaran_list = [];
+$tahun_minimum = 2025; // Tahun minimum yang diizinkan
+
+// Tambahkan tahun ajaran yang menghasilkan alumni dan >= 2025/2026
+foreach ($tahun_ajaran_alumni as $tahun => $val) {
+    $tahun_awal = getTahunAwal($tahun);
+    // Hanya tambahkan jika tahun awal >= 2025
+    if ($tahun_awal >= $tahun_minimum) {
+        $tahun_ajaran_list[] = $tahun;
+    }
+}
+
+// Tambahkan tahun ajaran aktif jika >= 2025/2026 dan belum ada di list
+if (!empty($tahun_ajaran_aktif)) {
+    $tahun_awal_aktif = getTahunAwal($tahun_ajaran_aktif);
+    if ($tahun_awal_aktif >= $tahun_minimum && !in_array($tahun_ajaran_aktif, $tahun_ajaran_list)) {
+        $tahun_ajaran_list[] = $tahun_ajaran_aktif;
+    }
+}
+
+// Hapus duplikasi
+$tahun_ajaran_list = array_unique($tahun_ajaran_list);
+
+// Sort tahun ajaran descending (dari tahun terbaru ke terlama)
+usort($tahun_ajaran_list, function($a, $b) {
+    $tahun_a = getTahunAwal($a);
+    $tahun_b = getTahunAwal($b);
     
-    if (empty($alumni_ids) || !is_array($alumni_ids)) {
-        $error = 'Pilih alumni yang akan dihapus!';
-    } else {
-        $delete_count = 0;
-        $conn->begin_transaction();
+    // Sort descending (tahun terbaru dulu)
+    return $tahun_b - $tahun_a;
+});
+
+// Handle delete alumni (setelah $kelas_alumni_id didefinisikan)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
+    if ($_POST['action'] == 'delete_single') {
+        // Handle single delete
+        $alumni_id = isset($_POST['alumni_id']) ? intval($_POST['alumni_id']) : 0;
         
-        try {
-            foreach ($alumni_ids as $alumni_id) {
-                $alumni_id = intval($alumni_id);
-                if ($alumni_id > 0) {
-                    // Validasi: Pastikan siswa benar-benar alumni
-                    $stmt_validate = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
-                    $stmt_validate->bind_param("i", $alumni_id);
-                    $stmt_validate->execute();
-                    $result_validate = $stmt_validate->get_result();
-                    $siswa_data = $stmt_validate->fetch_assoc();
-                    $stmt_validate->close();
-                    
-                    // Cek apakah siswa adalah alumni
-                    if ($siswa_data && $siswa_data['kelas_id'] == $kelas_alumni_id) {
-                        $stmt = $conn->prepare("DELETE FROM siswa WHERE id = ?");
-                        $stmt->bind_param("i", $alumni_id);
-                        if ($stmt->execute()) {
-                            $delete_count++;
+        if ($alumni_id > 0) {
+            $conn->begin_transaction();
+            try {
+                // Validasi: Pastikan siswa benar-benar alumni
+                $stmt_validate = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
+                $stmt_validate->bind_param("i", $alumni_id);
+                $stmt_validate->execute();
+                $result_validate = $stmt_validate->get_result();
+                $siswa_data = $result_validate->fetch_assoc();
+                $stmt_validate->close();
+                
+                // Cek apakah siswa adalah alumni
+                if ($siswa_data && $siswa_data['kelas_id'] == $kelas_alumni_id) {
+                    $stmt = $conn->prepare("DELETE FROM siswa WHERE id = ?");
+                    $stmt->bind_param("i", $alumni_id);
+                    if ($stmt->execute()) {
+                        // Update jumlah siswa di kelas alumni
+                        if ($kelas_alumni_id) {
+                            $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_alumni_id) WHERE id = $kelas_alumni_id");
                         }
-                        $stmt->close();
+                        $conn->commit();
+                        $success = "Berhasil menghapus data alumni!";
+                    } else {
+                        throw new Exception("Gagal menghapus data alumni");
+                    }
+                    $stmt->close();
+                } else {
+                    throw new Exception("Siswa bukan alumni atau tidak ditemukan");
+                }
+            } catch (Exception $e) {
+                $conn->rollback();
+                $error = 'Gagal menghapus data alumni: ' . $e->getMessage();
+            }
+        } else {
+            $error = 'ID alumni tidak valid!';
+        }
+        
+        // Redirect untuk refresh data
+        header('Location: alumni.php' . (!empty($tahun_ajaran_filter) ? '?tahun_ajaran=' . urlencode($tahun_ajaran_filter) : ''));
+        exit();
+    } elseif ($_POST['action'] == 'delete_multiple') {
+        // Handle multiple delete
+        $alumni_ids = $_POST['alumni_ids'] ?? [];
+        
+        if (empty($alumni_ids) || !is_array($alumni_ids)) {
+            $error = 'Pilih alumni yang akan dihapus!';
+        } else {
+            $delete_count = 0;
+            $conn->begin_transaction();
+            
+            try {
+                foreach ($alumni_ids as $alumni_id) {
+                    $alumni_id = intval($alumni_id);
+                    if ($alumni_id > 0) {
+                        // Validasi: Pastikan siswa benar-benar alumni
+                        $stmt_validate = $conn->prepare("SELECT kelas_id FROM siswa WHERE id = ?");
+                        $stmt_validate->bind_param("i", $alumni_id);
+                        $stmt_validate->execute();
+                        $result_validate = $stmt_validate->get_result();
+                        $siswa_data = $result_validate->fetch_assoc();
+                        $stmt_validate->close();
+                        
+                        // Cek apakah siswa adalah alumni
+                        if ($siswa_data && $siswa_data['kelas_id'] == $kelas_alumni_id) {
+                            $stmt = $conn->prepare("DELETE FROM siswa WHERE id = ?");
+                            $stmt->bind_param("i", $alumni_id);
+                            if ($stmt->execute()) {
+                                $delete_count++;
+                            }
+                            $stmt->close();
+                        }
                     }
                 }
+                
+                // Update jumlah siswa di kelas alumni
+                if ($kelas_alumni_id) {
+                    $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_alumni_id) WHERE id = $kelas_alumni_id");
+                }
+                
+                $conn->commit();
+                $success = "Berhasil menghapus $delete_count data alumni!";
+                
+                // Redirect untuk refresh data
+                header('Location: alumni.php' . (!empty($tahun_ajaran_filter) ? '?tahun_ajaran=' . urlencode($tahun_ajaran_filter) : ''));
+                exit();
+            } catch (Exception $e) {
+                $conn->rollback();
+                $error = 'Gagal menghapus data alumni: ' . $e->getMessage();
             }
-            
-            // Update jumlah siswa di kelas alumni
-            if ($kelas_alumni_id) {
-                $conn->query("UPDATE kelas SET jumlah_siswa = (SELECT COUNT(*) FROM siswa WHERE kelas_id = $kelas_alumni_id) WHERE id = $kelas_alumni_id");
-            }
-            
-            $conn->commit();
-            $success = "Berhasil menghapus $delete_count data alumni!";
-            
-            // Redirect untuk refresh data
-            header('Location: alumni.php' . (!empty($tahun_ajaran_filter) ? '?tahun_ajaran=' . urlencode($tahun_ajaran_filter) : ''));
-            exit();
-        } catch (Exception $e) {
-            $conn->rollback();
-            $error = 'Gagal menghapus data alumni: ' . $e->getMessage();
         }
     }
 }
@@ -358,6 +377,10 @@ $page_title = 'Data Alumni';
                 </button>
             </div>
         </form>
+        <form method="POST" id="formDeleteSingle" style="display: none;">
+            <input type="hidden" name="action" value="delete_single">
+            <input type="hidden" name="alumni_id" id="deleteAlumniId">
+        </form>
         <div class="table-responsive">
             <table class="table table-bordered table-striped" id="tableAlumni">
                 <thead>
@@ -445,8 +468,9 @@ $page_title = 'Data Alumni';
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Redirect ke halaman siswa untuk delete
-                window.location.href = '../siswa/index.php?delete=' + id;
+                // Submit form untuk delete single
+                document.getElementById('deleteAlumniId').value = id;
+                document.getElementById('formDeleteSingle').submit();
             }
         });
     }
