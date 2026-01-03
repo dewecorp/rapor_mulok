@@ -206,6 +206,13 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             /* Optimasi rendering */
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            margin: 0;
+            padding: 0;
+            padding-top: 56px;
+        }
+        
+        html {
+            scroll-behavior: smooth;
         }
         
         /* Perbesar semua font untuk keterbacaan yang lebih baik */
@@ -232,6 +239,11 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             background: linear-gradient(135deg, var(--hijau-kemenag) 0%, var(--hijau-kemenag-light) 100%);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 1030;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
         }
         
         .navbar-brand {
@@ -469,11 +481,36 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             position: relative;
         }
         
+        .sidebar .nav {
+            padding-top: 20px;
+        }
+        
+        .sidebar .nav-link:first-child {
+            margin-top: 0;
+        }
+        
         @media (min-width: 992px) {
             .sidebar {
-                position: sticky;
+                position: fixed;
                 top: 56px;
+                left: 0;
                 height: calc(100vh - 56px);
+                z-index: 1020;
+                width: 250px;
+            }
+            
+            .sidebar.collapsed {
+                width: 70px !important;
+            }
+            
+            .content-wrapper {
+                margin-left: 250px;
+                transition: margin-left 0.3s ease;
+            }
+            
+            .sidebar.collapsed ~ .content-wrapper,
+            .row .sidebar.collapsed ~ .content-wrapper {
+                margin-left: 70px;
             }
         }
         
@@ -499,20 +536,6 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         
         .sidebar.collapsed .collapse {
             display: none !important;
-        }
-        
-        @media (min-width: 992px) {
-            .sidebar.collapsed {
-                width: 70px !important;
-                flex: 0 0 70px !important;
-                max-width: 70px !important;
-            }
-            
-            .row .sidebar.collapsed ~ .content-wrapper {
-                flex: 0 0 calc(100% - 70px) !important;
-                max-width: calc(100% - 70px) !important;
-                width: calc(100% - 70px) !important;
-            }
         }
         
         @media (max-width: 991px) {
@@ -703,6 +726,10 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         .sidebar .nav-link.text-danger.active {
             background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
             color: white !important;
+        }
+        
+        body {
+            padding-top: 56px;
         }
         
         .content-wrapper {
