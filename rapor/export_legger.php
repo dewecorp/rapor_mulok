@@ -32,10 +32,51 @@ try {
 $semester_aktif = $profil_madrasah['semester_aktif'] ?? '1';
 $tahun_ajaran = $profil_madrasah['tahun_ajaran_aktif'] ?? '';
 
-// Ambil data kelas
+// Ambil data pengaturan cetak
+$pengaturan_cetak = null;
+try {
+    $query_pengaturan = "SELECT * FROM pengaturan_cetak LIMIT 1";
+    $result_pengaturan = $conn->query($query_pengaturan);
+    if ($result_pengaturan && $result_pengaturan->num_rows > 0) {
+        $pengaturan_cetak = $result_pengaturan->fetch_assoc();
+    }
+} catch (Exception $e) {
+    // Handle error
+}
+
+// Fungsi untuk format tanggal Indonesia
+function formatTanggalIndonesia($tanggal) {
+    if (empty($tanggal)) {
+        return '';
+    }
+    
+    $bulan = [
+        1 => 'Januari',
+        2 => 'Februari',
+        3 => 'Maret',
+        4 => 'April',
+        5 => 'Mei',
+        6 => 'Juni',
+        7 => 'Juli',
+        8 => 'Agustus',
+        9 => 'September',
+        10 => 'Oktober',
+        11 => 'November',
+        12 => 'Desember'
+    ];
+    
+    $timestamp = strtotime($tanggal);
+    $hari = date('d', $timestamp);
+    $bulan_num = (int)date('m', $timestamp);
+    $tahun = date('Y', $timestamp);
+    
+    return $hari . ' ' . $bulan[$bulan_num] . ' ' . $tahun;
+}
+
+// Ambil data kelas dengan wali kelas
 $kelas_data = null;
 if ($kelas_id > 0) {
-    $stmt = $conn->prepare("SELECT * FROM kelas WHERE id = ?");
+    $stmt = $conn->prepare("SELECT k.*, p.nama as wali_kelas_nama FROM kelas k LEFT JOIN pengguna p ON k.wali_kelas_id = p.id WHERE k.id = ?");
     $stmt->bind_param("i", $kelas_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -231,12 +272,19 @@ if ($format == 'pdf') {
     echo 'th, td { border: 1px solid #000; padding: 4px; text-align: center; font-size: 8pt; }';
     echo 'th { background-color: #f0f0f0; font-weight: bold; }';
     echo '.text-left { text-align: left; }';
+    echo '.header { display: flex; align-items: center; margin-bottom: 10px; gap: 15px; }';
+    echo '.logo-container { flex-shrink: 0; }';
+    echo '.logo { width: 70px; height: 70px; display: block; padding: 5px; background-color: #fff; }';
+    echo '.logo img { width: 100%; height: 100%; object-fit: contain; }';
+    echo '.header-content { flex: 1; text-align: center; }';
     echo 'h2 { text-align: center; margin: 5px 0; font-size: 14pt; }';
     echo 'h3 { text-align: center; margin: 5px 0; font-size: 12pt; }';
     echo 'p { text-align: center; margin: 5px 0; font-size: 10pt; }';
-    echo '.logo-container { text-align: center; margin-bottom: 10px; }';
-    echo '.logo { width: 80px; height: 80px; display: inline-block; padding: 5px; background-color: #fff; }';
-    echo '.logo img { width: 100%; height: 100%; object-fit: contain; }';
+    echo '.tanggal { text-align: right; margin-top: 20px; margin-bottom: 20px; font-size: 11pt; }';
+    echo '.ttd-row { display: flex; justify-content: space-between; margin-top: 30px; }';
+    echo '.ttd-item { width: 45%; text-align: center; }';
+    echo '.ttd-item label { display: block; margin-bottom: 50px; font-size: 11pt; }';
+    echo '.ttd-item .nama { font-weight: bold; margin-top: 5px; font-size: 11pt; }';
     echo '</style>';
     echo '<script>';
     echo 'window.onload = function() { window.print(); };';
@@ -244,13 +292,15 @@ if ($format == 'pdf') {
     echo '</head>';
     echo '<body>';
     
+    // Header dengan Logo
+    echo '<div class="header">';
     // Logo
     echo '<div class="logo-container">';
     echo '<div class="logo">';
     if (!empty($profil_madrasah['logo'])) {
         echo '<img src="../uploads/' . htmlspecialchars($profil_madrasah['logo']) . '" alt="Logo Madrasah">';
     } else {
-        echo '<div style="text-align: center; padding-top: 20px; color: #2d5016; font-weight: bold;">';
+        echo '<div style="text-align: center; padding-top: 15px; color: #2d5016; font-weight: bold;">';
         echo '<div style="font-size: 8pt;">MADRASAH</div>';
         echo '<div style="font-size: 8pt;">IBTIDAIYAH</div>';
         echo '<div style="font-size: 10pt; margin-top: 2px;">SULTAN</div>';
@@ -261,10 +311,13 @@ if ($format == 'pdf') {
     echo '</div>';
     echo '</div>';
     
-    // Header
+    // Header Content
+    echo '<div class="header-content">';
     echo '<h2>LEGGER NILAI MULOK KHUSUS</h2>';
     echo '<h3>' . htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')) . '</h3>';
     echo '<p>Kelas: ' . htmlspecialchars($kelas_data['nama_kelas'] ?? '-') . ' | Semester: ' . getSemesterText($semester_aktif) . ' | Tahun Ajaran: ' . htmlspecialchars($tahun_ajaran) . '</p>';
+    echo '</div>';
+    echo '</div>';
     
     // Tabel
     echo '<table>';
@@ -314,6 +367,27 @@ if ($format == 'pdf') {
     
     echo '</tbody>';
     echo '</table>';
+    
+    // Tempat dan Tanggal
+    echo '<div class="tanggal">';
+    $tempat_cetak = $pengaturan_cetak['tempat_cetak'] ?? 'Jepara';
+    $tanggal_cetak = $pengaturan_cetak['tanggal_cetak'] ?? date('Y-m-d');
+    echo htmlspecialchars($tempat_cetak) . ', ' . formatTanggalIndonesia($tanggal_cetak);
+    echo '</div>';
+    
+    // Tanda Tangan
+    echo '<div class="ttd-row">';
+    // Wali Kelas
+    echo '<div class="ttd-item">';
+    echo '<label>Wali Kelas,</label>';
+    echo '<div class="nama">(' . htmlspecialchars($kelas_data['wali_kelas_nama'] ?? '-') . ')</div>';
+    echo '</div>';
+    // Kepala Madrasah
+    echo '<div class="ttd-item">';
+    echo '<label>Kepala MI,</label>';
+    echo '<div class="nama">(' . htmlspecialchars($profil_madrasah['nama_kepala'] ?? '-') . ')</div>';
+    echo '</div>';
+    echo '</div>';
     
     echo '</body>';
     echo '</html>';
