@@ -104,6 +104,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $stmt->bind_param("ssi", $backup_name, $backup_file, $file_size);
         $stmt->execute();
         
+        // Catat aktivitas
+        $backup_id = $conn->insert_id;
+        logAktivitas('create', 'Membuat backup database: ' . $backup_name, 'backup', $backup_id, $conn);
+        
         // Redirect untuk mencegah resubmit
         if (ob_get_level() > 0) {
             ob_clean();
@@ -146,6 +150,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         $result->free();
                     }
                 }
+                
+                // Catat aktivitas
+                logAktivitas('restore', 'Melakukan restore database dari file: ' . basename($file_path), 'backup', $backup_id, $conn);
                 
                 // Redirect untuk mencegah resubmit
                 if (ob_get_level() > 0) {
@@ -203,6 +210,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 }
             }
             
+            // Catat aktivitas
+            logAktivitas('restore', 'Melakukan restore database dari file upload: ' . $file['name'], 'backup', null, $conn);
+            
             // Redirect untuk mencegah resubmit
             if (ob_get_level() > 0) {
                 ob_clean();
@@ -249,6 +259,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $stmt_delete->bind_param("i", $backup_id);
             
             if ($stmt_delete->execute()) {
+                // Catat aktivitas
+                logAktivitas('delete', 'Menghapus backup database id: ' . $backup_id, 'backup', $backup_id, $conn);
+
                 // Redirect untuk mencegah resubmit
                 if (ob_get_level() > 0) {
                     ob_clean();
