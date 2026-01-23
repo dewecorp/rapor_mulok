@@ -1,4 +1,4 @@
-# Rapor Mulok Digitas (RMD)
+# Rapor Mulok Digital (RMD)
 
 Aplikasi sistem rapor mata pelajaran muatan lokal untuk MI Sultan Fattah Sukosono.
 
