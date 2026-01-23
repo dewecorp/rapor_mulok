@@ -33,6 +33,7 @@ desktop.ini
 # Backup files
 backup/*.sql
 backup/*.zip
+*.zip
 
 # Config files dengan sensitive data (jika ada)
 config/local.php
