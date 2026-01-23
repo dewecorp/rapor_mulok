@@ -25,6 +25,9 @@ if (isLoggedIn()) {
 }
 
 $error = '';
+$login_success = false;
+$welcome_name = '';
+$welcome_role = '';
 $conn = getConnection();
 
 // Ambil foto login, logo, nama sekolah, tahun ajaran dan semester dari pengaturan (handle jika tabel belum ada)
@@ -124,25 +127,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         // Catat aktivitas login menggunakan fungsi helper
                         logAktivitas('login', 'User berhasil login ke sistem');
                         
-                        // Set session untuk menampilkan sweet alert selamat datang
-                        $_SESSION['show_welcome'] = true;
-                        $_SESSION['welcome_name'] = $user['nama'];
-                        $_SESSION['welcome_role'] = $user['role'];
-                        
-                        // Redirect ke dashboard
-                        // Pastikan tidak ada output sebelum redirect
-                        if (ob_get_level() > 0) {
-                            ob_clean();
-                        }
-                        // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
-                        $redirect_url = '/index.php';
-                        if (isset($_SERVER['HTTP_HOST'])) {
-                            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-                            header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
-                        } else {
-                            header('Location: ' . $redirect_url);
-                        }
-                        exit();
+                        // Set variable untuk trigger alert sukses di frontend
+                        $login_success = true;
+                        $welcome_name = $user['nama'];
+                        $welcome_role = $user['role'];
                     } else {
                         // Cek apakah password menggunakan hash lama (md5 atau plain)
                         if ($user['password'] === md5($password) || $user['password'] === $password) {
@@ -162,24 +150,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             // Catat aktivitas login menggunakan fungsi helper
                             logAktivitas('login', 'User berhasil login ke sistem');
                             
-                            // Set session untuk menampilkan sweet alert selamat datang
-                            $_SESSION['show_welcome'] = true;
-                            $_SESSION['welcome_name'] = $user['nama'];
-                            $_SESSION['welcome_role'] = $user['role'];
-                            
-                            // Pastikan tidak ada output sebelum redirect
-                            if (ob_get_level() > 0) {
-                                ob_clean();
-                            }
-                            // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
-                            $redirect_url = '/index.php';
-                            if (isset($_SERVER['HTTP_HOST'])) {
-                                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-                                header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
-                            } else {
-                                header('Location: ' . $redirect_url);
-                            }
-                            exit();
+                            // Set variable untuk trigger alert sukses di frontend
+                            $login_success = true;
+                            $welcome_name = $user['nama'];
+                            $welcome_role = $user['role'];
                         } else {
                             $error = 'Password salah! Silakan reset password di: <a href="reset_admin.php" style="color: #2d5016; text-decoration: underline;">reset_admin.php</a>';
                         }
@@ -466,6 +440,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script>
+        <?php if ($login_success): ?>
+        Swal.fire({
+            icon: 'success',
+            title: 'Login Berhasil!',
+            html: 'Selamat datang kembali, <b><?php echo addslashes($welcome_name); ?></b><br><span class="badge bg-success" style="margin-top: 5px; background-color: #2d5016 !important;"><?php echo ucfirst(str_replace("_", " ", $welcome_role)); ?></span>',
+            confirmButtonColor: '#2d5016',
+            timer: 1500,
+            timerProgressBar: true,
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        }).then((result) => {
+            window.location.href = 'index.php';
+        });
+        <?php endif; ?>
+
         <?php if ($error): ?>
         Swal.fire({
             icon: 'error',

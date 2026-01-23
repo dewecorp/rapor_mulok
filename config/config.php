@@ -369,7 +369,10 @@ function logAktivitas($jenis_aktivitas, $deskripsi = '', $tabel_target = null, $
         $deskripsi_escaped = $conn->real_escape_string($deskripsi);
         
         // Gunakan query langsung dengan escape yang aman untuk menghindari masalah bind_param dengan null
-        $sql = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+        // Gunakan waktu PHP (Asia/Jakarta) untuk memastikan konsistensi dengan timezone aplikasi
+        $waktu_sekarang = date('Y-m-d H:i:s');
+        
+        $sql = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
                 VALUES (
                     " . (int)$_SESSION['user_id'] . ",
                     '" . $conn->real_escape_string($_SESSION['nama']) . "',
@@ -379,7 +382,8 @@ function logAktivitas($jenis_aktivitas, $deskripsi = '', $tabel_target = null, $
                     $tabel_target_sql,
                     $record_id_sql,
                     '" . $conn->real_escape_string($ip_address) . "',
-                    '" . $conn->real_escape_string($user_agent) . "'
+                    '" . $conn->real_escape_string($user_agent) . "',
+                    '" . $waktu_sekarang . "'
                 )";
         
         // Jalankan query

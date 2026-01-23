@@ -99,8 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
                                 $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
                                 $deskripsi_text = "Menambahkan data materi: $nama_mulok";
+                                $waktu_sekarang = date('Y-m-d H:i:s');
                                 
-                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
                                             VALUES (
                                                 " . (int)$_SESSION['user_id'] . ",
                                                 '" . $conn->real_escape_string($_SESSION['nama']) . "',
@@ -110,7 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                 'materi_mulok',
                                                 " . (int)$new_id . ",
                                                 '" . $conn->real_escape_string($ip_address) . "',
-                                                '" . $conn->real_escape_string($user_agent) . "'
+                                                '" . $conn->real_escape_string($user_agent) . "',
+                                                '" . $waktu_sekarang . "'
                                             )";
                                 $conn->query($sql_log);
                                 
@@ -149,21 +151,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                             
                             $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                            $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
-                            $deskripsi_text = "Menambahkan data materi: $nama_mulok";
-                            
-                            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
-                                        VALUES (
-                                            " . (int)$_SESSION['user_id'] . ",
-                                            '" . $conn->real_escape_string($_SESSION['nama']) . "',
-                                            '" . $conn->real_escape_string($_SESSION['role']) . "',
-                                            'create',
-                                            '" . $conn->real_escape_string($deskripsi_text) . "',
-                                            'materi_mulok',
-                                            " . (int)$new_id . ",
-                                            '" . $conn->real_escape_string($ip_address) . "',
-                                            '" . $conn->real_escape_string($user_agent) . "'
-                                        )";
+                                $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                                $deskripsi_text = "Menambahkan data materi: $nama_mulok";
+                                $waktu_sekarang = date('Y-m-d H:i:s');
+                                
+                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
+                                            VALUES (
+                                                " . (int)$_SESSION['user_id'] . ",
+                                                '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                                '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                                'create',
+                                                '" . $conn->real_escape_string($deskripsi_text) . "',
+                                                'materi_mulok',
+                                                " . (int)$new_id . ",
+                                                '" . $conn->real_escape_string($ip_address) . "',
+                                                '" . $conn->real_escape_string($user_agent) . "',
+                                                '" . $waktu_sekarang . "'
+                                            )";
                             $conn->query($sql_log);
                             
                             $success = 'Materi mulok berhasil ditambahkan!';
@@ -199,21 +203,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                             
                             $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                            $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
-                            $deskripsi_text = "Menambahkan data materi: $nama_mulok";
-                            
-                            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
-                                        VALUES (
-                                            " . (int)$_SESSION['user_id'] . ",
-                                            '" . $conn->real_escape_string($_SESSION['nama']) . "',
-                                            '" . $conn->real_escape_string($_SESSION['role']) . "',
-                                            'create',
-                                            '" . $conn->real_escape_string($deskripsi_text) . "',
-                                            'materi_mulok',
-                                            " . (int)$new_id . ",
-                                            '" . $conn->real_escape_string($ip_address) . "',
-                                            '" . $conn->real_escape_string($user_agent) . "'
-                                        )";
+                                $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                                $deskripsi_text = "Menambahkan data materi: $nama_mulok";
+                                $waktu_sekarang = date('Y-m-d H:i:s');
+                                
+                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
+                                            VALUES (
+                                                " . (int)$_SESSION['user_id'] . ",
+                                                '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                                '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                                'create',
+                                                '" . $conn->real_escape_string($deskripsi_text) . "',
+                                                'materi_mulok',
+                                                " . (int)$new_id . ",
+                                                '" . $conn->real_escape_string($ip_address) . "',
+                                                '" . $conn->real_escape_string($user_agent) . "',
+                                                '" . $waktu_sekarang . "'
+                                            )";
                             $conn->query($sql_log);
                             
                             $success = 'Materi mulok berhasil ditambahkan!';
@@ -273,8 +279,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
                                 $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
                                 $deskripsi_text = "Memperbarui data materi: $nama_mulok";
+                                $waktu_sekarang = date('Y-m-d H:i:s');
                                 
-                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
                                             VALUES (
                                                 " . (int)$_SESSION['user_id'] . ",
                                                 '" . $conn->real_escape_string($_SESSION['nama']) . "',
@@ -284,7 +291,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                 'materi_mulok',
                                                 " . (int)$id . ",
                                                 '" . $conn->real_escape_string($ip_address) . "',
-                                                '" . $conn->real_escape_string($user_agent) . "'
+                                                '" . $conn->real_escape_string($user_agent) . "',
+                                                '" . $waktu_sekarang . "'
                                             )";
                                 $conn->query($sql_log);
                                 
@@ -321,21 +329,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                             
                             $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                            $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
-                            $deskripsi_text = "Memperbarui data materi: $nama_mulok";
-                            
-                            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
-                                        VALUES (
-                                            " . (int)$_SESSION['user_id'] . ",
-                                            '" . $conn->real_escape_string($_SESSION['nama']) . "',
-                                            '" . $conn->real_escape_string($_SESSION['role']) . "',
-                                            'update',
-                                            '" . $conn->real_escape_string($deskripsi_text) . "',
-                                            'materi_mulok',
-                                            " . (int)$id . ",
-                                            '" . $conn->real_escape_string($ip_address) . "',
-                                            '" . $conn->real_escape_string($user_agent) . "'
-                                        )";
+                                $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                                $deskripsi_text = "Memperbarui data materi: $nama_mulok";
+                                $waktu_sekarang = date('Y-m-d H:i:s');
+                                
+                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
+                                            VALUES (
+                                                " . (int)$_SESSION['user_id'] . ",
+                                                '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                                '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                                'update',
+                                                '" . $conn->real_escape_string($deskripsi_text) . "',
+                                                'materi_mulok',
+                                                " . (int)$id . ",
+                                                '" . $conn->real_escape_string($ip_address) . "',
+                                                '" . $conn->real_escape_string($user_agent) . "',
+                                                '" . $waktu_sekarang . "'
+                                            )";
                             $conn->query($sql_log);
                             
                             $success = 'Materi mulok berhasil diperbarui!';
@@ -369,21 +379,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                             
                             $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                            $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
-                            $deskripsi_text = "Memperbarui data materi: $nama_mulok";
-                            
-                            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
-                                        VALUES (
-                                            " . (int)$_SESSION['user_id'] . ",
-                                            '" . $conn->real_escape_string($_SESSION['nama']) . "',
-                                            '" . $conn->real_escape_string($_SESSION['role']) . "',
-                                            'update',
-                                            '" . $conn->real_escape_string($deskripsi_text) . "',
-                                            'materi_mulok',
-                                            " . (int)$id . ",
-                                            '" . $conn->real_escape_string($ip_address) . "',
-                                            '" . $conn->real_escape_string($user_agent) . "'
-                                        )";
+                                $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
+                                $deskripsi_text = "Memperbarui data materi: $nama_mulok";
+                                $waktu_sekarang = date('Y-m-d H:i:s');
+                                
+                                $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
+                                            VALUES (
+                                                " . (int)$_SESSION['user_id'] . ",
+                                                '" . $conn->real_escape_string($_SESSION['nama']) . "',
+                                                '" . $conn->real_escape_string($_SESSION['role']) . "',
+                                                'update',
+                                                '" . $conn->real_escape_string($deskripsi_text) . "',
+                                                'materi_mulok',
+                                                " . (int)$id . ",
+                                                '" . $conn->real_escape_string($ip_address) . "',
+                                                '" . $conn->real_escape_string($user_agent) . "',
+                                                '" . $waktu_sekarang . "'
+                                            )";
                             $conn->query($sql_log);
                             
                             $success = 'Materi mulok berhasil diperbarui!';
@@ -438,8 +450,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
                     $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
                     $deskripsi_text = "Menghapus data materi: $nama_materi_hapus";
+                    $waktu_sekarang = date('Y-m-d H:i:s');
                     
-                    $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+                    $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
                                 VALUES (
                                     " . (int)$_SESSION['user_id'] . ",
                                     '" . $conn->real_escape_string($_SESSION['nama']) . "',
@@ -449,7 +462,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     'materi_mulok',
                                     " . (int)$id . ",
                                     '" . $conn->real_escape_string($ip_address) . "',
-                                    '" . $conn->real_escape_string($user_agent) . "'
+                                    '" . $conn->real_escape_string($user_agent) . "',
+                                    '" . $waktu_sekarang . "'
                                 )";
                     $conn->query($sql_log);
                     

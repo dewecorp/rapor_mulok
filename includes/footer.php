@@ -121,88 +121,21 @@
     }
     </script>
     
-    <!-- Script untuk Welcome Alert - dieksekusi setelah semua library dimuat -->
-    <?php if (isset($_SESSION['show_welcome']) && $_SESSION['show_welcome']): ?>
-        <?php
-        $welcome_name = $_SESSION['welcome_name'] ?? 'Pengguna';
-        $welcome_role = $_SESSION['welcome_role'] ?? '';
-        $role_text = '';
-        switch($welcome_role) {
-            case 'proktor':
-                $role_text = 'Administrator';
-                break;
-            case 'wali_kelas':
-                $role_text = 'Wali Kelas';
-                break;
-            case 'guru':
-                $role_text = 'Guru';
-                break;
-            default:
-                $role_text = ucfirst($welcome_role);
-        }
-        // Hapus session variable setelah digunakan
-        unset($_SESSION['show_welcome']);
-        unset($_SESSION['welcome_name']);
-        unset($_SESSION['welcome_role']);
-        ?>
-        <script>
-            // Simpan data ke variabel JavaScript sebelum session dihapus
-            var welcomeName = '<?php echo htmlspecialchars($welcome_name, ENT_QUOTES); ?>';
-            var welcomeRole = '<?php echo htmlspecialchars($role_text, ENT_QUOTES); ?>';
-            
-            console.log('Welcome alert script loaded:', welcomeName, welcomeRole);
-            
-            // Tampilkan welcome alert setelah semua library dimuat
-            function showWelcomeAlert() {
-                console.log('showWelcomeAlert called, Swal available:', typeof Swal !== 'undefined');
-                if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
-                    console.log('Showing welcome alert');
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Selamat Datang!',
-                        html: '<strong>' + welcomeName + '</strong><br><small>' + welcomeRole + '</small>',
-                        confirmButtonColor: '#2d5016',
-                        confirmButtonText: 'Mulai',
-                        timer: 4000,
-                        timerProgressBar: true,
-                        showConfirmButton: true,
-                        allowOutsideClick: false,
-                        allowEscapeKey: false,
-                        didOpen: function() {
-                            if (document.body) {
-                                document.body.style.overflow = 'hidden';
-                            }
-                        },
-                        willClose: function() {
-                            if (document.body) {
-                                document.body.style.overflow = '';
-                            }
-                        }
-                    });
-                } else {
-                    // Jika SweetAlert belum tersedia, coba lagi setelah 50ms
-                    setTimeout(showWelcomeAlert, 50);
-                }
-            }
-            
-            // Tunggu jQuery dan SweetAlert2 dimuat
-            if (typeof jQuery !== 'undefined') {
-                $(document).ready(function() {
-                    setTimeout(showWelcomeAlert, 50);
-                });
-            } else {
-                // Jika jQuery belum tersedia, tunggu window load
-                window.addEventListener('load', function() {
-                    setTimeout(showWelcomeAlert, 50);
-                });
-            }
-        </script>
-    <?php endif; ?>
+    
+    <!-- Script untuk Welcome Alert - sudah dipindahkan ke login.php -->
+
     
     <script>
         // Fungsi untuk update datetime realtime dengan format Indonesia
+        // Hitung selisih waktu server dan client agar jam sesuai dengan server (Asia/Jakarta)
+        var serverTime = <?php echo time() * 1000; ?>;
+        var clientTime = new Date().getTime();
+        var timeOffset = serverTime - clientTime;
+
         function updateDateTime() {
-            var now = new Date();
+            // Gunakan waktu sekarang ditambah offset
+            var now = new Date(new Date().getTime() + timeOffset);
+            
             var hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             var bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
             

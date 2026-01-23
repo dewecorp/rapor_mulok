@@ -17,6 +17,7 @@ function getConnection() {
         }
         
         $conn->set_charset("utf8mb4");
+        $conn->query("SET time_zone = '+07:00'");
         return $conn;
     } catch (mysqli_sql_exception $e) {
         throw new Exception("Koneksi gagal: " . $e->getMessage());

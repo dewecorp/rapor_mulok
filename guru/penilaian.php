@@ -213,8 +213,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $user_agent = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 500);
             $count_nilai = count($nilai_array);
             $deskripsi_text = "Menyimpan nilai untuk $count_nilai siswa";
+            $waktu_sekarang = date('Y-m-d H:i:s');
             
-            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent) 
+            $sql_log = "INSERT INTO aktivitas_pengguna (user_id, nama, role, jenis_aktivitas, deskripsi, tabel_target, record_id, ip_address, user_agent, waktu) 
                         VALUES (
                             " . (int)$_SESSION['user_id'] . ",
                             '" . $conn->real_escape_string($_SESSION['nama']) . "',
@@ -224,7 +225,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                             'nilai_siswa',
                             NULL,
                             '" . $conn->real_escape_string($ip_address) . "',
-                            '" . $conn->real_escape_string($user_agent) . "'
+                            '" . $conn->real_escape_string($user_agent) . "',
+                            '" . $waktu_sekarang . "'
                         )";
             $conn->query($sql_log);
             

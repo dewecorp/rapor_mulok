@@ -411,13 +411,15 @@ $page_title = 'Dashboard';
                 }
                 
                 // Hapus aktivitas yang lebih dari 24 jam
-                $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+                // Gunakan waktu PHP (Asia/Jakarta) untuk konsistensi
+                $cutoff_time = date('Y-m-d H:i:s', strtotime('-24 hours'));
+                $conn->query("DELETE FROM aktivitas_pengguna WHERE waktu < '$cutoff_time'");
                 
-                // Ambil aktivitas 24 jam terakhir dengan perhitungan selisih waktu dari database
-                $query_aktivitas = "SELECT *, 
-                    TIMESTAMPDIFF(SECOND, waktu, NOW()) as selisih_detik
+                // Ambil aktivitas 24 jam terakhir
+                // Kita hitung selisih waktu di PHP agar sesuai timezone aplikasi
+                $query_aktivitas = "SELECT *
                     FROM aktivitas_pengguna 
-                    WHERE waktu >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    WHERE waktu >= '$cutoff_time'
                     ORDER BY waktu DESC 
                     LIMIT 100";
                 $result_aktivitas = $conn->query($query_aktivitas);

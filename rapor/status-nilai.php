@@ -164,7 +164,7 @@ $page_title = 'Status Nilai';
             <!-- Progress Bar Materi Mulok -->
             <div class="card mb-4">
                 <div class="card-body">
-                    <h6 class="mb-3">Materi Mulok</h6>
+                    <h6 class="mb-3">Progres Nilai</h6>
                     <div class="progress" style="height: 30px;">
                         <div class="progress-bar" 
                              role="progressbar" 
