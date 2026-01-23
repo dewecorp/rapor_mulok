@@ -40,11 +40,8 @@ git push -u origin %BRANCH%
 
 :: 5. Buat Backup ZIP
 echo.
-echo 5. Membuat file ZIP backup...
-:: Mendapatkan timestamp yang aman (format YYYY-MM-DD_HH-mm-ss)
-for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
-set "TIMESTAMP=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2%_%datetime:~8,2%-%datetime:~10,2%-%datetime:~12,2%"
-set "ZIP_FILE=backup_rapor_mulok_%TIMESTAMP%.zip"
+echo 5. Membuat/Update file ZIP backup...
+set "ZIP_FILE=rapor-mulok.zip"
 
 :: Menggunakan git archive untuk membuat zip (exclude .git dan file untracked)
 git archive --format=zip --output="%ZIP_FILE%" %BRANCH%
