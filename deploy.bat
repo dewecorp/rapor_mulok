@@ -41,13 +41,21 @@ git push -u origin %BRANCH%
 :: 5. Buat Backup ZIP
 echo.
 echo 5. Membuat/Update file ZIP backup...
-set "ZIP_FILE=..\rapor_mulok.zip"
+set "ZIP_FILE=rapor_mulok.zip"
+
+echo Lokasi target backup: "%ZIP_FILE%"
 
 :: Menggunakan git archive untuk membuat zip (exclude .git dan file untracked)
 git archive --format=zip --output="%ZIP_FILE%" %BRANCH%
 
 if exist "%ZIP_FILE%" (
-    echo Backup berhasil dibuat di luar folder proyek: %ZIP_FILE%
+    echo.
+    echo [SUKSES] Backup berhasil dibuat!
+    echo File tersimpan di folder proyek: "%ZIP_FILE%"
+    
+    :: Buka lokasi file di File Explorer
+    echo Membuka lokasi file...
+    explorer.exe /select,"%ZIP_FILE%"
 ) else (
     echo Gagal membuat file zip.
 )
