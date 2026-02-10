@@ -39,7 +39,7 @@ try {
 // Ambil data profil untuk foto login
 $profil = null;
 try {
-    $result_profil = $conn->query("SELECT foto_login FROM profil_madrasah LIMIT 1");
+    $result_profil = $conn->query("SELECT * FROM profil_madrasah LIMIT 1");
     $profil = $result_profil ? $result_profil->fetch_assoc() : null;
 } catch (Exception $e) {
     // Tabel belum ada atau error
@@ -91,6 +91,97 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } catch (Exception $e) {
                 $error = 'Error: ' . $e->getMessage();
             }
+        }
+    } elseif ($action == 'update_ttd_kepala') {
+        // Handle update tanda tangan kepala
+        $jenis_ttd = $_POST['jenis_ttd'] ?? 'none';
+        $allowed_jenis = ['none', 'image', 'qrcode'];
+        
+        if (!in_array($jenis_ttd, $allowed_jenis)) {
+            $jenis_ttd = 'none';
+        }
+        
+        // Update jenis ttd dulu
+        try {
+            $result_id = $conn->query("SELECT id FROM profil_madrasah LIMIT 1");
+            if ($result_id && $result_id->num_rows > 0) {
+                $profil_id = $result_id->fetch_assoc()['id'];
+                $stmt_jenis = $conn->prepare("UPDATE profil_madrasah SET jenis_ttd=? WHERE id=?");
+                $stmt_jenis->bind_param("si", $jenis_ttd, $profil_id);
+                $stmt_jenis->execute();
+            }
+        } catch (Exception $e) {
+            $error = 'Error update jenis TTD: ' . $e->getMessage();
+        }
+
+        // Handle file upload jika ada
+        if (isset($_FILES['ttd_kepala']) && $_FILES['ttd_kepala']['error'] == 0) {
+            // Validasi file
+            $allowed_types = ['image/jpeg', 'image/jpg', 'image/png'];
+            $file_type = $_FILES['ttd_kepala']['type'];
+            $file_size = $_FILES['ttd_kepala']['size'];
+            $max_size = 2 * 1024 * 1024; // 2MB
+            
+            if (!in_array($file_type, $allowed_types)) {
+                $error = 'Format file tidak didukung! Gunakan format JPG atau PNG (background transparan disarankan).';
+            } elseif ($file_size > $max_size) {
+                $error = 'Ukuran file terlalu besar! Maksimal 2MB.';
+            } else {
+                $upload_dir = '../uploads/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                // Ambil ttd lama
+                $ttd_lama = $profil['ttd_kepala'] ?? null;
+                
+                // Generate nama file baru
+                $file_ext = pathinfo($_FILES['ttd_kepala']['name'], PATHINFO_EXTENSION);
+                $ttd_kepala = 'ttd_kepala_' . time() . '.' . $file_ext;
+                
+                // Upload file baru
+                if (move_uploaded_file($_FILES['ttd_kepala']['tmp_name'], $upload_dir . $ttd_kepala)) {
+                    try {
+                        if (isset($profil_id)) {
+                            $stmt_foto = $conn->prepare("UPDATE profil_madrasah SET ttd_kepala=? WHERE id=?");
+                            $stmt_foto->bind_param("si", $ttd_kepala, $profil_id);
+                            
+                            if ($stmt_foto->execute()) {
+                                // Hapus file lama jika ada
+                                if ($ttd_lama && file_exists($upload_dir . $ttd_lama)) {
+                                    @unlink($upload_dir . $ttd_lama);
+                                }
+                                $_SESSION['success_message'] = 'Tanda tangan berhasil diperbarui!';
+                            } else {
+                                @unlink($upload_dir . $ttd_kepala);
+                                $error = 'Gagal update database!';
+                            }
+                        }
+                    } catch (Exception $e) {
+                        @unlink($upload_dir . $ttd_kepala);
+                        $error = 'Error: ' . $e->getMessage();
+                    }
+                } else {
+                    $error = 'Gagal mengupload file!';
+                }
+            }
+        } else {
+            if (empty($error)) {
+                $_SESSION['success_message'] = 'Pengaturan tanda tangan disimpan!';
+            }
+        }
+        
+        if (empty($error)) {
+            // Redirect
+             if (ob_get_level() > 0) ob_clean();
+            $redirect_url = '/pengaturan/index.php';
+            if (isset($_SERVER['HTTP_HOST'])) {
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+            } else {
+                header('Location: ' . $redirect_url);
+            }
+            exit();
         }
     } elseif ($action == 'update_foto_login') {
         // Handle update foto login
@@ -204,7 +295,7 @@ try {
 
 // Ambil data profil terbaru untuk foto login
 try {
-    $result_profil = $conn->query("SELECT foto_login FROM profil_madrasah LIMIT 1");
+    $result_profil = $conn->query("SELECT * FROM profil_madrasah LIMIT 1");
     $profil = $result_profil ? $result_profil->fetch_assoc() : null;
 } catch (Exception $e) {
     $profil = null;
@@ -324,6 +415,66 @@ $page_title = 'Pengaturan';
                     </div>
                 </div>
             </div>
+            
+            <!-- Box Tanda Tangan -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header" style="background-color: #2d5016; color: white;">
+                        <h6 class="mb-0"><i class="fas fa-signature"></i> Tanda Tangan Kepala Madrasah</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="formTtd" enctype="multipart/form-data">
+                            <input type="hidden" name="action" value="update_ttd_kepala">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tampilkan Sebagai</label>
+                                        <select class="form-select" name="jenis_ttd" id="jenis_ttd">
+                                            <option value="none" <?php echo ($profil['jenis_ttd'] ?? '') == 'none' ? 'selected' : ''; ?>>Tidak Ditampilkan</option>
+                                            <option value="image" <?php echo ($profil['jenis_ttd'] ?? '') == 'image' ? 'selected' : ''; ?>>Gambar Tanda Tangan</option>
+                                            <option value="qrcode" <?php echo ($profil['jenis_ttd'] ?? '') == 'qrcode' ? 'selected' : ''; ?>>QR Code</option>
+                                        </select>
+                                        <small class="text-muted">Pilih jenis tanda tangan yang akan ditampilkan di rapor.</small>
+                                    </div>
+                                    <div class="mb-3" id="upload_ttd_container" style="<?php echo ($profil['jenis_ttd'] ?? '') == 'image' ? '' : 'display:none;'; ?>">
+                                        <label class="form-label">Upload Gambar Tanda Tangan</label>
+                                        <input type="file" class="form-control" name="ttd_kepala" accept="image/png, image/jpeg" id="ttd_kepala">
+                                        <small class="text-muted">Format: PNG (transparan) atau JPG. Maksimal 2MB. Disarankan rasio 3:1.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Preview</label><br>
+                                    
+                                    <!-- Preview Image -->
+                                    <div id="previewTtdImage" style="<?php echo ($profil['jenis_ttd'] ?? '') == 'image' ? '' : 'display:none;'; ?>">
+                                        <img src="../uploads/<?php echo htmlspecialchars($profil['ttd_kepala'] ?? ''); ?>" 
+                                             alt="Tanda Tangan" id="imgTtd" 
+                                             style="max-height: 100px; max-width: 100%; border: 1px solid #ddd; padding: 5px; display: block;" 
+                                             onerror="this.style.display='none'; document.getElementById('placeholderTtd').style.display='block';">
+                                        <div id="placeholderTtd" style="display: <?php echo !empty($profil['ttd_kepala'] ?? '') ? 'none' : 'block'; ?>; padding: 20px; border: 1px dashed #ccc; text-align: center; color: #999;">
+                                            Belum ada tanda tangan
+                                        </div>
+                                    </div>
+
+                                    <!-- Preview QR -->
+                                    <div id="previewTtdQr" style="<?php echo ($profil['jenis_ttd'] ?? '') == 'qrcode' ? '' : 'display:none;'; ?>">
+                                        <div style="padding: 20px; border: 1px dashed #ccc; text-align: center; color: #666;">
+                                            <i class="fas fa-qrcode fa-3x mb-2"></i><br>
+                                            QR Code akan digenerate otomatis saat cetak rapor<br>
+                                            berisi data: "Ditandatangani secara elektronik oleh: [Nama Kepala]"
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> Simpan Pengaturan Tanda Tangan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -429,10 +580,67 @@ $page_title = 'Pengaturan';
                 preview.src = e.target.result;
                 preview.style.display = 'block';
                 placeholder.style.display = 'none';
-            };
+            }
             reader.readAsDataURL(file);
         }
     });
+
+    // Toggle jenis ttd
+    const jenisTtdSelect = document.getElementById('jenis_ttd');
+    if (jenisTtdSelect) {
+        jenisTtdSelect.addEventListener('change', function() {
+            const val = this.value;
+            const uploadContainer = document.getElementById('upload_ttd_container');
+            const previewImage = document.getElementById('previewTtdImage');
+            const previewQr = document.getElementById('previewTtdQr');
+            
+            if (val === 'image') {
+                uploadContainer.style.display = 'block';
+                previewImage.style.display = 'block';
+                previewQr.style.display = 'none';
+            } else if (val === 'qrcode') {
+                uploadContainer.style.display = 'none';
+                previewImage.style.display = 'none';
+                previewQr.style.display = 'block';
+            } else {
+                uploadContainer.style.display = 'none';
+                previewImage.style.display = 'none';
+                previewQr.style.display = 'none';
+            }
+        });
+    }
+
+    // Preview image ttd
+    const ttdInput = document.getElementById('ttd_kepala');
+    if (ttdInput) {
+        ttdInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validasi ukuran
+                if (file.size > 2 * 1024 * 1024) {
+                     Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Ukuran file terlalu besar! Maksimal 2MB.',
+                        confirmButtonColor: '#2d5016'
+                    });
+                    this.value = '';
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('imgTtd');
+                    const placeholder = document.getElementById('placeholderTtd');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
     
 </script>
 

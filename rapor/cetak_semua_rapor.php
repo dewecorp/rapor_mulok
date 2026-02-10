@@ -529,6 +529,7 @@ try {
             window.print();
         };
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -788,7 +789,35 @@ try {
                 
                 <div class="ttd-center">
                     <div style="margin-bottom: 5px; font-size: 11pt;">Mengetahui</div>
-                    <div style="margin-bottom: 50px; font-size: 11pt;">Kepala MI,</div>
+                    <div style="font-size: 11pt;">Kepala MI,</div>
+                    
+                    <!-- Area Tanda Tangan -->
+                    <?php 
+                    $jenis_ttd = $profil_madrasah['jenis_ttd'] ?? 'none';
+                    $ttd_file = $profil_madrasah['ttd_kepala'] ?? '';
+                    
+                    if ($jenis_ttd == 'image' && !empty($ttd_file) && file_exists('../uploads/' . $ttd_file)): ?>
+                        <div style="height: 70px; margin: 5px auto;">
+                            <img src="../uploads/<?php echo htmlspecialchars($ttd_file); ?>" style="height: 100%; max-width: 200px; object-fit: contain;">
+                        </div>
+                    <?php elseif ($jenis_ttd == 'qrcode'): ?>
+                        <div style="height: 70px; margin: 5px auto; display: flex; justify-content: center; align-items: center;">
+                            <div id="qrcode-<?php echo $index; ?>"></div>
+                        </div>
+                        <script>
+                            new QRCode(document.getElementById("qrcode-<?php echo $index; ?>"), {
+                                text: "Ditandatangani secara elektronik oleh: <?php echo addslashes($profil_madrasah['nama_kepala'] ?? 'Kepala Madrasah'); ?>",
+                                width: 70,
+                                height: 70,
+                                colorDark : "#000000",
+                                colorLight : "#ffffff",
+                                correctLevel : QRCode.CorrectLevel.H
+                            });
+                        </script>
+                    <?php else: ?>
+                        <div style="height: 50px;"></div>
+                    <?php endif; ?>
+                    
                     <div class="nama">(<?php echo htmlspecialchars($profil_madrasah['nama_kepala'] ?? '-'); ?>)</div>
                 </div>
             </div>
