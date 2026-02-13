@@ -115,7 +115,7 @@
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = 'logout.php';
+                window.location.href = '<?php echo $basePath; ?>logout.php';
             }
         });
     }

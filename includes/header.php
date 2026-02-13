@@ -1642,7 +1642,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                             </a>
                         <?php endif; ?>
                     <?php endif; ?>
-                    <a class="nav-link text-danger" href="<?php echo $basePath; ?>logout.php">
+                    <a class="nav-link text-danger" href="#" onclick="logout(); return false;">
                         <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
                     </a>
                     <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar" style="margin-top: 10px;">

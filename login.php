@@ -14,13 +14,8 @@ if (isLoggedIn()) {
         ob_clean();
     }
     // Gunakan path absolut ke root untuk menghindari masalah redirect di subdirektori
-    $redirect_url = '/index.php';
-    if (isset($_SERVER['HTTP_HOST'])) {
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-        header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
-    } else {
-        header('Location: ' . $redirect_url);
-    }
+    $path = getRelativePath();
+    header('Location: ' . $path . 'index.php');
     exit();
 }
 
@@ -155,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $welcome_name = $user['nama'];
                             $welcome_role = $user['role'];
                         } else {
-                            $error = 'Password salah! Silakan reset password di: <a href="reset_admin.php" style="color: #2d5016; text-decoration: underline;">reset_admin.php</a>';
+                            $error = 'Password salah! Silakan <a href="reset_admin.php" style="color: #2d5016; text-decoration: underline; font-weight: bold;">Reset Password Disini</a>';
                         }
                     }
                 } else {
@@ -400,11 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                     </div>
                     
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger" role="alert">
-                            <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
-                        </div>
-                    <?php endif; ?>
+                    
                     
                     <form method="POST" action="">
                         <div class="mb-3">
@@ -463,7 +454,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         Swal.fire({
             icon: 'error',
             title: 'Login Gagal',
-            text: '<?php echo addslashes($error); ?>',
+            html: '<?php echo addslashes($error); ?>',
             confirmButtonColor: '#2d5016',
             timer: 5000,
             timerProgressBar: true,
@@ -473,4 +464,3 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </script>
 </body>
 </html>
-
