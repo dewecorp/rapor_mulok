@@ -621,11 +621,33 @@ function getSemesterText($semester) {
             
             <div class="ttd-row">
                 <div class="ttd-item">
-                    <label>Wali Murid,</label>
+                    <div style="margin-bottom: 5px; font-size: 11pt;">Wali Murid,</div>
+                    <div style="height: 70px;"></div>
                     <div class="nama">(<?php echo htmlspecialchars($siswa['orangtua_wali'] ?? '___________________'); ?>)</div>
                 </div>
                 <div class="ttd-item">
-                    <label>Wali Kelas,</label>
+                    <div style="margin-bottom: 5px; font-size: 11pt;">Wali Kelas,</div>
+                    
+                    <?php 
+                    $jenis_ttd = $profil_madrasah['jenis_ttd'] ?? 'none';
+                    if ($jenis_ttd == 'qrcode'): ?>
+                        <div style="height: 70px; margin: 5px auto; display: flex; justify-content: center; align-items: center;">
+                            <div id="qrcode-wali-<?php echo $index; ?>"></div>
+                        </div>
+                        <script>
+                            new QRCode(document.getElementById("qrcode-wali-<?php echo $index; ?>"), {
+                                text: "Ditandatangani secara elektronik oleh: <?php echo addslashes($kelas_data['wali_kelas_nama'] ?? 'Wali Kelas'); ?>",
+                                width: 70,
+                                height: 70,
+                                colorDark : "#000000",
+                                colorLight : "#ffffff",
+                                correctLevel : QRCode.CorrectLevel.H
+                            });
+                        </script>
+                    <?php else: ?>
+                        <div style="height: 70px;"></div>
+                    <?php endif; ?>
+                    
                     <div class="nama">(<?php echo htmlspecialchars($kelas_data['wali_kelas_nama'] ?? '-'); ?>)</div>
                 </div>
             </div>
