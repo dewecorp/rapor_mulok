@@ -101,8 +101,8 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 1cm 2cm 0.5cm 2cm;
-                margin-top: 1cm;
+                margin: 0.3cm 2cm 0.5cm 2cm;
+                margin-top: 0.3cm;
             }
             body {
                 margin: 0;
@@ -177,7 +177,7 @@ try {
         .info-container {
             border: 2px solid #000;
             padding: 15px;
-            margin: 70px 0 15px 0;
+            margin: 25px 0 15px 0;
         }
         
         .info-siswa-box {

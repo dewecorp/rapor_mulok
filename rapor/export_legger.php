@@ -176,10 +176,28 @@ function getSemesterText($semester) {
     return ($semester == '1') ? 'Gasal' : 'Genap';
 }
 
+// Siapkan bagian nama file untuk eksport
+$kelas_for_file = trim($kelas_data['nama_kelas'] ?? 'Kelas');
+if ($kelas_for_file === '') {
+    $kelas_for_file = 'Kelas';
+}
+$kelas_for_file = preg_replace('/[^A-Za-z0-9\- ]/', '', $kelas_for_file);
+$kelas_for_file = str_replace(' ', '_', strtoupper($kelas_for_file));
+
+$semester_for_file = getSemesterText($semester_aktif);
+$semester_for_file = str_replace(' ', '_', $semester_for_file);
+
+$tahun_for_file = $tahun_ajaran ?: date('Y');
+$tahun_for_file = str_replace(['/', ' '], '_', $tahun_for_file);
+
+// Judul halaman untuk PDF (dipakai sebagai default filename saat save as)
+$page_title_legger = 'Legger Nilai Mulok Kelas ' . ($kelas_data['nama_kelas'] ?? '-') .
+    ' Semester ' . getSemesterText($semester_aktif) . ' ' . $tahun_ajaran;
+
 // Export Excel
 if ($format == 'excel') {
     header('Content-Type: application/vnd.ms-excel');
-    header('Content-Disposition: attachment; filename="legger_' . htmlspecialchars($kelas_data['nama_kelas'] ?? '') . '_' . date('Y-m-d') . '.xls"');
+    header('Content-Disposition: attachment; filename=\"Legger_Nilai_Mulok_Kelas_' . $kelas_for_file . '_Semester_' . $semester_for_file . '_' . $tahun_for_file . '.xls\"');
     
     echo '<html>';
     echo '<head>';
@@ -189,6 +207,7 @@ if ($format == 'excel') {
     echo 'th, td { border: 1px solid #000; padding: 5px; text-align: center; }';
     echo 'th { background-color: #f0f0f0; font-weight: bold; }';
     echo '.text-left { text-align: left; }';
+    echo '.text-left-nowrap { text-align: left; white-space: nowrap; }';
     echo '</style>';
     echo '</head>';
     echo '<body>';
@@ -261,17 +280,18 @@ if ($format == 'pdf') {
     echo '<html>';
     echo '<head>';
     echo '<meta charset="UTF-8">';
-    echo '<title>Legger Nilai Mulok Khusus</title>';
+    echo '<title>' . htmlspecialchars($page_title_legger) . '</title>';
     echo '<style>';
     echo '@media print {';
     echo '  @page { size: A4 landscape; margin: 1cm; }';
     echo '  body { margin: 0; padding: 10px; }';
     echo '}';
-    echo 'body { font-family: Arial, sans-serif; font-size: 9pt; }';
+    echo 'body { font-family: Arial, sans-serif; font-size: 11pt; }';
     echo 'table { border-collapse: collapse; width: 100%; margin-top: 10px; }';
-    echo 'th, td { border: 1px solid #000; padding: 4px; text-align: center; font-size: 8pt; }';
+    echo 'th, td { border: 1px solid #000; padding: 5px; text-align: center; font-size: 10pt; }';
     echo 'th { background-color: #f0f0f0; font-weight: bold; }';
     echo '.text-left { text-align: left; }';
+    echo '.text-left-nowrap { text-align: left; white-space: nowrap; }';
     echo '.header { display: flex; align-items: center; margin-bottom: 10px; gap: 15px; }';
     echo '.logo-container { flex-shrink: 0; }';
     echo '.logo { width: 70px; height: 70px; display: block; padding: 5px; background-color: #fff; }';
@@ -280,14 +300,41 @@ if ($format == 'pdf') {
     echo 'h2 { text-align: center; margin: 5px 0; font-size: 14pt; }';
     echo 'h3 { text-align: center; margin: 5px 0; font-size: 12pt; }';
     echo 'p { text-align: center; margin: 5px 0; font-size: 10pt; }';
-    echo '.tanggal { text-align: right; margin-top: 20px; margin-bottom: 20px; font-size: 11pt; }';
-    echo '.ttd-row { display: flex; justify-content: space-between; margin-top: 30px; }';
+    echo '.tanggal { text-align: right; margin-top: 10px; margin-bottom: 10px; font-size: 11pt; }';
+    echo '.ttd-row { display: flex; justify-content: space-between; margin-top: 10px; page-break-inside: avoid; }';
     echo '.ttd-item { width: 45%; text-align: center; }';
     echo '.ttd-item label { display: block; margin-bottom: 50px; font-size: 11pt; }';
     echo '.ttd-item .nama { font-weight: bold; margin-top: 5px; font-size: 11pt; }';
     echo '</style>';
+    echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>';
     echo '<script>';
-    echo 'window.onload = function() { window.print(); };';
+    echo 'window.onload = function() {';
+    if (!empty($profil_madrasah['jenis_ttd']) && $profil_madrasah['jenis_ttd'] === 'qrcode') {
+        $wali_text = "Ditandatangani secara elektronik oleh: " . addslashes($kelas_data['wali_kelas_nama'] ?? 'Wali Kelas');
+        $kepala_text = "Ditandatangani secara elektronik oleh: " . addslashes($profil_madrasah['nama_kepala'] ?? 'Kepala Madrasah');
+        echo '  if (document.getElementById("qrcode-wali-legger")) {';
+        echo '    new QRCode(document.getElementById("qrcode-wali-legger"), {';
+        echo '      text: "' . $wali_text . '",';
+        echo '      width: 70,';
+        echo '      height: 70,';
+        echo '      colorDark: "#000000",';
+        echo '      colorLight: "#ffffff",';
+        echo '      correctLevel: QRCode.CorrectLevel.H';
+        echo '    });';
+        echo '  }';
+        echo '  if (document.getElementById("qrcode-kepala-legger")) {';
+        echo '    new QRCode(document.getElementById("qrcode-kepala-legger"), {';
+        echo '      text: "' . $kepala_text . '",';
+        echo '      width: 70,';
+        echo '      height: 70,';
+        echo '      colorDark: "#000000",';
+        echo '      colorLight: "#ffffff",';
+        echo '      correctLevel: QRCode.CorrectLevel.H';
+        echo '    });';
+        echo '  }';
+    }
+    echo '  window.print();';
+    echo '};';
     echo '</script>';
     echo '</head>';
     echo '<body>';
@@ -325,13 +372,13 @@ if ($format == 'pdf') {
     echo '<tr>';
     echo '<th rowspan="2" style="width: 30px;">No</th>';
     echo '<th rowspan="2" style="width: 100px;">NISN</th>';
-    echo '<th rowspan="2" style="width: 150px;">Nama Siswa</th>';
+    echo '<th rowspan="2" style="width: 150px; white-space: nowrap;">Nama Siswa</th>';
     echo '<th colspan="' . count($materi_list) . '">Materi Mulok</th>';
     echo '<th rowspan="2" style="width: 60px;">Rata-rata</th>';
     echo '</tr>';
     echo '<tr>';
     foreach ($materi_list as $materi) {
-        echo '<th style="width: 80px; font-size: 7pt;">' . htmlspecialchars($materi['nama_mulok']) . '</th>';
+        echo '<th style="width: 80px; font-size: 10pt;">' . htmlspecialchars($materi['nama_mulok']) . '</th>';
     }
     echo '</tr>';
     echo '</thead>';
@@ -342,7 +389,7 @@ if ($format == 'pdf') {
         echo '<tr>';
         echo '<td>' . $no++ . '</td>';
         echo '<td>' . htmlspecialchars($siswa['nisn'] ?? '-') . '</td>';
-        echo '<td class="text-left" style="font-size: 8pt;">' . htmlspecialchars($siswa['nama'] ?? '-') . '</td>';
+        echo '<td class="text-left-nowrap" style="font-size: 10pt;">' . htmlspecialchars($siswa['nama'] ?? '-') . '</td>';
         
         $total_nilai = 0;
         $count_nilai = 0;
@@ -380,11 +427,21 @@ if ($format == 'pdf') {
     // Wali Kelas
     echo '<div class="ttd-item">';
     echo '<label>Wali Kelas,</label>';
+    if (!empty($profil_madrasah['jenis_ttd']) && $profil_madrasah['jenis_ttd'] === 'qrcode') {
+        echo '<div style="height: 70px; margin: 5px auto; display: flex; justify-content: center; align-items: center;">';
+        echo '<div id="qrcode-wali-legger"></div>';
+        echo '</div>';
+    }
     echo '<div class="nama">(' . htmlspecialchars($kelas_data['wali_kelas_nama'] ?? '-') . ')</div>';
     echo '</div>';
     // Kepala Madrasah
     echo '<div class="ttd-item">';
     echo '<label>Kepala MI,</label>';
+    if (!empty($profil_madrasah['jenis_ttd']) && $profil_madrasah['jenis_ttd'] === 'qrcode') {
+        echo '<div style="height: 70px; margin: 5px auto; display: flex; justify-content: center; align-items: center;">';
+        echo '<div id="qrcode-kepala-legger"></div>';
+        echo '</div>';
+    }
     echo '<div class="nama">(' . htmlspecialchars($profil_madrasah['nama_kepala'] ?? '-') . ')</div>';
     echo '</div>';
     echo '</div>';

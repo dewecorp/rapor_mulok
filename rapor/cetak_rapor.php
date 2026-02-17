@@ -231,19 +231,33 @@ try {
 } catch (Exception $e) {
     $has_desa = false;
 }
+
+// Tentukan judul halaman untuk nama file saat di-print
+$page_title_rapor = 'Rapor';
+if (!empty($siswa_list) && count($siswa_list) === 1) {
+    $s = $siswa_list[0];
+    $nama_siswa_title = strtoupper(trim($s['nama'] ?? 'Siswa'));
+    $kelas_title = trim($kelas_data['nama_kelas'] ?? ($s['nama_kelas'] ?? ''));
+    $semester_title = getSemesterText($semester_aktif);
+    if (!empty($kelas_title)) {
+        $page_title_rapor = $nama_siswa_title . ' - ' . $kelas_title . ' - ' . $semester_title;
+    } else {
+        $page_title_rapor = $nama_siswa_title . ' - ' . $semester_title;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cetak Rapor</title>
+    <title><?php echo htmlspecialchars($page_title_rapor); ?></title>
     <style>
         @media print {
             @page {
                 size: A4;
-                margin: 1cm 1.5cm 0.5cm 1.5cm;
-                margin-top: 1cm;
+                margin: 0.3cm 1.5cm 0.5cm 1.5cm;
+                margin-top: 0.3cm;
             }
             body {
                 margin: 0;
@@ -321,7 +335,7 @@ try {
         .info-container {
             border: 2px solid #000;
             padding: 15px;
-            margin: 70px 0 15px 0;
+            margin: 25px 0 15px 0;
         }
         
         .info-siswa-table {
@@ -595,20 +609,24 @@ try {
                     <table class="info-table">
                         <tr>
                             <td>Nama Madrasah</td>
-                            <td>: <?php echo htmlspecialchars(strtoupper($profil_madrasah['nama_madrasah'] ?? 'MI SULTAN FATTAH SUKOSONO')); ?></td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['nama_madrasah'] ?? 'MIS Sultan Fattah Sukosono'); ?></td>
                         </tr>
                         <tr>
-                            <td>NPSN</td>
-                            <td>: <?php echo htmlspecialchars($profil_madrasah['npsn'] ?? '-'); ?></td>
+                            <td>NSM</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['nsm'] ?? '-'); ?></td>
                         </tr>
                         <tr>
-                            <td>Alamat</td>
+                            <td>Alamat Madrasah</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['alamat'] ?? '-'); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Desa / Kelurahan</td>
                             <td>: <?php 
-                                $alamat = $profil_madrasah['alamat'] ?? '';
                                 if ($has_desa && !empty($profil_madrasah['desa'])) {
-                                    $alamat .= ', ' . $profil_madrasah['desa'];
+                                    echo htmlspecialchars($profil_madrasah['desa']);
+                                } else {
+                                    echo 'Sukosono';
                                 }
-                                echo htmlspecialchars($alamat); 
                             ?></td>
                         </tr>
                         <tr>
@@ -616,13 +634,25 @@ try {
                             <td>: <?php echo htmlspecialchars($profil_madrasah['kecamatan'] ?? '-'); ?></td>
                         </tr>
                         <tr>
-                            <td>Kabupaten</td>
+                            <td>Kabupaten / Kota</td>
                             <td>: <?php echo htmlspecialchars($profil_madrasah['kabupaten'] ?? '-'); ?></td>
                         </tr>
                         <tr>
                             <td>Provinsi</td>
                             <td>: <?php echo htmlspecialchars($profil_madrasah['provinsi'] ?? '-'); ?></td>
                         </tr>
+                        <?php if (!empty($profil_madrasah['website'])): ?>
+                        <tr>
+                            <td>Website</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['website']); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if (!empty($profil_madrasah['email'])): ?>
+                        <tr>
+                            <td>Email</td>
+                            <td>: <?php echo htmlspecialchars($profil_madrasah['email']); ?></td>
+                        </tr>
+                        <?php endif; ?>
                     </table>
                 </div>
                 
