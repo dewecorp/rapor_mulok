@@ -201,7 +201,7 @@ if ($kelas_id > 0) {
     $stmt_materi->close();
 }
 
-// Ambil semua nilai untuk siswa di kelas ini
+// Ambil semua nilai untuk siswa di kelas ini yang sudah dikirim
 $nilai_data = [];
 if (!empty($siswa_list) && !empty($materi_list)) {
     $siswa_ids = array_column($siswa_list, 'id');
@@ -211,14 +211,20 @@ if (!empty($siswa_list) && !empty($materi_list)) {
         $siswa_placeholders = str_repeat('?,', count($siswa_ids) - 1) . '?';
         $materi_placeholders = str_repeat('?,', count($materi_ids) - 1) . '?';
         
-        $query_nilai = "SELECT * FROM nilai_siswa 
-                       WHERE siswa_id IN ($siswa_placeholders) 
-                       AND materi_mulok_id IN ($materi_placeholders)
-                       AND semester = ? 
-                       AND tahun_ajaran = ?";
+        $query_nilai = "SELECT ns.* FROM nilai_siswa ns
+                       INNER JOIN nilai_kirim_status nks
+                           ON nks.materi_mulok_id = ns.materi_mulok_id
+                           AND nks.kelas_id = ?
+                           AND nks.semester = ns.semester
+                           AND nks.tahun_ajaran = ns.tahun_ajaran
+                           AND nks.status = 'terkirim'
+                       WHERE ns.siswa_id IN ($siswa_placeholders) 
+                       AND ns.materi_mulok_id IN ($materi_placeholders)
+                       AND ns.semester = ? 
+                       AND ns.tahun_ajaran = ?";
         
-        $params = array_merge($siswa_ids, $materi_ids, [$semester_aktif, $tahun_ajaran]);
-        $types = str_repeat('i', count($siswa_ids) + count($materi_ids)) . 'ss';
+        $params = array_merge([$kelas_id], $siswa_ids, $materi_ids, [$semester_aktif, $tahun_ajaran]);
+        $types = 'i' . str_repeat('i', count($siswa_ids) + count($materi_ids)) . 'ss';
         
         $stmt_nilai = $conn->prepare($query_nilai);
         $stmt_nilai->bind_param($types, ...$params);
