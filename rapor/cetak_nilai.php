@@ -241,7 +241,25 @@ if (!empty($siswa_list) && !empty($materi_list)) {
 
 $conn->close();
 
-// Konversi semester
+$page_title_nilai = 'Cetak Semua Nilai';
+if (!empty($kelas_data['nama_kelas'] ?? '')) {
+    $kelas_title = trim($kelas_data['nama_kelas']);
+    $page_title_nilai .= ' - ' . $kelas_title;
+}
+if (!empty($siswa_list) && count($siswa_list) === 1) {
+    $s = $siswa_list[0];
+    $nama_siswa_title = strtoupper(trim($s['nama'] ?? 'Siswa'));
+    $kelas_title = trim($kelas_data['nama_kelas'] ?? '');
+    $nama_clean = preg_replace('/[^A-Za-z0-9\- ]/', '', $nama_siswa_title);
+    $nama_clean = str_replace(' ', '_', $nama_clean);
+    $kelas_clean = preg_replace('/[^A-Za-z0-9\- ]/', '', $kelas_title);
+    $kelas_clean = str_replace(' ', '_', $kelas_clean);
+    $page_title_nilai = 'Nilai_' . $nama_clean;
+    if ($kelas_clean !== '') {
+        $page_title_nilai .= '_' . $kelas_clean;
+    }
+}
+
 function getSemesterText($semester) {
     return ($semester == '1') ? 'Gasal' : 'Genap';
 }
@@ -251,7 +269,7 @@ function getSemesterText($semester) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cetak Semua Nilai - <?php echo htmlspecialchars($kelas_data['nama_kelas'] ?? ''); ?></title>
+    <title><?php echo htmlspecialchars($page_title_nilai); ?></title>
     <style>
         @media print {
             @page {

@@ -19,7 +19,7 @@ $siswa_data = [];
 $profil_madrasah = null;
 
 try {
-    // Ambil data kelas
+    // Ambil data kelas (jika kelas_id sudah diketahui)
     if ($kelas_id > 0) {
         $stmt_kelas = $conn->prepare("SELECT * FROM kelas WHERE id = ?");
         $stmt_kelas->bind_param("i", $kelas_id);
@@ -39,6 +39,15 @@ try {
         $siswa_row = $result_siswa->fetch_assoc();
         if ($siswa_row) {
             $siswa_data[] = $siswa_row;
+            if ($kelas_id <= 0 && !empty($siswa_row['kelas_id'])) {
+                $kelas_id = (int)$siswa_row['kelas_id'];
+                $stmt_kelas = $conn->prepare("SELECT * FROM kelas WHERE id = ?");
+                $stmt_kelas->bind_param("i", $kelas_id);
+                $stmt_kelas->execute();
+                $result_kelas = $stmt_kelas->get_result();
+                $kelas_data = $result_kelas->fetch_assoc();
+                $stmt_kelas->close();
+            }
         }
         $stmt_siswa->close();
     } elseif ($kelas_id > 0) {
@@ -78,7 +87,24 @@ try {
 
 $conn->close();
 
-// Cek apakah ada kolom desa/kelurahan
+$page_title_sampul = 'Sampul Rapor';
+if (!empty($kelas_data['nama_kelas'] ?? '')) {
+    $page_title_sampul .= ' - ' . trim($kelas_data['nama_kelas']);
+}
+if (!empty($siswa_data) && count($siswa_data) === 1) {
+    $s = $siswa_data[0];
+    $nama_siswa_title = strtoupper(trim($s['nama'] ?? 'Siswa'));
+    $kelas_title = trim($kelas_data['nama_kelas'] ?? '');
+    $nama_clean = preg_replace('/[^A-Za-z0-9\- ]/', '', $nama_siswa_title);
+    $nama_clean = str_replace(' ', '_', $nama_clean);
+    $kelas_clean = preg_replace('/[^A-Za-z0-9\- ]/', '', $kelas_title);
+    $kelas_clean = str_replace(' ', '_', $kelas_clean);
+    $page_title_sampul = 'Sampul_' . $nama_clean;
+    if ($kelas_clean !== '') {
+        $page_title_sampul .= '_' . $kelas_clean;
+    }
+}
+
 $has_desa = false;
 try {
     $conn_check = getConnection();
@@ -96,7 +122,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sampul Rapor - <?php echo htmlspecialchars($kelas_data['nama_kelas'] ?? 'Kelas'); ?></title>
+    <title><?php echo htmlspecialchars($page_title_sampul); ?></title>
     <style>
         @media print {
             @page {
