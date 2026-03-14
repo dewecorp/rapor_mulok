@@ -690,7 +690,7 @@ include '../includes/header.php';
                                    placeholder="Cari nama mulok...">
                         </div>
                         <?php if ($use_kelas_semester): ?>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">Kelas</label>
                             <select class="form-select form-select-sm" name="filter_kelas" id="filterKelas">
                                 <option value="">-- Semua Kelas --</option>
@@ -706,7 +706,7 @@ include '../includes/header.php';
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">Semester</label>
                             <select class="form-select form-select-sm" name="filter_semester" id="filterSemester">
                                 <option value="">-- Semua Semester --</option>
@@ -715,14 +715,6 @@ include '../includes/header.php';
                             </select>
                         </div>
                         <?php endif; ?>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary btn-sm me-2">
-                                <i class="fas fa-filter"></i> Filter
-                            </button>
-                            <a href="materi.php" class="btn btn-secondary btn-sm">
-                                <i class="fas fa-redo"></i> Reset
-                            </a>
-                        </div>
                     </div>
                 </form>
             </div>
@@ -901,6 +893,23 @@ include '../includes/header.php';
             ]
         });
         <?php endif; ?>
+
+        var filterNamaTimeout = null;
+        function submitFilterForm() {
+            var form = document.getElementById('filterForm');
+            if (form) form.submit();
+        }
+
+        $('#filterKategori, #filterKelas, #filterSemester').on('change', function() {
+            submitFilterForm();
+        });
+
+        $('#filterNama').on('input', function() {
+            clearTimeout(filterNamaTimeout);
+            filterNamaTimeout = setTimeout(function() {
+                submitFilterForm();
+            }, 400);
+        });
     });
     
     function editMateri(id) {
@@ -1012,4 +1021,3 @@ include '../includes/header.php';
     });
     <?php endif; ?>
 </script>
-
