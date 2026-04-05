@@ -337,7 +337,7 @@ $page_title = 'Data Siswa';
         <h5 class="mb-0"><i class="fas fa-user-graduate"></i> Data Siswa</h5>
         <div>
             <?php if (!empty($kelas_filter)): ?>
-            <button type="button" class="btn btn-primary btn-sm" onclick="syncSimad('<?php echo $kelas_filter; ?>')">
+            <button type="button" class="btn btn-primary btn-sm" onclick="syncSimad()">
                 <i class="fas fa-sync"></i> Sinkron SIMAD
             </button>
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportSiswa">
@@ -584,8 +584,8 @@ $page_title = 'Data Siswa';
         }
     }
     
-    function syncSimad(kelasIdFromBtn) {
-        var kelasId = kelasIdFromBtn || $('#filterKelas').val();
+    function syncSimad() {
+        var kelasId = $('#filterKelas').val();
         var namaKelas = $('#filterKelas option:selected').text().trim();
         
         if (!kelasId || kelasId == '') {

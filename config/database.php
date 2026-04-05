@@ -7,7 +7,7 @@ define('DB_NAME', 'rapor_mulok');
 
 // Koneksi Database
 function getConnection() {
-    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    // mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
     
     try {
         $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);

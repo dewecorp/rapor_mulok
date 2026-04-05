@@ -13,10 +13,19 @@ if (!hasRole('proktor')) {
 }
 
 $conn = getConnection();
-$kelas_id_raw = $_POST['kelas_id'] ?? '';
+// Coba ambil dari POST, jika tidak ada coba dari REQUEST
+$kelas_id_raw = isset($_POST['kelas_id']) ? $_POST['kelas_id'] : (isset($_REQUEST['kelas_id']) ? $_REQUEST['kelas_id'] : '');
 
-if (empty($kelas_id_raw)) {
-    echo json_encode(['success' => false, 'message' => 'ID Kelas tidak terkirim!']);
+if ($kelas_id_raw === '') {
+    // Log error ke file untuk debugging jika memungkinkan
+    $debug_info = [
+        'method' => $_SERVER['REQUEST_METHOD'],
+        'post' => $_POST,
+        'get' => $_GET,
+        'request' => $_REQUEST,
+        'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'unknown'
+    ];
+    echo json_encode(['success' => false, 'message' => 'ID Kelas tidak terkirim! Detail Debug: ' . json_encode($debug_info)]);
     exit;
 }
 
