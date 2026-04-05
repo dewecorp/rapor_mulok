@@ -337,6 +337,9 @@ $page_title = 'Data Siswa';
         <h5 class="mb-0"><i class="fas fa-user-graduate"></i> Data Siswa</h5>
         <div>
             <?php if (!empty($kelas_filter)): ?>
+            <button type="button" class="btn btn-primary btn-sm" onclick="syncSimad('<?php echo $kelas_filter; ?>')">
+                <i class="fas fa-sync"></i> Sinkron SIMAD
+            </button>
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportSiswa">
                 <i class="fas fa-file-upload"></i> Impor Excel
             </button>
@@ -579,6 +582,61 @@ $page_title = 'Data Siswa';
         } else {
             window.location.href = 'index.php';
         }
+    }
+    
+    function syncSimad(kelasIdFromBtn) {
+        var kelasId = kelasIdFromBtn || $('#filterKelas').val();
+        var namaKelas = $('#filterKelas option:selected').text().trim();
+        
+        if (!kelasId || kelasId == '') {
+            Swal.fire('Peringatan', 'Silakan pilih kelas terlebih dahulu!', 'warning');
+            return;
+        }
+        
+        Swal.fire({
+            title: 'Sinkronisasi SIMAD',
+            text: "Apakah Anda ingin menarik data siswa kelas " + namaKelas + " dari sistem SIMAD?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Sinkronkan!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Sinkronisasi...',
+                    text: 'Mohon tunggu sejenak, sedang mengambil data dari SIMAD.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                $.ajax({
+                    url: 'sync_simad.php',
+                    type: 'POST',
+                    data: { kelas_id: kelasId },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil',
+                                text: response.message
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire('Gagal', response.message, 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire('Error', 'Terjadi kesalahan sistem: ' + error, 'error');
+                    }
+                });
+            }
+        });
     }
     
     $(document).ready(function() {
