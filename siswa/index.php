@@ -614,7 +614,7 @@ $page_title = 'Data Siswa';
                 });
                 
                 $.ajax({
-                    url: 'sync_simad.php',
+                    url: 'sync_simad',
                     type: 'POST',
                     data: { kelas_id: kelasId },
                     dataType: 'json',

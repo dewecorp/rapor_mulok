@@ -1,13 +1,17 @@
 <?php
+// Mencegah output apapun sebelum header JSON
+ob_start();
+
 require_once '../config/config.php';
 require_once '../config/database.php';
 require_once '../config/simad.php';
 
-// Set response header as JSON
-header('Content-Type: application/json');
+// Hapus output apapun yang mungkin terjadi saat include (spasi, BOM, dll)
+ob_clean();
 
 // Only proktor can sync
 if (!hasRole('proktor')) {
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Anda tidak memiliki akses!']);
     exit;
 }
@@ -25,6 +29,7 @@ if ($kelas_id_raw === '') {
         'request' => $_REQUEST,
         'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'unknown'
     ];
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'ID Kelas tidak terkirim! Detail Debug: ' . json_encode($debug_info)]);
     exit;
 }
@@ -38,6 +43,7 @@ $res_kelas = $stmt_kelas->get_result();
 $kelas_data = $res_kelas->fetch_assoc();
 
 if (!$kelas_data) {
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Kelas tidak valid atau tidak ditemukan di database (ID/Nama: ' . htmlspecialchars($kelas_id_raw) . ')!']);
     exit;
 }
@@ -55,8 +61,14 @@ function fetchFromSimad() {
     $ch = curl_init(); 
     curl_setopt($ch, CURLOPT_URL, $apiUrl); 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); 
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Kadang diperlukan di local environment
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0); 
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); 
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    
     $response = curl_exec($ch); 
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     
     if (curl_errno($ch)) {
         $error_msg = curl_error($ch);
@@ -66,12 +78,23 @@ function fetchFromSimad() {
     
     curl_close($ch); 
     
+    if (empty($response)) {
+        return ['success' => false, 'message' => "Respon dari SIMAD kosong (HTTP: $httpCode). Silakan periksa koneksi internet atau API Key."];
+    }
+    
     $result = json_decode($response, true); 
     
     if (isset($result['status']) && $result['status'] === 'success') {
         return ['success' => true, 'data' => $result['data']];
-    } else {
-        return ['success' => false, 'message' => $result['message'] ?? 'Gagal mengambil data dari SIMAD (Status bukan success)'];
+    } 
+    elseif (is_array($result) && !isset($result['status']) && count($result) > 0) {
+        return ['success' => true, 'data' => $result];
+    }
+    else {
+        error_log("SIMAD API FAIL: " . $response);
+        // Pastikan tidak ada karakter HTML yang merusak JSON
+        $clean_response = strip_tags(substr($response, 0, 150));
+        return ['success' => false, 'message' => ($result['message'] ?? 'Gagal mengambil data dari SIMAD (Status bukan success)') . " | HTTP: $httpCode | Debug: " . $clean_response];
     }
 }
 
@@ -93,6 +116,7 @@ try {
     }
     
     if (empty($students_in_class)) {
+        header('Content-Type: application/json');
         echo json_encode([
             'success' => false, 
             'message' => 'Tidak ditemukan data siswa untuk kelas ' . $nama_kelas_target . ' di sistem SIMAD.'
@@ -189,11 +213,25 @@ try {
     $stmt_log->bind_param("issss", $user_id, $user_nama, $user_role, $deskripsi, $ip);
     $stmt_log->execute();
     
+    // Matikan buffer dan buang semua output (warning/notice) yang mungkin muncul selama proses
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
+    // Kirim header JSON di akhir untuk memastikan tidak terganggu
+    header('Content-Type: application/json');
+    
     echo json_encode([
         'success' => true, 
         'message' => "Sinkronisasi Selesai untuk kelas $nama_kelas_target! $success_count siswa baru ditambahkan, $update_count siswa diperbarui."
     ]);
+    exit;
 
 } catch (Exception $e) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+    exit;
 }
