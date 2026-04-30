@@ -76,6 +76,104 @@ if ($role == 'proktor') {
     } catch (Exception $e) {
         $total_materi = 0;
     }
+    
+    // Progres nilai per kelas (semester & tahun ajaran aktif)
+    $progres_nilai_kelas_list = [];
+    $semester_aktif_proktor = '1';
+    $tahun_ajaran_proktor = '';
+    try {
+        $result_profil = $conn->query("SELECT semester_aktif, tahun_ajaran_aktif FROM profil_madrasah LIMIT 1");
+        if ($result_profil && $result_profil->num_rows > 0) {
+            $profil_p = $result_profil->fetch_assoc();
+            $semester_aktif_proktor = $profil_p['semester_aktif'] ?? '1';
+            $tahun_ajaran_proktor = trim($profil_p['tahun_ajaran_aktif'] ?? '');
+        }
+    } catch (Exception $e) {
+        $semester_aktif_proktor = '1';
+        $tahun_ajaran_proktor = '';
+    }
+    
+    $has_kelas_id_mm = false;
+    $has_semester_mm = false;
+    try {
+        $columns_mm = $conn->query("SHOW COLUMNS FROM materi_mulok");
+        if ($columns_mm) {
+            while ($col_mm = $columns_mm->fetch_assoc()) {
+                if ($col_mm['Field'] === 'kelas_id') {
+                    $has_kelas_id_mm = true;
+                }
+                if ($col_mm['Field'] === 'semester') {
+                    $has_semester_mm = true;
+                }
+            }
+        }
+    } catch (Exception $e) {
+        $has_kelas_id_mm = false;
+        $has_semester_mm = false;
+    }
+    
+    $semester_esc = $conn->real_escape_string($semester_aktif_proktor);
+    $tahun_esc = $conn->real_escape_string($tahun_ajaran_proktor);
+    
+    try {
+        $kelas_prog_rs = $conn->query(
+            "SELECT id, nama_kelas FROM kelas
+             WHERE LOWER(TRIM(nama_kelas)) != 'alumni'
+             AND LOWER(TRIM(nama_kelas)) NOT LIKE '%lulus%'
+             ORDER BY nama_kelas"
+        );
+        if ($kelas_prog_rs) {
+            while ($k_prog = $kelas_prog_rs->fetch_assoc()) {
+                $kid = (int) $k_prog['id'];
+                $total_m_kelas = 0;
+                $terkirim_kelas = 0;
+                
+                if ($has_kelas_id_mm && $has_semester_mm) {
+                    $query_mat = "SELECT m.id AS materi_id
+                                  FROM materi_mulok m
+                                  WHERE m.kelas_id = {$kid} AND m.semester = '{$semester_esc}'";
+                } else {
+                    $query_mat = "SELECT m.id AS materi_id FROM materi_mulok m ORDER BY m.nama_mulok";
+                }
+                $mr = $conn->query($query_mat);
+                if ($mr) {
+                    while ($mrow = $mr->fetch_assoc()) {
+                        $total_m_kelas++;
+                        $mid = (int) $mrow['materi_id'];
+                        $ada_nilai = false;
+                        if ($tahun_ajaran_proktor !== '') {
+                            $q_cek = "SELECT COUNT(*) AS cnt FROM nilai_kirim_status
+                                     WHERE materi_mulok_id = {$mid}
+                                     AND kelas_id = {$kid}
+                                     AND semester = '{$semester_esc}'
+                                     AND tahun_ajaran = '{$tahun_esc}'
+                                     AND status = 'terkirim'";
+                            $r_cek = $conn->query($q_cek);
+                            if ($r_cek) {
+                                $row_cek = $r_cek->fetch_assoc();
+                                $ada_nilai = ((int) ($row_cek['cnt'] ?? 0)) > 0;
+                            }
+                        }
+                        if ($ada_nilai) {
+                            $terkirim_kelas++;
+                        }
+                    }
+                    $mr->free();
+                }
+                
+                $persen_kelas = $total_m_kelas > 0 ? round(($terkirim_kelas / $total_m_kelas) * 100, 2) : 0;
+                $progres_nilai_kelas_list[] = [
+                    'nama_kelas' => $k_prog['nama_kelas'],
+                    'total_materi' => $total_m_kelas,
+                    'terkirim' => $terkirim_kelas,
+                    'persen' => $persen_kelas,
+                ];
+            }
+            $kelas_prog_rs->free();
+        }
+    } catch (Exception $e) {
+        $progres_nilai_kelas_list = [];
+    }
 } elseif ($role == 'wali_kelas') {
     // Dashboard Wali Kelas
     try {
@@ -450,7 +548,65 @@ $page_title = 'Dashboard';
                     </div>
                 </div>
             </div>
-            
+
+            <div class="card mt-3">
+                <div class="card-header" style="background-color: #2d5016; color: white;">
+                    <h6 class="mb-0"><i class="fas fa-chart-line"></i> Progres nilai per kelas</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3 mb-md-4">
+                        Berdasarkan semester aktif dan tahun ajaran pada profil madrasah.
+                        <strong>Semester <?php echo htmlspecialchars($semester_aktif_proktor); ?></strong>
+                        <?php if (!empty($tahun_ajaran_proktor)): ?>
+                            · Tahun ajaran <strong><?php echo htmlspecialchars($tahun_ajaran_proktor); ?></strong>
+                        <?php endif; ?>
+                    </p>
+                    <?php if ($tahun_ajaran_proktor === ''): ?>
+                        <div class="alert alert-warning py-2 small mb-3" role="alert">
+                            Isi tahun ajaran aktif di menu Profil Madrasah agar progres pengiriman nilai bisa dihitung.
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (empty($progres_nilai_kelas_list)): ?>
+                        <p class="text-muted text-center mb-0 py-2">
+                            <i class="fas fa-inbox"></i> Belum ada kelas aktif untuk ditampilkan.
+                        </p>
+                    <?php else: ?>
+                        <div class="row g-3">
+                            <?php foreach ($progres_nilai_kelas_list as $pn_kelas): 
+                                $p_pct = min(100, max(0, (float) $pn_kelas['persen']));
+                                $pn_total = (int) $pn_kelas['total_materi'];
+                                $pn_ok = (int) $pn_kelas['terkirim'];
+                                ?>
+                                <div class="col-md-6 col-xl-4">
+                                    <div class="border rounded-3 p-3 h-100 bg-light-subtle" style="background-color: #f8faf6 !important;">
+                                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                            <span class="fw-semibold text-dark"><?php echo htmlspecialchars($pn_kelas['nama_kelas']); ?></span>
+                                            <span class="badge rounded-pill" style="background-color: #2d5016;"><?php echo htmlspecialchars((string) $pn_kelas['persen']); ?>%</span>
+                                        </div>
+                                        <div class="progress mb-2" style="height: 24px;">
+                                            <div class="progress-bar progress-bar-striped"
+                                                 role="progressbar"
+                                                 style="width: <?php echo $p_pct; ?>%; background-color: #2d5016;"
+                                                 aria-valuenow="<?php echo $p_pct; ?>"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="100">
+                                                <?php if ($pn_total > 0): ?>
+                                                    <?php echo $pn_ok; ?> / <?php echo $pn_total; ?>
+                                                <?php else: ?>
+                                                    <span class="text-muted">—</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Materi mulok dengan nilai terkirim</small>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <div class="card mt-3">
                 <div class="card-header" style="background-color: #2d5016; color: white;">
                     <h6 class="mb-0">

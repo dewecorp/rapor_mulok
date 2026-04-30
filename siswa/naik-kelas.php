@@ -251,9 +251,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     }
 }
 
-// Filter kelas asal dan tujuan
+// Filter kelas asal
 $kelas_asal_filter = $_GET['kelas_asal'] ?? '';
-$kelas_tujuan_filter = $_GET['kelas_tujuan'] ?? '';
 
 // Ambil data kelas
 $query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
@@ -351,79 +350,77 @@ if (!empty($kelas_asal_filter)) {
     $stmt->close();
 }
 
-// Query data siswa kelas tujuan (untuk preview dan batal naik)
+// Kelas & siswa tujuan ditentukan otomatis dari kelas asal (tanpa dropdown)
 $siswa_tujuan_data = [];
-$kelas_tujuan_auto = null; // Kelas tujuan yang otomatis ditentukan
-$kelas_tujuan_ids = []; // Array ID kelas tujuan untuk query
+$kelas_tujuan_resolved_id = null;
+$nama_kelas_tujuan_resolved = '';
+$kelas_tujuan_candidates = [];
 
-// Jika kelas tujuan sudah dipilih manual, gunakan itu
-if (!empty($kelas_tujuan_filter)) {
-    $kelas_id = intval($kelas_tujuan_filter);
-    $kelas_tujuan_auto = $kelas_id;
-    $kelas_tujuan_ids[] = $kelas_id;
-} 
-// Jika kelas asal sudah dipilih tapi kelas tujuan belum dipilih, ambil semua kelas dengan tingkat tujuan
-elseif (!empty($kelas_asal_filter) && !empty($tingkat_tujuan)) {
-    // Jika kelas 6, cari kelas Alumni
-    if ($tingkat_tujuan == 'LULUS') {
-        $query_alumni = "SELECT id FROM kelas WHERE nama_kelas LIKE '%Alumni%' OR nama_kelas LIKE '%Lulus%' ORDER BY nama_kelas";
+if (!empty($kelas_asal_filter) && !empty($tingkat_kelas_asal) && !empty($tingkat_tujuan)) {
+    if ($tingkat_tujuan === 'LULUS') {
+        $query_alumni = "SELECT id, nama_kelas FROM kelas WHERE nama_kelas LIKE '%Alumni%' OR nama_kelas LIKE '%Lulus%' ORDER BY nama_kelas";
         $result_alumni = $conn->query($query_alumni);
         if ($result_alumni) {
             while ($row_alumni = $result_alumni->fetch_assoc()) {
-                $kelas_tujuan_ids[] = $row_alumni['id'];
-            }
-            if (!empty($kelas_tujuan_ids)) {
-                $kelas_tujuan_auto = $kelas_tujuan_ids[0]; // Untuk display
+                $kelas_tujuan_candidates[] = [
+                    'id' => (int) $row_alumni['id'],
+                    'nama' => trim($row_alumni['nama_kelas'] ?? '') ?: 'Alumni',
+                ];
             }
         }
-    } 
-    // Jika bukan kelas 6, ambil semua kelas dengan tingkat tujuan
-    else {
-        $tingkat_tujuan_normalized = normalizeTingkat($tingkat_tujuan);
-        // Reset pointer kelas_list dan ambil ulang data kelas untuk memastikan data fresh
-        $query_kelas_fresh = "SELECT * FROM kelas ORDER BY nama_kelas";
-        $kelas_list_fresh = $conn->query($query_kelas_fresh);
-        
-        if ($kelas_list_fresh) {
-            while ($kelas = $kelas_list_fresh->fetch_assoc()) {
-                // Skip kelas Alumni untuk kelas selain kelas 6
-                if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
-                    continue;
+        if (empty($kelas_tujuan_candidates)) {
+            try {
+                $stmt_alumni_ins = $conn->prepare("INSERT INTO kelas (nama_kelas, jumlah_siswa) VALUES ('Alumni', 0)");
+                if ($stmt_alumni_ins && $stmt_alumni_ins->execute()) {
+                    $nid = (int) $conn->insert_id;
+                    $kelas_tujuan_candidates[] = ['id' => $nid, 'nama' => 'Alumni'];
                 }
-                
-                $tingkat_kelas = getTingkatFromKelas($kelas['nama_kelas']);
-                $tingkat_kelas_normalized = normalizeTingkat($tingkat_kelas);
-                // Debug: log untuk melihat proses matching
-                // error_log("Kelas: {$kelas['nama_kelas']}, Tingkat: $tingkat_kelas, Normalized: $tingkat_kelas_normalized, Target: $tingkat_tujuan_normalized");
-                // Match tingkat yang sudah dinormalisasi
-                if (!empty($tingkat_kelas_normalized) && $tingkat_kelas_normalized == $tingkat_tujuan_normalized) {
-                    $kelas_tujuan_ids[] = $kelas['id'];
+                if ($stmt_alumni_ins) {
+                    $stmt_alumni_ins->close();
                 }
+            } catch (Exception $e) {
+                // Ignore
             }
-            if (!empty($kelas_tujuan_ids)) {
-                $kelas_tujuan_auto = $kelas_tujuan_ids[0]; // Untuk display
+        }
+    } else {
+        $tingkat_tujuan_normalized = normalizeTingkat($tingkat_tujuan);
+        $kelas_list->data_seek(0);
+        while ($kelas = $kelas_list->fetch_assoc()) {
+            if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
+                continue;
+            }
+            $tingkat_kelas_normalized = normalizeTingkat(getTingkatFromKelas($kelas['nama_kelas']));
+            if (!empty($tingkat_kelas_normalized) && $tingkat_kelas_normalized === $tingkat_tujuan_normalized) {
+                $kelas_tujuan_candidates[] = [
+                    'id' => (int) $kelas['id'],
+                    'nama' => $kelas['nama_kelas'],
+                ];
             }
         }
     }
+
+    usort($kelas_tujuan_candidates, function ($a, $b) {
+        return strcasecmp($a['nama'], $b['nama']);
+    });
+
+    if (!empty($kelas_tujuan_candidates)) {
+        $kelas_tujuan_resolved_id = $kelas_tujuan_candidates[0]['id'];
+        $nama_kelas_tujuan_resolved = $kelas_tujuan_candidates[0]['nama'];
+    }
 }
 
-// Query siswa kelas tujuan jika sudah ditentukan (manual atau otomatis)
-if (!empty($kelas_tujuan_ids)) {
-    // Buat placeholder untuk IN clause
-    $placeholders = str_repeat('?,', count($kelas_tujuan_ids) - 1) . '?';
-    $query = "SELECT s.*, k.nama_kelas, k.id as kelas_id
+$kelas_tujuan_ambiguous = count($kelas_tujuan_candidates) > 1;
+
+if ($kelas_tujuan_resolved_id !== null && $kelas_tujuan_resolved_id > 0) {
+    $kt_bind = $kelas_tujuan_resolved_id;
+    $query = "SELECT s.*, k.nama_kelas, k.id AS kelas_id
               FROM siswa s
               LEFT JOIN kelas k ON s.kelas_id = k.id
-              WHERE s.kelas_id IN ($placeholders)
-              ORDER BY k.nama_kelas, s.nama";
-    
+              WHERE s.kelas_id = ?
+              ORDER BY s.nama ASC, s.nisn ASC";
     $stmt = $conn->prepare($query);
-    
     if ($stmt) {
-        // Bind parameters
-        $types = str_repeat('i', count($kelas_tujuan_ids));
-        $stmt->bind_param($types, ...$kelas_tujuan_ids);
-        
+        $stmt->bind_param('i', $kt_bind);
         if ($stmt->execute()) {
             $result = $stmt->get_result();
             if ($result) {
@@ -431,21 +428,9 @@ if (!empty($kelas_tujuan_ids)) {
                     $siswa_tujuan_data[] = $row;
                 }
             }
-        } else {
-            // Debug: log error jika query gagal
-            error_log("Error executing siswa query: " . $stmt->error);
-            error_log("Query: " . $query);
-            error_log("Kelas IDs: " . implode(', ', $kelas_tujuan_ids));
         }
         $stmt->close();
-    } else {
-        // Debug: log error jika prepare gagal
-        error_log("Error preparing siswa query: " . $conn->error);
-        error_log("Query: " . $query);
     }
-} else {
-    // Debug: log jika kelas_tujuan_ids kosong
-    error_log("kelas_tujuan_ids is empty. kelas_asal_filter: " . ($kelas_asal_filter ?? 'NULL') . ", tingkat_tujuan: " . ($tingkat_tujuan ?? 'NULL'));
 }
 
 // Set page title (variabel lokal)
@@ -490,7 +475,7 @@ $page_title = 'Naik Kelas';
                         <form method="POST" id="formNaikKelas">
                             <input type="hidden" name="action" value="naik">
                             <input type="hidden" name="kelas_lama_id" id="kelasLamaId" value="<?php echo $kelas_asal_filter; ?>">
-                            <input type="hidden" name="kelas_baru_id" id="kelasBaruId" value="<?php echo $kelas_tujuan_filter; ?>">
+                            <input type="hidden" name="kelas_baru_id" id="kelasBaruId" value="<?php echo (int) ($kelas_tujuan_resolved_id ?? 0); ?>">
                             
                             <div class="mb-3">
                                 <label class="form-label">Kelas</label>
@@ -594,137 +579,53 @@ $page_title = 'Naik Kelas';
                         <form method="POST" id="formBatalNaik">
                             <input type="hidden" name="action" value="batal_naik">
                             <input type="hidden" name="kelas_asal_id" id="kelasAsalIdBatal" value="<?php echo $kelas_asal_filter; ?>">
-                            <input type="hidden" name="kelas_tujuan_id" id="kelasTujuanIdBatal" value="<?php echo $kelas_tujuan_filter; ?>">
+                            <input type="hidden" name="kelas_tujuan_id" id="kelasTujuanIdBatal" value="<?php echo (int) ($kelas_tujuan_resolved_id ?? 0); ?>">
                             
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Tingkat</label>
-                                    <select class="form-select" id="tingkatTujuan" disabled>
-                                        <option value="">--Pilih Kelas Asal Terlebih Dahulu--</option>
-                                        <?php if (!empty($tingkat_tujuan)): ?>
-                                            <?php if ($tingkat_tujuan == 'LULUS'): ?>
-                                                <option value="LULUS" selected>Lulus</option>
-                                            <?php else: ?>
-                                                <option value="<?php echo htmlspecialchars($tingkat_tujuan); ?>" selected>
-                                                    <?php echo htmlspecialchars($tingkat_tujuan); ?>
-                                                </option>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                    </select>
-                                    <small class="text-muted">Tingkat otomatis berdasarkan kelas asal yang dipilih</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Kelas</label>
-                                    <select class="form-select" id="kelasTujuan" onchange="updateKelasTujuan()">
-                                    <option value="">--Pilih--</option>
-                                    <?php 
-                                    // Hanya tampilkan kelas tujuan jika kelas asal sudah dipilih
-                                    if (!empty($kelas_asal_filter) && !empty($tingkat_kelas_asal)): 
-                                        // Jika kelas asal adalah kelas 6, tampilkan Alumni
-                                        if ($tingkat_kelas_asal == 'VI' || $tingkat_kelas_asal == '6'): 
-                                            // Cari kelas Alumni di database
-                                            $query_alumni = "SELECT * FROM kelas WHERE nama_kelas LIKE '%Alumni%' OR nama_kelas LIKE '%Lulus%' ORDER BY nama_kelas LIMIT 1";
-                                            $result_alumni = $conn->query($query_alumni);
-                                            $kelas_alumni_id = null;
-                                            
-                                            if ($result_alumni && $row_alumni = $result_alumni->fetch_assoc()):
-                                                $kelas_alumni_id = $row_alumni['id'];
-                                            else:
-                                                // Jika tidak ada kelas Alumni, buat otomatis
-                                                try {
-                                                    $stmt_alumni = $conn->prepare("INSERT INTO kelas (nama_kelas, jumlah_siswa) VALUES ('Alumni', 0)");
-                                                    if ($stmt_alumni->execute()) {
-                                                        $kelas_alumni_id = $conn->insert_id;
-                                                    }
-                                                    $stmt_alumni->close();
-                                                } catch (Exception $e) {
-                                                    // Jika gagal membuat, gunakan opsi khusus
-                                                }
-                                            endif;
-                                            
-                                            if ($kelas_alumni_id):
-                                        ?>
-                                            <option value="<?php echo $kelas_alumni_id; ?>" 
-                                                    data-tingkat="LULUS"
-                                                    <?php echo $kelas_tujuan_filter == $kelas_alumni_id ? 'selected' : ''; ?>>
-                                                Alumni
-                                            </option>
-                                        <?php 
-                                            endif;
-                                        // Jika bukan kelas 6, tampilkan kelas sesuai tingkat berikutnya (tidak termasuk Alumni)
-                                        else:
-                                            // Pastikan tingkat_tujuan sudah terisi
-                                            if (!empty($tingkat_tujuan) && $tingkat_tujuan != 'LULUS'):
-                                                // Normalisasi tingkat_tujuan untuk perbandingan
-                                                $tingkat_tujuan_normalized = normalizeTingkat($tingkat_tujuan);
-                                                $kelas_list->data_seek(0);
-                                                while ($kelas = $kelas_list->fetch_assoc()): 
-                                                    // Skip kelas Alumni untuk kelas selain kelas 6
-                                                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
-                                                        continue;
-                                                    }
-                                                    
-                                                    $tingkat_kelas = getTingkatFromKelas($kelas['nama_kelas']);
-                                                    // Normalisasi tingkat kelas untuk perbandingan
-                                                    $tingkat_kelas_normalized = normalizeTingkat($tingkat_kelas);
-                                                    // Hanya tampilkan kelas dengan tingkat tujuan
-                                                    if (!empty($tingkat_kelas_normalized) && $tingkat_kelas_normalized == $tingkat_tujuan_normalized):
-                                        ?>
-                                            <option value="<?php echo $kelas['id']; ?>" 
-                                                    data-tingkat="<?php echo htmlspecialchars($tingkat_kelas_normalized); ?>"
-                                                    <?php echo $kelas_tujuan_filter == $kelas['id'] ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
-                                            </option>
-                                        <?php 
-                                                    endif;
-                                                endwhile;
-                                            endif;
-                                        endif;
-                                    endif; 
-                                    ?>
-                                    </select>
-                                </div>
+                            <div class="mb-3">
+                                <label class="form-label">Kelas tujuan</label>
+                                <input type="text"
+                                       id="kelasTujuanTampilan"
+                                       class="form-control"
+                                       disabled
+                                       readonly
+                                       value="<?php echo !empty($nama_kelas_tujuan_resolved) ? htmlspecialchars($nama_kelas_tujuan_resolved) : (empty($kelas_asal_filter) ? '— Pilih kelas asal di panel kiri —' : (!empty($tingkat_tujuan) ? '— Tidak ada kelas yang cocok —' : '—')); ?>">
+                                <small class="text-muted">Ditetapkan otomatis sesuai tingkat naik dari kelas asal.</small>
+                                <?php if ($kelas_tujuan_ambiguous): ?>
+                                    <div class="alert alert-warning py-2 small mb-0 mt-2">
+                                        <i class="fas fa-exclamation-triangle"></i> Terdapat <strong><?php echo count($kelas_tujuan_candidates); ?></strong> kelas paralel untuk tingkat ini.
+                                        Yang dipakai untuk naik kelas: <strong><?php echo htmlspecialchars($nama_kelas_tujuan_resolved); ?></strong> (nama kelas pertama menurut abjad).
+                                        Pastikan sasaran ini sesuai, atau gabung siswa paralel lain di menu Kelas.
+                                    </div>
+                                <?php endif; ?>
                             </div>
                             
                             <?php if (!empty($kelas_asal_filter) && !empty($tingkat_tujuan)): ?>
                             <?php 
-                            // Cek apakah kelas tujuan sudah kosong
                             $jumlah_siswa_tujuan = count($siswa_tujuan_data);
-                            $is_kelas_6 = ($tingkat_kelas_asal == 'VI' || $tingkat_kelas_asal == '6');
-                            $kelas_tujuan_display = $kelas_tujuan_filter ?: $kelas_tujuan_auto;
                             
-                            // Debug: tampilkan info untuk troubleshooting
-                            $debug_info = "<!-- Debug Info:\n";
-                            $debug_info .= "Kelas Asal Filter: " . ($kelas_asal_filter ?? 'NULL') . "\n";
-                            $debug_info .= "Tingkat Kelas Asal: " . ($tingkat_kelas_asal ?? 'NULL') . "\n";
-                            $debug_info .= "Tingkat Tujuan: " . ($tingkat_tujuan ?? 'NULL') . "\n";
-                            $debug_info .= "Tingkat Tujuan Normalized: " . (isset($tingkat_tujuan) ? normalizeTingkat($tingkat_tujuan) : 'NULL') . "\n";
-                            $debug_info .= "Kelas Tujuan IDs: " . (empty($kelas_tujuan_ids) ? 'EMPTY' : implode(', ', $kelas_tujuan_ids)) . "\n";
-                            $debug_info .= "Jumlah Siswa Tujuan: " . $jumlah_siswa_tujuan . "\n";
-                            $debug_info .= "Kelas Tujuan Auto: " . ($kelas_tujuan_auto ?? 'NULL') . "\n";
-                            $debug_info .= "-->";
-                            echo $debug_info;
+                            echo "<!-- kelas_tujuan_resolved: " . (int) ($kelas_tujuan_resolved_id ?? 0) . ', nama: ' . htmlspecialchars($nama_kelas_tujuan_resolved ?: '-') . ", paralel:" . count($kelas_tujuan_candidates) . " -->\n";
                             
-                            // Tampilkan alert jika kelas_tujuan_ids kosong
-                            if (empty($kelas_tujuan_ids)) {
+                            if (!$kelas_tujuan_resolved_id) {
                                 echo '<div class="alert alert-warning mb-3">';
                                 echo '<i class="fas fa-exclamation-triangle"></i> ';
-                                echo '<strong>Peringatan:</strong> Tidak ditemukan kelas dengan tingkat tujuan "' . htmlspecialchars($tingkat_tujuan) . '". ';
-                                echo 'Pastikan nama kelas di database menggunakan format yang benar (misalnya: "2A", "II A", "Kelas 2", dll).';
+                                echo '<strong>Peringatan:</strong> Tidak ditemukan kelas dengan tingkat tujuan "' . htmlspecialchars((string) $tingkat_tujuan) . '". ';
+                                echo 'Pastikan nama kelas di database menggunakan format yang benar (misalnya: "2A", "II A", "II", dll).';
                                 echo '</div>';
                             }
                             ?>
-                            <?php if ($jumlah_siswa_tujuan > 0): ?>
-                                <div class="alert alert-info mb-3">
-                                    <i class="fas fa-info-circle"></i> 
-                                    <strong>Info:</strong> Kelas tujuan memiliki <?php echo $jumlah_siswa_tujuan; ?> siswa. 
-                                    Siswa yang akan naik kelas akan ditambahkan ke kelas tujuan ini.
-                                </div>
-                            <?php else: ?>
-                                <div class="alert alert-info mb-3">
-                                    <i class="fas fa-info-circle"></i> 
-                                    <strong>Info:</strong> Kelas tujuan saat ini kosong.
-                                </div>
+                            <?php if ($kelas_tujuan_resolved_id): ?>
+                                <?php if ($jumlah_siswa_tujuan > 0): ?>
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fas fa-info-circle"></i> 
+                                        <strong>Info:</strong> Kelas <?php echo htmlspecialchars($nama_kelas_tujuan_resolved); ?> berisi <?php echo $jumlah_siswa_tujuan; ?> siswa 
+                                        (diurutkan berdasarkan nama, kemudian NISN). Siswa yang naik bergabung ke kelas ini.
+                                    </div>
+                                <?php else: ?>
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fas fa-info-circle"></i> 
+                                        <strong>Info:</strong> Kelas <?php echo htmlspecialchars($nama_kelas_tujuan_resolved); ?> masih kosong siswa yang tercatat.
+                                    </div>
+                                <?php endif; ?>
                             <?php endif; ?>
                             <div class="table-responsive" style="max-height: 400px;">
                                 <table class="table table-bordered table-striped table-sm" id="tableTujuan">
@@ -762,29 +663,16 @@ $page_title = 'Naik Kelas';
                                     </tbody>
                                 </table>
                             </div>
-                            <!-- Tombol Batal Naik dan Reset -->
                             <div class="mt-3 d-flex gap-2">
                                 <div id="btnBatalContainer" style="display: none;">
                                     <button type="button" class="btn btn-warning btn-sm" onclick="batalNaik()">
                                         <i class="fas fa-undo"></i> Batal Naik
                                     </button>
                                 </div>
-                                <div>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="resetKelasTujuan()">
-                                        <i class="fas fa-redo"></i> Reset
-                                    </button>
-                                </div>
                             </div>
                             <?php else: ?>
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle"></i> Pilih kelas asal terlebih dahulu untuk melihat kelas tujuan.
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($kelas_asal_filter) && !empty($tingkat_tujuan) && empty($kelas_tujuan_filter)): ?>
-                                <div class="alert alert-info mt-3">
-                                    <i class="fas fa-info-circle"></i> 
-                                    <strong>Info:</strong> Tabel di atas menampilkan siswa dari kelas tujuan yang sesuai dengan tingkat berikutnya.
                                 </div>
                             <?php endif; ?>
                             
@@ -805,61 +693,6 @@ $page_title = 'Naik Kelas';
 <?php include '../includes/footer.php'; ?>
 
 <script>
-    // Fungsi untuk mendapatkan tingkat berikutnya
-    function getTingkatBerikutnya(tingkat) {
-        tingkat = tingkat.toUpperCase();
-        var tingkatMap = {
-            'I': 'II',
-            'II': 'III',
-            'III': 'IV',
-            'IV': 'V',
-            'V': 'VI',
-            'VI': 'LULUS',
-            '1': '2',
-            '2': '3',
-            '3': '4',
-            '4': '5',
-            '5': '6',
-            '6': 'LULUS'
-        };
-        return tingkatMap[tingkat] || '';
-    }
-    
-    // Set tingkat tujuan berdasarkan kelas asal saat halaman dimuat
-    <?php if (!empty($kelas_asal_filter) && !empty($tingkat_kelas_asal)): ?>
-    $(document).ready(function() {
-        var tingkatTujuan = '<?php echo htmlspecialchars($tingkat_tujuan, ENT_QUOTES); ?>';
-        if (tingkatTujuan) {
-            $('#tingkatTujuan').val(tingkatTujuan);
-            filterKelasTujuan();
-        }
-    });
-    <?php endif; ?>
-    
-    function filterKelasTujuan() {
-        var tingkat = $('#tingkatTujuan').val();
-        var options = $('#kelasTujuan option');
-        
-        if (tingkat) {
-            options.each(function() {
-                var optionTingkat = $(this).data('tingkat');
-                if (optionTingkat && optionTingkat.toUpperCase() === tingkat.toUpperCase()) {
-                    $(this).show();
-                } else if ($(this).val() === '') {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        } else {
-            options.show();
-        }
-        
-        // Reset kelas jika tingkat berubah
-        $('#kelasTujuan').val('');
-        updateKelasTujuan();
-    }
-    
     function updateKelasAsal() {
         var kelasId = $('#kelasAsal').val();
         $('#kelasLamaId').val(kelasId);
@@ -872,30 +705,10 @@ $page_title = 'Naik Kelas';
         } else {
             url.searchParams.delete('kelas_asal');
         }
-        // Reset kelas tujuan saat kelas asal berubah
-        url.searchParams.delete('kelas_tujuan');
         window.history.replaceState({}, '', url);
         
         // Reload untuk update data
         window.location.href = url.toString();
-    }
-    
-    function updateKelasTujuan() {
-        var kelasId = $('#kelasTujuan').val();
-        $('#kelasBaruId').val(kelasId);
-        $('#kelasTujuanIdBatal').val(kelasId);
-        
-        // Update URL tanpa reload - data siswa tujuan sudah diambil otomatis berdasarkan tingkat tujuan
-        var url = new URL(window.location.href);
-        if (kelasId) {
-            url.searchParams.set('kelas_tujuan', kelasId);
-        } else {
-            url.searchParams.delete('kelas_tujuan');
-        }
-        window.history.replaceState({}, '', url);
-        
-        // Tidak perlu reload karena data siswa tujuan sudah ditampilkan otomatis
-        // Tabel siswa tujuan akan menampilkan semua siswa dari semua kelas dengan tingkat tujuan yang sesuai
     }
     
     function toggleSelectAllAsal() {
@@ -946,14 +759,9 @@ $page_title = 'Naik Kelas';
         updateKelasAsal();
     }
     
-    function resetKelasTujuan() {
-        $('#kelasTujuan').val('');
-        updateKelasTujuan();
-    }
-    
     function naikKelas() {
         var kelasAsalId = $('#kelasAsal').val();
-        var kelasTujuanId = $('#kelasTujuan').val();
+        var kelasTujuanId = $('#kelasBaruId').val();
         var checkedBoxes = document.querySelectorAll('.siswa-checkbox-asal:checked');
         
         var warnings = [];
@@ -961,8 +769,8 @@ $page_title = 'Naik Kelas';
         if (!kelasAsalId) {
             warnings.push('Silahkan pilih kelas asal');
         }
-        if (!kelasTujuanId) {
-            warnings.push('Silahkan pilih kelas tujuan');
+        if (!kelasTujuanId || parseInt(kelasTujuanId, 10) <= 0) {
+            warnings.push('Kelas tujuan otomatis belum tersedia. Periksa data kelas / penamaan tingkat di Master Kelas.');
         }
         if (checkedBoxes.length === 0) {
             warnings.push('Silahkan klik pada siswa yang akan di naikkan');
@@ -997,7 +805,7 @@ $page_title = 'Naik Kelas';
     
     function batalNaik() {
         var kelasAsalId = $('#kelasAsal').val();
-        var kelasTujuanId = $('#kelasTujuan').val();
+        var kelasTujuanId = $('#kelasTujuanIdBatal').val();
         var checkedBoxes = document.querySelectorAll('.siswa-checkbox-tujuan:checked');
         
         var warnings = [];
@@ -1005,8 +813,8 @@ $page_title = 'Naik Kelas';
         if (!kelasAsalId) {
             warnings.push('Silahkan pilih kelas asal');
         }
-        if (!kelasTujuanId) {
-            warnings.push('Silahkan pilih kelas tujuan');
+        if (!kelasTujuanId || parseInt(kelasTujuanId, 10) <= 0) {
+            warnings.push('Kelas tujuan belum tersedia.');
         }
         if (checkedBoxes.length === 0) {
             warnings.push('Silahkan klik pada siswa yang akan dibatalkan naik');
@@ -1060,13 +868,13 @@ $page_title = 'Naik Kelas';
         }
         <?php endif; ?>
         
-        <?php if (!empty($kelas_tujuan_filter) && count($siswa_tujuan_data) > 0): ?>
+        <?php if (!empty($kelas_asal_filter) && count($siswa_tujuan_data) > 0): ?>
         if ($('#tableTujuan').length > 0) {
             $('#tableTujuan').DataTable({
                 language: {
                     url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
                 },
-                order: [[2, 'asc']],
+                order: [[3, 'asc'], [2, 'asc']],
                 pageLength: 10,
                 columnDefs: [
                     { orderable: false, targets: [0] }

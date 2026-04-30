@@ -498,6 +498,46 @@ try {
     $guru_data = [];
 }
 
+$uploads_dir_guru_fs = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR;
+
+/**
+ * Sumber gambar kolom foto: berkas upload jika valid, atau data URI avatar inisial nama.
+ *
+ * @return array{type: string, src: string} type 'file' | 'initial'
+ */
+function guru_data_avatar_display(array $row, string $uploadsDirFs): array
+{
+    $foto_raw = trim($row['foto'] ?? '');
+    $foto_fn = $foto_raw !== '' ? basename(str_replace('\\', '/', $foto_raw)) : '';
+    if ($foto_fn !== '' && strtolower($foto_fn) !== 'default.png') {
+        $full = $uploadsDirFs . $foto_fn;
+        if (is_file($full)) {
+            return [
+                'type' => 'file',
+                'src' => '../uploads/' . $foto_fn,
+            ];
+        }
+    }
+
+    $nama = trim((string) ($row['nama'] ?? ''));
+    if (function_exists('mb_substr') && $nama !== '') {
+        $huruf = mb_substr($nama, 0, 1, 'UTF-8');
+    } else {
+        $huruf = $nama !== '' ? substr($nama, 0, 1) : '?';
+    }
+    $huruf = function_exists('mb_strtoupper')
+        ? mb_strtoupper($huruf, 'UTF-8')
+        : strtoupper($huruf);
+
+    $huruf_esc = htmlspecialchars($huruf, ENT_QUOTES | ENT_XML1, 'UTF-8');
+    $svg = '<svg width="50" height="50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="25" fill="#2d5016"/><text x="25" y="25" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' . $huruf_esc . '</text></svg>';
+
+    return [
+        'type' => 'initial',
+        'src' => 'data:image/svg+xml;base64,' . base64_encode($svg),
+    ];
+}
+
 // Set page title (variabel lokal)
 $page_title = 'Data Guru';
 ?>
@@ -557,13 +597,17 @@ $page_title = 'Data Guru';
                     if (count($guru_data) > 0):
                         $no = 1;
                         foreach ($guru_data as $row): 
+                            $avatar = guru_data_avatar_display($row, $uploads_dir_guru_fs);
                     ?>
                         <tr>
                             <td><?php echo $no++; ?></td>
                             <td>
-                                <img src="../uploads/<?php echo htmlspecialchars($row['foto'] ?? 'default.png'); ?>" 
-                                     alt="Foto" class="rounded-circle" width="50" height="50" 
-                                     style="object-fit: cover;" onerror="this.onerror=null; this.style.display='none';">
+                                <img src="<?php echo htmlspecialchars($avatar['src'], ENT_QUOTES, 'UTF-8'); ?>"
+                                     alt="<?php echo htmlspecialchars($avatar['type'] === 'initial' ? 'Avatar inisial' : 'Foto guru', ENT_QUOTES, 'UTF-8'); ?>"
+                                     title="<?php echo htmlspecialchars($row['nama'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                     class="rounded-circle flex-shrink-0"
+                                     width="50" height="50"
+                                     style="object-fit: cover;">
                             </td>
                             <td><?php echo htmlspecialchars($row['nama'], ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($row['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan', ENT_QUOTES, 'UTF-8'); ?></td>
