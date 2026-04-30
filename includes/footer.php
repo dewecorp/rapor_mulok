@@ -188,138 +188,17 @@
             toastr.options = {"closeButton":true,"debug":false,"newestOnTop":true,"progressBar":true,"positionClass":"toast-top-right","preventDuplicates":false,"onclick":null,"showDuration":"300","hideDuration":"1000","timeOut":"5005","extendedTimeOut":"1000","showEasing":"swing","hideEasing":"linear","showMethod":"fadeIn","hideMethod":"fadeOut"};
         }
         if (typeof jQuery !== 'undefined') {
-            jQuery(document).ready(function($) {
-                var path = window.location.pathname;
-                var url = window.location.href;
-                
-                // Reset semua active dan collapse - PASTIKAN SEMUA TERTUTUP
-                $('.nav-link').removeClass('active');
-                $('.collapse').removeClass('show');
-                
-                // Cek apakah di dashboard (root/index.php)
-                var pathParts = path.split('/').filter(function(p) { return p.length > 0 && p !== 'rapor-mulok'; });
-                // Dashboard adalah ketika path berakhir dengan index.php di root atau tidak ada path sama sekali
-                var lastPart = pathParts[pathParts.length - 1];
-                var isDashboard = pathParts.length === 0 || 
-                                 (pathParts.length === 1 && lastPart === 'index.php') ||
-                                 (pathParts.length === 1 && lastPart === 'rapor-mulok');
-                
-                if (isDashboard) {
-                    // Aktifkan menu Dashboard saja, pastikan semua collapse tertutup
-                    $('.sidebar .nav-link').each(function() {
-                        var $link = $(this);
-                        var href = $link.attr('href');
-                        if (href) {
-                            // Normalisasi href untuk perbandingan
-                            var normalizedHref = href.split('?')[0].replace(/\/$/, '');
-                            var hrefParts = normalizedHref.split('/').filter(function(p) { return p.length > 0 && p !== 'rapor-mulok'; });
-                            var hrefFile = hrefParts[hrefParts.length - 1];
-                            
-                            // Jika href adalah index.php di root (tidak ada subdirectory sebelum index.php)
-                            if (hrefFile === 'index.php' && hrefParts.length === 1) {
-                                $link.addClass('active');
-                                // Force apply style dengan inline style sebagai backup
-                                $link.css({
-                                    'background': 'linear-gradient(135deg, #2d5016 0%, #4a7c2a 100%)',
-                                    'border-left': '4px solid #ffffff',
-                                    'color': '#ffffff',
-                                    'font-weight': '600',
-                                    'box-shadow': '0 4px 12px rgba(45, 80, 22, 0.4)',
-                                    'transform': 'translateX(5px)'
-                                });
-                                $link.find('i').css('color', '#ffffff');
-                                console.log('Dashboard menu aktif:', href);
-                            }
-                        }
-                    });
-                } else {
-                    // Normalisasi path untuk perbandingan
-                    var normalizedPath = path.replace(/\/$/, ''); // Hapus trailing slash
-                    var normalizedUrl = url.split('?')[0].replace(/\/$/, ''); // Hapus query string dan trailing slash
-                    
-                    // Set active berdasarkan halaman saat ini
-                    $('.sidebar .nav-link').each(function() {
-                        var $link = $(this);
-                        var href = $link.attr('href');
-                        
-                        if (href && href !== '#' && href !== 'javascript:void(0);') {
-                            // Normalisasi href
-                            var normalizedHref = href.split('?')[0].replace(/\/$/, '');
-                            
-                            // Cek apakah path saat ini cocok dengan href
-                            var isMatch = false;
-                            
-                            // Metode 1: Exact match setelah normalisasi
-                            if (normalizedPath === normalizedHref || normalizedUrl === normalizedHref) {
-                                isMatch = true;
-                            }
-                            
-                            // Metode 2: Path contains href (untuk subdirectory)
-                            if (!isMatch && (normalizedPath.indexOf(normalizedHref) !== -1 || normalizedUrl.indexOf(normalizedHref) !== -1)) {
-                                // Pastikan bukan partial match yang salah
-                                var hrefParts = normalizedHref.split('/');
-                                var pathParts = normalizedPath.split('/');
-                                var urlParts = normalizedUrl.split('/');
-                                
-                                // Cek apakah semua bagian href ada di path
-                                var allPartsMatch = true;
-                                for (var i = 0; i < hrefParts.length; i++) {
-                                    if (hrefParts[i] && (pathParts.indexOf(hrefParts[i]) === -1 && urlParts.indexOf(hrefParts[i]) === -1)) {
-                                        allPartsMatch = false;
-                                        break;
-                                    }
-                                }
-                                
-                                if (allPartsMatch) {
-                                    isMatch = true;
-                                }
-                            }
-                            
-                            // Metode 3: Cek filename saja (untuk file di direktori berbeda)
-                            if (!isMatch) {
-                                var hrefFile = normalizedHref.split('/').pop();
-                                var pathFile = normalizedPath.split('/').pop();
-                                var urlFile = normalizedUrl.split('/').pop();
-                                
-                                if (hrefFile && (hrefFile === pathFile || hrefFile === urlFile)) {
-                                    isMatch = true;
-                                }
-                            }
-                            
-                            if (isMatch) {
-                                $link.addClass('active');
-                                console.log('Menu aktif:', href);
-                                
-                                // Buka parent collapse jika ada
-                                var parentCollapse = $link.closest('.collapse');
-                                if (parentCollapse.length) {
-                                    parentCollapse.addClass('show');
-                                    
-                                    // Cari parent menu berdasarkan data-bs-target
-                                    var collapseId = parentCollapse.attr('id');
-                                    if (collapseId) {
-                                        var targetSelector = '[data-bs-target="#' + collapseId + '"]';
-                                        var parentMenu = $(targetSelector);
-                                        if (parentMenu.length) {
-                                            parentMenu.addClass('has-active-child');
-                                            console.log('Parent menu dengan child aktif:', collapseId);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Tambahkan style khusus untuk parent menu yang collapse terbuka dan memiliki child aktif
-                    $('.sidebar .collapse.show').each(function() {
-                        var collapseId = $(this).attr('id');
-                        if (collapseId) {
-                            var parentMenu = $('[data-bs-target="#' + collapseId + '"]');
-                            if (parentMenu.length && $(this).find('.nav-link.active').length > 0) {
-                                parentMenu.addClass('has-active-child');
-                                console.log('Parent menu dengan child aktif (dari collapse.show):', collapseId);
-                            }
-                        }
+            jQuery(document).ready(function() {
+                /*
+                 * Sidebar: class active / show pada submenu diatur dari server (includes/header.php)
+                 * via SCRIPT_NAME, karena href menu memakai path relatif (../) yang tidak cocok dengan
+                 * window.location.pathname. Skrip ini hanya menyelaraskan instance Collapse Bootstrap.
+                 */
+                if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                    document.querySelectorAll('#sidebar .collapse.show').forEach(function(el) {
+                        try {
+                            bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show();
+                        } catch (ignore) { /* */ }
                     });
                 }
             });
