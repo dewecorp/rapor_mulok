@@ -2,10 +2,16 @@
 /**
  * Konfigurasi Integrasi SIMAD
  * Website: https://simad.misultanfattah.sch.id/
+ *
+ * Hosting: pastikan URL di bawah mengarah ke domain SIMAD yang sama dengan sumber data resmi
+ * (bukan lingkungan uji / salinan DB lama). Pastikan tabel pengguna di MySQL utf8mb4.
  */
 
 // URL API SIMAD (v1 students.php)
 define('SIMAD_API_URL', 'https://simad.misultanfattah.sch.id/api/v1/students.php');
+
+// URL API SIMAD — data guru (Central Hub). Sesuaikan path file di server SIMAD jika berbeda.
+define('SIMAD_TEACHERS_API_URL', 'https://simad.misultanfattah.sch.id/api/v1/teachers.php');
 
 // Token/API Key
 define('SIMAD_API_KEY', 'SIS_CENTRAL_HUB_SECRET_2026');

@@ -547,6 +547,9 @@ $page_title = 'Data Guru';
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-chalkboard-teacher"></i> Data Guru</h5>
         <div>
+            <button type="button" class="btn btn-primary btn-sm" onclick="syncGuruSimad()" title="Tarik data guru dari SIMAD">
+                <i class="fas fa-sync"></i> Sinkron SIMAD
+            </button>
             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportGuru">
                 <i class="fas fa-file-upload"></i> Impor Excel
             </button>
@@ -951,6 +954,52 @@ $page_title = 'Data Guru';
         });
     }
     
+    function syncGuruSimad() {
+        Swal.fire({
+            title: 'Sinkronisasi SIMAD',
+            html: 'Guru <strong>baru</strong> di SIMAD ditambahkan bila belum ada. Cocokkan: NUPTK/kode, ID SIMAD, nama persis, lalu <strong>nama mirip</strong> + tempat/tanggal lahir (menggabung duplikat seperti beda satu huruf / NUPTK salah).<br><br>Data lama diselaraskan ke SIMAD hanya pada kolom yang belum sama (nama, NUPTK, tempat/tanggal lahir, JK, foto, ID SIMAD). <strong>Pendidikan tidak diubah</strong> dari SIMAD — bisa diedit manual. Foto upload manual tidak ditimpa kecuali default / hasil sync SIMAD. Wali kelas mengikuti nama kelas yang sama persis dengan SIMAD.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, sinkronkan',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (!result.isConfirmed) {
+                return;
+            }
+            Swal.fire({
+                title: 'Menyinkronkan…',
+                text: 'Mohon tunggu, sedang mengambil data dari SIMAD.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            $.ajax({
+                url: 'sync_simad',
+                type: 'POST',
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: response.message
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Gagal', response.message || 'Sinkronisasi gagal', 'error');
+                    }
+                },
+                error: function (xhr, status, err) {
+                    Swal.fire('Error', 'Terjadi kesalahan sistem: ' + (err || status), 'error');
+                }
+            });
+        });
+    }
+
     function exportExcel() {
         window.open('export_guru.php?format=excel', '_blank');
     }
