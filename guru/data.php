@@ -957,7 +957,6 @@ $page_title = 'Data Guru';
     function syncGuruSimad() {
         Swal.fire({
             title: 'Sinkronisasi SIMAD',
-            html: 'Guru <strong>baru</strong> di SIMAD ditambahkan bila belum ada. Cocokkan: NUPTK/kode, ID SIMAD, nama persis, lalu <strong>nama mirip</strong> + tempat/tanggal lahir (menggabung duplikat seperti beda satu huruf / NUPTK salah).<br><br>Data lama diselaraskan ke SIMAD hanya pada kolom yang belum sama (nama, NUPTK, tempat/tanggal lahir, JK, foto, ID SIMAD, <strong>pendidikan</strong> bila ada di SIMAD). Jika di SIMAD kosong atau "-", nilai pendidikan lokal tetap dipakai. Foto upload manual tidak ditimpa kecuali default / hasil sync SIMAD. Wali kelas mengikuti nama kelas yang sama persis dengan SIMAD.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#0d6efd',
