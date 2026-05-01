@@ -195,6 +195,51 @@ function guru_sync_baris_lahir_simad(array $row): array
     return [$tp, $tgl];
 }
 
+/**
+ * Pendidikan dari payload SIMAD (nama kolom bisa berbeda antar versi API).
+ */
+function guru_sync_pendidikan_dari_simad(array $row): ?string
+{
+    $keys = [
+        'pendidikan',
+        'jenjang_pendidikan',
+        'tingkat_pendidikan',
+        'ijazah_terakhir',
+        'level_pendidikan',
+        'gelar',
+        'pend_terakhir',
+        'pendidikan_terakhir',
+    ];
+    foreach ($keys as $k) {
+        if (!array_key_exists($k, $row)) {
+            continue;
+        }
+        $v = guru_sync_sanitize_field(trim((string) $row[$k]));
+        if (!guru_sync_is_meaningful($v)) {
+            continue;
+        }
+        if (function_exists('mb_substr')) {
+            $v = mb_substr($v, 0, 100, 'UTF-8');
+        } else {
+            $v = substr($v, 0, 100);
+        }
+
+        return $v;
+    }
+
+    return null;
+}
+
+function guru_sync_norm_pendidikan_compare($p): ?string
+{
+    if ($p === null) {
+        return null;
+    }
+    $t = trim((string) $p);
+
+    return $t === '' ? null : $t;
+}
+
 function guru_sync_is_meaningful($value): bool
 {
     $v = trim((string) $value);
@@ -691,6 +736,7 @@ function guru_sync_pengguna_perlu_update(
     string $jk,
     string $final_tmp,
     ?string $final_tgl,
+    ?string $final_pendidikan,
     string $username_baru,
     string $nuptk_baru,
     string $foto_name,
@@ -706,6 +752,9 @@ function guru_sync_pengguna_perlu_update(
         return true;
     }
     if (guru_sync_norm_date_value($existing['tanggal_lahir'] ?? null) !== guru_sync_norm_date_value($final_tgl)) {
+        return true;
+    }
+    if (guru_sync_norm_pendidikan_compare($existing['pendidikan'] ?? null) !== guru_sync_norm_pendidikan_compare($final_pendidikan)) {
         return true;
     }
     if (trim((string) ($existing['username'] ?? '')) !== trim($username_baru)) {
@@ -812,12 +861,13 @@ try {
             }
             $plain = '123456';
             $hash = password_hash($plain, PASSWORD_DEFAULT);
+            $pend_ins_baru = guru_sync_pendidikan_dari_simad($row);
             if ($id_simad > 0) {
-                $stmt_ins = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, password_plain, foto, role, simad_id_guru) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, 'guru', ?)");
-                $stmt_ins->bind_param('sssssssssi', $nama_guru, $jk, $tmp, $tgl, $target_new, $target_new, $hash, $plain, $foto_ins, $id_simad);
+                $stmt_ins = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, password_plain, foto, role, simad_id_guru) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'guru', ?)");
+                $stmt_ins->bind_param('ssssssssssi', $nama_guru, $jk, $tmp, $tgl, $pend_ins_baru, $target_new, $target_new, $hash, $plain, $foto_ins, $id_simad);
             } else {
-                $stmt_ins = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, password_plain, foto, role) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, 'guru')");
-                $stmt_ins->bind_param('sssssssss', $nama_guru, $jk, $tmp, $tgl, $target_new, $target_new, $hash, $plain, $foto_ins);
+                $stmt_ins = $conn->prepare("INSERT INTO pengguna (nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, username, nuptk, password, password_plain, foto, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'guru')");
+                $stmt_ins->bind_param('sssssssssss', $nama_guru, $jk, $tmp, $tgl, $pend_ins_baru, $target_new, $target_new, $hash, $plain, $foto_ins);
             }
             if (!$stmt_ins->execute()) {
                 $skipped++;
@@ -861,7 +911,7 @@ try {
             }
         }
 
-        $stmt_one = $conn->prepare('SELECT id, role, is_proktor_utama, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, password, foto, nuptk, username, simad_id_guru FROM pengguna WHERE id = ? LIMIT 1');
+        $stmt_one = $conn->prepare('SELECT id, role, is_proktor_utama, nama, jenis_kelamin, tempat_lahir, tanggal_lahir, pendidikan, password, foto, nuptk, username, simad_id_guru FROM pengguna WHERE id = ? LIMIT 1');
         $stmt_one->bind_param('i', $keeperId);
         $stmt_one->execute();
         $existing = $stmt_one->get_result()->fetch_assoc();
@@ -892,6 +942,10 @@ try {
         if ($final_tgl === '0000-00-00') {
             $final_tgl = null;
         }
+
+        $pend_simad = guru_sync_pendidikan_dari_simad($row);
+        $ex_pend_raw = guru_sync_norm_pendidikan_compare($existing['pendidikan'] ?? null);
+        $final_pendidikan = $pend_simad !== null ? $pend_simad : $ex_pend_raw;
 
         $cur_nuptk = trim((string) ($existing['nuptk'] ?? ''));
         $cur_user = trim((string) ($existing['username'] ?? ''));
@@ -929,15 +983,16 @@ try {
         $uid = $keeperId;
         $simad_col = $id_simad > 0 ? $id_simad : null;
 
-        if (guru_sync_pengguna_perlu_update($existing, $final_nama, $jk, $final_tmp, $final_tgl, $username_baru, $nuptk_baru, $foto_name, $simad_col)) {
+        if (guru_sync_pengguna_perlu_update($existing, $final_nama, $jk, $final_tmp, $final_tgl, $final_pendidikan, $username_baru, $nuptk_baru, $foto_name, $simad_col)) {
             if ($simad_col !== null) {
-                $stmt_up = $conn->prepare('UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, username=?, nuptk=?, foto=?, simad_id_guru=? WHERE id=?');
+                $stmt_up = $conn->prepare('UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, foto=?, simad_id_guru=? WHERE id=?');
                 $stmt_up->bind_param(
-                    'sssssssii',
+                    'ssssssssii',
                     $final_nama,
                     $jk,
                     $final_tmp,
                     $final_tgl,
+                    $final_pendidikan,
                     $username_baru,
                     $nuptk_baru,
                     $foto_name,
@@ -945,13 +1000,14 @@ try {
                     $uid
                 );
             } else {
-                $stmt_up = $conn->prepare('UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, username=?, nuptk=?, foto=? WHERE id=?');
+                $stmt_up = $conn->prepare('UPDATE pengguna SET nama=?, jenis_kelamin=?, tempat_lahir=?, tanggal_lahir=?, pendidikan=?, username=?, nuptk=?, foto=? WHERE id=?');
                 $stmt_up->bind_param(
-                    'sssssssi',
+                    'ssssssssi',
                     $final_nama,
                     $jk,
                     $final_tmp,
                     $final_tgl,
+                    $final_pendidikan,
                     $username_baru,
                     $nuptk_baru,
                     $foto_name,
@@ -1010,7 +1066,7 @@ try {
         PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-    $deskripsi = "Sinkronisasi guru SIMAD: $inserted baru, $updated baris diperbarui (hanya jika beda dari SIMAD), $merged_duplicates duplikat digabung, $skipped dilewati.";
+    $deskripsi = "Sinkronisasi guru SIMAD: $inserted baru, $updated baris diperbarui (nama, TTL, JK, foto, login, ID SIMAD, pendidikan bila ada di SIMAD), $merged_duplicates duplikat digabung, $skipped dilewati.";
     $user_id = (int) ($_SESSION['user_id'] ?? 0);
     $user_nama = (string) ($_SESSION['nama'] ?? '');
     $user_role = (string) ($_SESSION['role'] ?? '');
