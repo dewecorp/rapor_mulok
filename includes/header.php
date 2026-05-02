@@ -253,6 +253,8 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             --hijau-kemenag: #2d5016;
             --hijau-kemenag-light: #4a7c2a;
             --hijau-kemenag-dark: #1a3009;
+            /* Diisi ulang via JS agar konten turun dari bawah navbar fixed (tinggi mobile bisa > 56px) */
+            --rmd-navbar-offset: 56px;
         }
         
         body {
@@ -264,11 +266,12 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             -moz-osx-font-smoothing: grayscale;
             margin: 0;
             padding: 0;
-            padding-top: 56px;
+            padding-top: var(--rmd-navbar-offset);
         }
         
         html {
             scroll-behavior: smooth;
+            scroll-padding-top: var(--rmd-navbar-offset);
         }
         
         /* Perbesar semua font untuk keterbacaan yang lebih baik */
@@ -300,6 +303,17 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             left: 0;
             right: 0;
             width: 100%;
+        }
+        
+        .sidebar-overlay {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            top: var(--rmd-navbar-offset, 56px);
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
         }
         
         .navbar-brand {
@@ -528,7 +542,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         }
         
         .sidebar {
-            min-height: calc(100vh - 56px);
+            min-height: calc(100vh - var(--rmd-navbar-offset));
             background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%);
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
             overflow-x: hidden;
@@ -548,9 +562,9 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         @media (min-width: 992px) {
             .sidebar {
                 position: fixed;
-                top: 56px;
+                top: var(--rmd-navbar-offset);
                 left: 0;
-                height: calc(100vh - 56px);
+                height: calc(100vh - var(--rmd-navbar-offset));
                 z-index: 1020;
                 width: 250px;
             }
@@ -783,10 +797,6 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         .sidebar .nav-link.text-danger.active {
             background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
             color: white !important;
-        }
-        
-        body {
-            padding-top: 56px;
         }
         
         .content-wrapper {
@@ -1029,12 +1039,12 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             
             .sidebar {
                 position: fixed;
-                top: 56px;
+                top: var(--rmd-navbar-offset);
                 left: -250px;
                 width: 250px;
                 z-index: 1000;
                 transition: left 0.2s ease;
-                height: calc(100vh - 56px);
+                height: calc(100vh - var(--rmd-navbar-offset));
                 overflow-y: auto;
                 will-change: left;
             }
@@ -1045,10 +1055,6 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             
             .main-content {
                 margin-left: 0 !important;
-            }
-            
-            .sidebar-overlay {
-                display: none;
             }
             
             .card-header h5 {
@@ -1439,6 +1445,10 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                 display: none !important;
             }
             
+            body {
+                padding-top: 0 !important;
+            }
+            
             .main-content {
                 margin-left: 0 !important;
             }
@@ -1533,6 +1543,39 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             </div>
         </div>
     </nav>
+    <script>
+    (function () {
+        function syncRmdNavbarOffset() {
+            var nav = document.querySelector('nav.navbar');
+            if (!nav) return;
+            var h = Math.ceil(nav.getBoundingClientRect().height);
+            if (h < 48) return;
+            document.documentElement.style.setProperty('--rmd-navbar-offset', h + 'px');
+        }
+        function bind() {
+            syncRmdNavbarOffset();
+            window.addEventListener('resize', syncRmdNavbarOffset);
+            window.addEventListener('orientationchange', function () {
+                setTimeout(syncRmdNavbarOffset, 150);
+            });
+            var nav = document.querySelector('nav.navbar');
+            if (nav && typeof ResizeObserver !== 'undefined') {
+                new ResizeObserver(syncRmdNavbarOffset).observe(nav);
+            }
+            window.addEventListener('load', syncRmdNavbarOffset);
+            if (window.requestAnimationFrame) {
+                window.requestAnimationFrame(function () {
+                    window.requestAnimationFrame(syncRmdNavbarOffset);
+                });
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bind);
+        } else {
+            bind();
+        }
+    })();
+    </script>
     
     <div class="container-fluid">
         <div class="row">

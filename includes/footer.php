@@ -56,7 +56,6 @@
                     if (!sidebarOverlay) {
                         sidebarOverlay = document.createElement('div');
                         sidebarOverlay.className = 'sidebar-overlay';
-                        sidebarOverlay.style.cssText = 'position: fixed; top: 56px; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; display: none;';
                         document.body.appendChild(sidebarOverlay);
                     }
                     sidebarOverlay.style.display = 'block';
