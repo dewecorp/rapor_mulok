@@ -378,9 +378,9 @@ $page_title = 'Dashboard';
     </div>
     <div class="card-body">
         <?php if ($role == 'proktor'): ?>
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white">
+            <div class="row row-cols-2 row-cols-md-4 g-2 g-md-3 mb-4 dashboard-proktor-stats">
+                <div class="col">
+                    <div class="card bg-primary text-white h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
@@ -392,8 +392,8 @@ $page_title = 'Dashboard';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-success text-white">
+                <div class="col">
+                    <div class="card bg-success text-white h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
@@ -405,8 +405,8 @@ $page_title = 'Dashboard';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-info text-white">
+                <div class="col">
+                    <div class="card bg-info text-white h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
@@ -418,8 +418,8 @@ $page_title = 'Dashboard';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-warning text-white">
+                <div class="col">
+                    <div class="card bg-warning text-white h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
@@ -578,8 +578,8 @@ $page_title = 'Dashboard';
                                 $pn_total = (int) $pn_kelas['total_materi'];
                                 $pn_ok = (int) $pn_kelas['terkirim'];
                                 ?>
-                                <div class="col-md-6 col-xl-4">
-                                    <div class="border rounded-3 p-3 h-100 bg-light-subtle" style="background-color: #f8faf6 !important;">
+                                <div class="col-6 col-md-6 col-xl-4">
+                                    <div class="border rounded-3 p-2 p-md-3 h-100 bg-light-subtle" style="background-color: #f8faf6 !important;">
                                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                             <span class="fw-semibold text-dark"><?php echo htmlspecialchars($pn_kelas['nama_kelas']); ?></span>
                                             <span class="badge rounded-pill" style="background-color: #2d5016;"><?php echo htmlspecialchars((string) $pn_kelas['persen']); ?>%</span>
@@ -1050,6 +1050,41 @@ $page_title = 'Dashboard';
 .card.bg-info .card-body i,
 .card.bg-warning .card-body i {
     font-size: 2rem !important;
+}
+
+/* Dashboard proktor: 2 kolom di mobile — tipografi dan padding lebih ringkas */
+@media (max-width: 767.98px) {
+    .dashboard-proktor-stats .card-body {
+        padding: 0.625rem;
+    }
+
+    .dashboard-proktor-stats .card-body .d-flex {
+        flex-wrap: nowrap;
+        gap: 0.35rem;
+    }
+
+    .dashboard-proktor-stats .card.bg-primary .card-body h2,
+    .dashboard-proktor-stats .card.bg-success .card-body h2,
+    .dashboard-proktor-stats .card.bg-info .card-body h2,
+    .dashboard-proktor-stats .card.bg-warning .card-body h2 {
+        font-size: 1.35rem;
+    }
+
+    .dashboard-proktor-stats .card.bg-primary .card-body h6,
+    .dashboard-proktor-stats .card.bg-success .card-body h6,
+    .dashboard-proktor-stats .card.bg-info .card-body h6,
+    .dashboard-proktor-stats .card.bg-warning .card-body h6 {
+        font-size: 0.72rem;
+        margin-bottom: 0.35rem !important;
+        line-height: 1.2;
+    }
+
+    .dashboard-proktor-stats .card.bg-primary .card-body i,
+    .dashboard-proktor-stats .card.bg-success .card-body i,
+    .dashboard-proktor-stats .card.bg-info .card-body i,
+    .dashboard-proktor-stats .card.bg-warning .card-body i {
+        font-size: 1.35rem !important;
+    }
 }
 
 .timeline-container {
