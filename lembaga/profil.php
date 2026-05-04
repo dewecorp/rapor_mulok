@@ -1,6 +1,7 @@
 <?php
 require_once '../config/config.php';
 require_once '../config/database.php';
+require_once '../includes/tahun_ajaran_helper.php';
 requireRole('proktor');
 
 $conn = getConnection();
@@ -12,11 +13,41 @@ $query = "SELECT * FROM profil_madrasah LIMIT 1";
 $result = $conn->query($query);
 $profil = $result->fetch_assoc();
 
+try {
+    $check_ta_hist = $conn->query("SHOW COLUMNS FROM profil_madrasah LIKE 'tahun_ajaran_pernah_aktif'");
+    if (!$check_ta_hist || $check_ta_hist->num_rows == 0) {
+        $conn->query("ALTER TABLE profil_madrasah ADD COLUMN tahun_ajaran_pernah_aktif TEXT NULL");
+    }
+} catch (Exception $e) {
+    // abaikan
+}
+
+$result = $conn->query($query);
+$profil = $result->fetch_assoc();
+
 if (!$profil) {
     // Insert default jika belum ada
     $conn->query("INSERT INTO profil_madrasah (nama_madrasah) VALUES ('MI Sultan Fattah Sukosono')");
     $result = $conn->query($query);
     $profil = $result->fetch_assoc();
+}
+
+// Isi historis tahun ajaran jika kolom baru kosong namun tahun ajaran aktif sudah ada
+if (!empty($profil['id'])) {
+    $histRaw = trim((string) ($profil['tahun_ajaran_pernah_aktif'] ?? ''));
+    if ($histRaw === '' || $histRaw === '[]') {
+        $ta0 = ta_normalisasi_ke_slash($profil['tahun_ajaran_aktif'] ?? '');
+        if ($ta0 !== '') {
+            $seed = ta_perbarui_json_pernah_aktif('[]', $ta0);
+            $stmtSeed = $conn->prepare("UPDATE profil_madrasah SET tahun_ajaran_pernah_aktif=? WHERE id=?");
+            $pid = (int) $profil['id'];
+            $stmtSeed->bind_param("si", $seed, $pid);
+            $stmtSeed->execute();
+            $stmtSeed->close();
+            $result = $conn->query($query);
+            $profil = $result->fetch_assoc();
+        }
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -109,12 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = 'Gagal memperbarui data pimpinan!';
         }
     } elseif ($action == 'update_akademik') {
-        // Update akademik
-        $tahun_ajaran = $_POST['tahun_ajaran_aktif'] ?? '';
+        // Update akademik — format tahun ajaran dinormalisasi ke YYYY/YYYY
+        $tahun_ajaran = ta_normalisasi_ke_slash($_POST['tahun_ajaran_aktif'] ?? '');
         $semester = $_POST['semester_aktif'] ?? '1';
-        
-        $stmt = $conn->prepare("UPDATE profil_madrasah SET tahun_ajaran_aktif=?, semester_aktif=? WHERE id=?");
-        $stmt->bind_param("ssi", $tahun_ajaran, $semester, $profil['id']);
+        $histJson = ta_perbarui_json_pernah_aktif($profil['tahun_ajaran_pernah_aktif'] ?? '[]', $tahun_ajaran);
+
+        $stmt = $conn->prepare("UPDATE profil_madrasah SET tahun_ajaran_aktif=?, semester_aktif=?, tahun_ajaran_pernah_aktif=? WHERE id=?");
+        $pid = (int) $profil['id'];
+        $stmt->bind_param("sssi", $tahun_ajaran, $semester, $histJson, $pid);
         
         if ($stmt->execute()) {
             $_SESSION['success_message'] = 'Pengaturan akademik berhasil diperbarui!';
@@ -138,6 +171,15 @@ if (isset($_SESSION['success_message'])) {
 
 $result = $conn->query($query);
 $profil = $result->fetch_assoc();
+
+$tahunAktifNorm = ta_normalisasi_ke_slash($profil['tahun_ajaran_aktif'] ?? '');
+$opsiTahunAjaran = ta_kumpulkan_opsi_dropdown($conn, $tahunAktifNorm, $profil['tahun_ajaran_pernah_aktif'] ?? '[]');
+if ($tahunAktifNorm !== '' && !in_array($tahunAktifNorm, $opsiTahunAjaran, true)) {
+    $opsiTahunAjaran[] = $tahunAktifNorm;
+    usort($opsiTahunAjaran, function ($a, $b) {
+        return ta_ambil_tahun_mulai($b) <=> ta_ambil_tahun_mulai($a);
+    });
+}
 
 // Set page title (variabel lokal)
 $page_title = 'Profil Madrasah';
@@ -295,9 +337,14 @@ $page_title = 'Profil Madrasah';
                     <input type="hidden" name="action" value="update_akademik">
                     <div class="mb-3">
                         <label class="form-label">Tahun Ajaran Aktif</label>
-                        <input type="text" class="form-control" name="tahun_ajaran_aktif" 
-                               value="<?php echo htmlspecialchars($profil['tahun_ajaran_aktif'] ?? ''); ?>" 
-                               placeholder="Contoh: 2024/2025">
+                        <select class="form-select" name="tahun_ajaran_aktif" required>
+                            <option value="">-- Pilih tahun ajaran --</option>
+                            <?php foreach ($opsiTahunAjaran as $optTa): ?>
+                                <option value="<?php echo htmlspecialchars($optTa); ?>" <?php echo $tahunAktifNorm === $optTa ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($optTa); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Semester Aktif</label>

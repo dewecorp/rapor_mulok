@@ -1,6 +1,7 @@
 <?php
 require_once '../config/config.php';
 require_once '../config/database.php';
+require_once '../includes/tahun_ajaran_helper.php';
 requireRole('guru');
 
 $conn = getConnection();
@@ -86,28 +87,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $materi_id_post = $_POST['materi_id'] ?? 0;
     $kelas_id_post = $_POST['kelas_id'] ?? 0;
     $semester_post = $_POST['semester'] ?? '1';
-    $tahun_ajaran_post = $_POST['tahun_ajaran'] ?? '';
+    $tahun_ajaran_post = ta_normalisasi_ke_slash(trim($_POST['tahun_ajaran'] ?? ''));
+    $taVarSimpan = ta_varian_untuk_query($tahun_ajaran_post);
     $harian_array = $_POST['harian'] ?? [];
     $pas_pat_array = $_POST['pas_pat'] ?? [];
     
-    // Cek apakah nilai sudah dikirim
+    // Cek apakah nilai sudah dikirim (/ atau penyimpanan lama dengan - )
     $status_kirim_check = 'belum';
-    try {
-        $stmt_check_kirim = $conn->prepare("SELECT status FROM nilai_kirim_status 
-                                           WHERE materi_mulok_id = ? 
-                                           AND kelas_id = ? 
-                                           AND semester = ? 
-                                           AND tahun_ajaran = ? 
-                                           AND status = 'terkirim'");
-        $stmt_check_kirim->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
-        $stmt_check_kirim->execute();
-        $result_check_kirim = $stmt_check_kirim->get_result();
-        if ($result_check_kirim && $result_check_kirim->num_rows > 0) {
-            $status_kirim_check = 'terkirim';
+    if ($tahun_ajaran_post !== '' && !empty($taVarSimpan)) {
+        try {
+            $inTaKirim = implode(',', array_fill(0, count($taVarSimpan), '?'));
+            $stmt_check_kirim = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                               WHERE materi_mulok_id = ? 
+                                               AND kelas_id = ? 
+                                               AND semester = ? 
+                                               AND tahun_ajaran IN ($inTaKirim)
+                                               AND status = 'terkirim'");
+            $stmt_check_kirim->bind_param('iis' . str_repeat('s', count($taVarSimpan)), $materi_id_post, $kelas_id_post, $semester_post, ...$taVarSimpan);
+            $stmt_check_kirim->execute();
+            $result_check_kirim = $stmt_check_kirim->get_result();
+            if ($result_check_kirim && $result_check_kirim->num_rows > 0) {
+                $status_kirim_check = 'terkirim';
+            }
+            $stmt_check_kirim->close();
+        } catch (Exception $e) {
+            // Ignore error
         }
-        $stmt_check_kirim->close();
-    } catch (Exception $e) {
-        // Ignore error
     }
     
     if ($status_kirim_check == 'terkirim') {
@@ -120,9 +125,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         exit;
     }
     
-    if ($materi_id_post > 0 && $kelas_id_post > 0) {
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && $tahun_ajaran_post !== '' && !empty($taVarSimpan)) {
         $conn->begin_transaction();
         try {
+            $inTaNilai = implode(',', array_fill(0, count($taVarSimpan), '?'));
+            $typesCekNilai = 'iis' . str_repeat('s', count($taVarSimpan));
+
             foreach ($harian_array as $siswa_id => $harian_value) {
                 $siswa_id = intval($siswa_id);
                 $harian_value = trim($harian_value);
@@ -147,8 +155,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                                  WHERE siswa_id = ? 
                                                  AND materi_mulok_id = ? 
                                                  AND semester = ? 
-                                                 AND tahun_ajaran = ?");
-                    $stmt_check->bind_param("iiss", $siswa_id, $materi_id_post, $semester_post, $tahun_ajaran_post);
+                                                 AND tahun_ajaran IN ($inTaNilai)");
+                    $stmt_check->bind_param($typesCekNilai, $siswa_id, $materi_id_post, $semester_post, ...$taVarSimpan);
                     $stmt_check->execute();
                     $result_check = $stmt_check->get_result();
                     $existing = $result_check->fetch_assoc();
@@ -249,27 +257,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $materi_id_post = $_POST['materi_id'] ?? 0;
     $kelas_id_post = $_POST['kelas_id'] ?? 0;
     $semester_post = $_POST['semester'] ?? '1';
-    $tahun_ajaran_post = $_POST['tahun_ajaran'] ?? '';
+    $tahun_ajaran_post = ta_normalisasi_ke_slash(trim($_POST['tahun_ajaran'] ?? ''));
+    $taVarTambah = ta_varian_untuk_query($tahun_ajaran_post);
     $nilai_array = $_POST['nilai'] ?? [];
     
     // Cek apakah nilai sudah dikirim
     $status_kirim_check = 'belum';
-    try {
-        $stmt_check_kirim = $conn->prepare("SELECT status FROM nilai_kirim_status 
-                                           WHERE materi_mulok_id = ? 
-                                           AND kelas_id = ? 
-                                           AND semester = ? 
-                                           AND tahun_ajaran = ? 
-                                           AND status = 'terkirim'");
-        $stmt_check_kirim->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
-        $stmt_check_kirim->execute();
-        $result_check_kirim = $stmt_check_kirim->get_result();
-        if ($result_check_kirim && $result_check_kirim->num_rows > 0) {
-            $status_kirim_check = 'terkirim';
+    if ($tahun_ajaran_post !== '' && !empty($taVarTambah)) {
+        try {
+            $inTaKirimTb = implode(',', array_fill(0, count($taVarTambah), '?'));
+            $stmt_check_kirim = $conn->prepare("SELECT status FROM nilai_kirim_status 
+                                               WHERE materi_mulok_id = ? 
+                                               AND kelas_id = ? 
+                                               AND semester = ? 
+                                               AND tahun_ajaran IN ($inTaKirimTb)
+                                               AND status = 'terkirim'");
+            $stmt_check_kirim->bind_param('iis' . str_repeat('s', count($taVarTambah)), $materi_id_post, $kelas_id_post, $semester_post, ...$taVarTambah);
+            $stmt_check_kirim->execute();
+            $result_check_kirim = $stmt_check_kirim->get_result();
+            if ($result_check_kirim && $result_check_kirim->num_rows > 0) {
+                $status_kirim_check = 'terkirim';
+            }
+            $stmt_check_kirim->close();
+        } catch (Exception $e) {
+            // Ignore error
         }
-        $stmt_check_kirim->close();
-    } catch (Exception $e) {
-        // Ignore error
     }
     
     if ($status_kirim_check == 'terkirim') {
@@ -281,9 +293,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         exit;
     }
     
-    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($nilai_array)) {
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($nilai_array) && $tahun_ajaran_post !== '' && !empty($taVarTambah)) {
         $conn->begin_transaction();
         try {
+            $inTaTbLoop = implode(',', array_fill(0, count($taVarTambah), '?'));
+            $typesTbLoop = 'iis' . str_repeat('s', count($taVarTambah));
+
             foreach ($nilai_array as $siswa_id => $nilai_value) {
                 $siswa_id = intval($siswa_id);
                 $nilai_value = trim($nilai_value);
@@ -330,8 +345,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                                  WHERE siswa_id = ? 
                                                  AND materi_mulok_id = ? 
                                                  AND semester = ? 
-                                                 AND tahun_ajaran = ?");
-                    $stmt_check->bind_param("iiss", $siswa_id, $materi_id_post, $semester_post, $tahun_ajaran_post);
+                                                 AND tahun_ajaran IN ($inTaTbLoop)");
+                    $stmt_check->bind_param($typesTbLoop, $siswa_id, $materi_id_post, $semester_post, ...$taVarTambah);
                     $stmt_check->execute();
                     $result_check = $stmt_check->get_result();
                     $existing = $result_check->fetch_assoc();
@@ -417,9 +432,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $materi_id_post = intval($_POST['materi_id'] ?? 0);
     $kelas_id_post = intval($_POST['kelas_id'] ?? 0);
     $semester_post = trim($_POST['semester'] ?? '1');
-    $tahun_ajaran_post = trim($_POST['tahun_ajaran'] ?? '');
+    $tahun_ajaran_post = ta_normalisasi_ke_slash(trim($_POST['tahun_ajaran'] ?? ''));
+    $taVarKirim = ta_varian_untuk_query($tahun_ajaran_post);
     
-    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post)) {
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post) && !empty($taVarKirim)) {
         try {
             // Validasi: Cek apakah semua siswa sudah memiliki nilai
             $stmt_siswa_check = $conn->prepare("SELECT COUNT(*) as total_siswa FROM siswa WHERE kelas_id = ?");
@@ -431,15 +447,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $stmt_siswa_check->close();
             
             // Cek jumlah nilai yang sudah diinput
+            $inTaKirimNilai = implode(',', array_fill(0, count($taVarKirim), '?'));
             $stmt_nilai_check = $conn->prepare("SELECT COUNT(DISTINCT siswa_id) as total_nilai 
                                                 FROM nilai_siswa 
                                                 WHERE materi_mulok_id = ? 
                                                 AND siswa_id IN (SELECT id FROM siswa WHERE kelas_id = ?)
                                                 AND semester = ? 
-                                                AND tahun_ajaran = ? 
+                                                AND tahun_ajaran IN ($inTaKirimNilai) 
                                                 AND nilai_pengetahuan IS NOT NULL 
                                                 AND nilai_pengetahuan != ''");
-            $stmt_nilai_check->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_nilai_check->bind_param('iis' . str_repeat('s', count($taVarKirim)), $materi_id_post, $kelas_id_post, $semester_post, ...$taVarKirim);
             $stmt_nilai_check->execute();
             $result_nilai_check = $stmt_nilai_check->get_result();
             $row_nilai_check = $result_nilai_check->fetch_assoc();
@@ -458,13 +475,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             }
             
             // Cek apakah sudah ada status terkirim
+            $inTaStat = implode(',', array_fill(0, count($taVarKirim), '?'));
             $stmt_check = $conn->prepare("SELECT id FROM nilai_kirim_status 
                                          WHERE materi_mulok_id = ? 
                                          AND kelas_id = ? 
                                          AND semester = ? 
-                                         AND tahun_ajaran = ? 
+                                         AND tahun_ajaran IN ($inTaStat) 
                                          AND status = 'terkirim'");
-            $stmt_check->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_check->bind_param('iis' . str_repeat('s', count($taVarKirim)), $materi_id_post, $kelas_id_post, $semester_post, ...$taVarKirim);
             $stmt_check->execute();
             $result_check = $stmt_check->get_result();
             $existing = $result_check->fetch_assoc();
@@ -520,20 +538,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $materi_id_post = intval($_POST['materi_id'] ?? 0);
     $kelas_id_post = intval($_POST['kelas_id'] ?? 0);
     $semester_post = trim($_POST['semester'] ?? '1');
-    $tahun_ajaran_post = trim($_POST['tahun_ajaran'] ?? '');
+    $tahun_ajaran_post = ta_normalisasi_ke_slash(trim($_POST['tahun_ajaran'] ?? ''));
+    $taVarBatal = ta_varian_untuk_query($tahun_ajaran_post);
     
-    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post)) {
+    if ($materi_id_post > 0 && $kelas_id_post > 0 && !empty($tahun_ajaran_post) && !empty($taVarBatal)) {
         try {
             // Update status menjadi batal
+            $inTaBtl = implode(',', array_fill(0, count($taVarBatal), '?'));
             $stmt_update = $conn->prepare("UPDATE nilai_kirim_status 
                                           SET status = 'batal', 
                                               tanggal_batal = NOW() 
                                           WHERE materi_mulok_id = ? 
                                           AND kelas_id = ? 
                                           AND semester = ? 
-                                          AND tahun_ajaran = ? 
+                                          AND tahun_ajaran IN ($inTaBtl) 
                                           AND status = 'terkirim'");
-            $stmt_update->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
+            $stmt_update->bind_param('iis' . str_repeat('s', count($taVarBatal)), $materi_id_post, $kelas_id_post, $semester_post, ...$taVarBatal);
             $stmt_update->execute();
             $affected = $stmt_update->affected_rows;
             $stmt_update->close();
@@ -604,11 +624,13 @@ try {
     $result_profil = $conn->query($query_profil);
     $profil = $result_profil ? $result_profil->fetch_assoc() : null;
     $semester = $profil['semester_aktif'] ?? '1';
-    $tahun_ajaran = $profil['tahun_ajaran_aktif'] ?? '';
+    $tahun_ajaran = ta_normalisasi_ke_slash($profil['tahun_ajaran_aktif'] ?? '');
 } catch (Exception $e) {
     $semester = '1';
     $tahun_ajaran = '';
 }
+
+$taVarBaca = ta_varian_untuk_query($tahun_ajaran);
 
 // Ambil data kelas yang diampu oleh wali kelas
 $kelas_data = null;
@@ -807,17 +829,18 @@ if ($materi_id > 0) {
                 $siswa_ids[] = $s['id'];
             }
             
-            if (count($siswa_ids) > 0) {
+            if (count($siswa_ids) > 0 && !empty($taVarBaca)) {
                 $placeholders = str_repeat('?,', count($siswa_ids) - 1) . '?';
+                $inTaNilaiBaca = implode(',', array_fill(0, count($taVarBaca), '?'));
                 $query_nilai = "SELECT * FROM nilai_siswa 
                                WHERE siswa_id IN ($placeholders) 
                                AND materi_mulok_id = ? 
                                AND semester = ? 
-                               AND tahun_ajaran = ?";
+                               AND tahun_ajaran IN ($inTaNilaiBaca)";
                 $stmt_nilai = $conn->prepare($query_nilai);
-                $params = array_merge($siswa_ids, [$materi_id, $semester, $tahun_ajaran]);
-                $types = str_repeat('i', count($siswa_ids)) . 'iss';
-                $stmt_nilai->bind_param($types, ...$params);
+                $typesNilaiBaca = str_repeat('i', count($siswa_ids)) . 'is' . str_repeat('s', count($taVarBaca));
+                $params = array_merge($siswa_ids, [$materi_id, $semester], $taVarBaca);
+                $stmt_nilai->bind_param($typesNilaiBaca, ...$params);
                 $stmt_nilai->execute();
                 $result_nilai = $stmt_nilai->get_result();
                 
@@ -831,15 +854,16 @@ if ($materi_id > 0) {
         
         // Cek status kirim nilai
         $status_kirim = 'belum';
-        if ($materi_data && $kelas_id_for_materi > 0 && !empty($tahun_ajaran)) {
+        if ($materi_data && $kelas_id_for_materi > 0 && !empty($tahun_ajaran) && !empty($taVarBaca)) {
             try {
+                $inTaStatusBaca = implode(',', array_fill(0, count($taVarBaca), '?'));
                 $stmt_status = $conn->prepare("SELECT status FROM nilai_kirim_status 
                                               WHERE materi_mulok_id = ? 
                                               AND kelas_id = ? 
                                               AND semester = ? 
-                                              AND tahun_ajaran = ? 
+                                              AND tahun_ajaran IN ($inTaStatusBaca) 
                                               AND status = 'terkirim'");
-                $stmt_status->bind_param("iiss", $materi_id, $kelas_id_for_materi, $semester, $tahun_ajaran);
+                $stmt_status->bind_param('iis' . str_repeat('s', count($taVarBaca)), $materi_id, $kelas_id_for_materi, $semester, ...$taVarBaca);
                 $stmt_status->execute();
                 $result_status = $stmt_status->get_result();
                 if ($result_status && $result_status->num_rows > 0) {
