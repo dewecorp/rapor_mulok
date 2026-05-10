@@ -77,7 +77,7 @@ if ($role == 'proktor') {
         $total_materi = 0;
     }
     
-    // Progres nilai per kelas (semester & tahun ajaran aktif)
+    // Progres Nilai Per Kelas (semester & tahun ajaran aktif)
     $progres_nilai_kelas_list = [];
     $semester_aktif_proktor = '1';
     $tahun_ajaran_proktor = '';
@@ -551,7 +551,7 @@ $page_title = 'Dashboard';
 
             <div class="card mt-3">
                 <div class="card-header" style="background-color: #2d5016; color: white;">
-                    <h6 class="mb-0"><i class="fas fa-chart-line"></i> Progres nilai per kelas</h6>
+                    <h6 class="mb-0"><i class="fas fa-chart-line"></i> Progres Nilai Per Kelas</h6>
                 </div>
                 <div class="card-body">
                     <p class="text-muted small mb-3 mb-md-4">
