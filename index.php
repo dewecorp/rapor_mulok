@@ -554,13 +554,6 @@ $page_title = 'Dashboard';
                     <h6 class="mb-0"><i class="fas fa-chart-line"></i> Progres Nilai Per Kelas</h6>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small mb-3 mb-md-4">
-                        Berdasarkan semester aktif dan tahun ajaran pada profil madrasah.
-                        <strong>Semester <?php echo htmlspecialchars($semester_aktif_proktor); ?></strong>
-                        <?php if (!empty($tahun_ajaran_proktor)): ?>
-                            · Tahun ajaran <strong><?php echo htmlspecialchars($tahun_ajaran_proktor); ?></strong>
-                        <?php endif; ?>
-                    </p>
                     <?php if ($tahun_ajaran_proktor === ''): ?>
                         <div class="alert alert-warning py-2 small mb-3" role="alert">
                             Isi tahun ajaran aktif di menu Profil Madrasah agar progres pengiriman nilai bisa dihitung.
