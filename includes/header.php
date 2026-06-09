@@ -1594,9 +1594,22 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                         } else {
                             Swal.fire({
                                 title: 'Update Gagal',
-                                text: data.message,
+                                html: `
+                                    <div class="text-start">
+                                        <p class="text-danger fw-bold mb-1">${data.message}</p>
+                                        ${data.advice ? `<p class="small text-muted mb-2">${data.advice}</p>` : ''}
+                                        ${data.detail ? `
+                                            <div class="bg-light p-2 rounded" style="font-family: monospace; font-size: 11px; max-height: 150px; overflow-y: auto;">
+                                                ${data.detail.replace(/\n/g, '<br>')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `,
                                 icon: 'error',
-                                confirmButtonColor: '#2d5016'
+                                confirmButtonColor: '#2d5016',
+                                customClass: {
+                                    htmlContainer: 'text-start'
+                                }
                             });
                         }
                     })
