@@ -1537,7 +1537,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                     <div class="user-dropdown-menu" id="userDropdownMenu">
                         <?php if ($user['role'] == 'proktor'): ?>
                             <a href="javascript:void(0);" onclick="updateAplikasi();" class="user-dropdown-item">
-                                <i class="fab fa-github"></i> Update GitHub
+                                <i class="fab fa-github"></i> Update Sistem
                             </a>
                         <?php endif; ?>
                         <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">

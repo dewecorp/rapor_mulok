@@ -68,13 +68,13 @@ if ($s2 === 0) {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Aplikasi berhasil disinkronkan dengan GitHub.',
+        'message' => 'Aplikasi berhasil diupdate.',
         'log' => $log
     ]);
 } else {
     echo json_encode([
         'success' => false,
-        'message' => 'Gagal melakukan sinkronisasi file.',
+        'message' => 'Gagal melakukan update.',
         'detail' => implode("\n", $log),
         'log' => $log
     ]);
