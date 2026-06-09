@@ -1,72 +1,65 @@
 <?php
 /**
  * Script untuk update aplikasi langsung dari GitHub (AJAX Handler)
- * Hanya dapat diakses oleh role Proktor (Admin)
+ * Versi Auto-Fix: Otomatis inisialisasi jika folder .git tidak ada
  */
 
 require_once 'config/config.php';
 require_once 'config/database.php';
 
-// Set header JSON
 header('Content-Type: application/json');
 
-// Proteksi: Hanya proktor yang bisa akses
 if (!isLoggedIn() || !hasRole('proktor')) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Akses ditolak. Anda harus login sebagai Admin.'
-    ]);
+    echo json_encode(['success' => false, 'message' => 'Akses ditolak.']);
     exit;
 }
 
-// Pastikan base path benar
 $base_path = realpath(__DIR__);
+$repo_url = 'https://github.com/dewecorp/rapor_mulok.git';
 
-// 1. Diagnosa Dasar
+// 1. Cek ketersediaan fungsi exec
 if (!function_exists('exec')) {
     echo json_encode([
         'success' => false,
-        'message' => 'Fungsi PHP "exec" dinonaktifkan di hosting Anda. Fitur update otomatis tidak dapat berjalan.',
+        'message' => 'Fungsi PHP "exec" dinonaktifkan di hosting.',
         'detail' => 'Hubungi provider hosting untuk mengaktifkan fungsi exec().'
     ]);
     exit;
 }
 
-if (!is_dir($base_path . '/.git')) {
+// 2. Cek ketersediaan perintah git
+exec('git --version 2>&1', $git_v, $git_s);
+if ($git_s !== 0) {
     echo json_encode([
         'success' => false,
-        'message' => 'Folder aplikasi di hosting bukan merupakan repository Git.',
-        'detail' => 'Anda mungkin mengunggah file secara manual via File Manager sehingga folder .git tidak ada. Fitur ini memerlukan folder .git untuk berfungsi.'
+        'message' => 'Perintah "git" tidak ditemukan di server.',
+        'detail' => implode(' ', $git_v)
     ]);
     exit;
 }
 
-// 2. Cek Git
-$git_version = [];
-exec('git --version 2>&1', $git_version, $git_status);
-
-if ($git_status !== 0) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Perintah "git" tidak dikenali di server hosting.',
-        'detail' => 'Pesan sistem: ' . implode(' ', $git_version)
-    ]);
-    exit;
-}
-
-// 3. Jalankan Git Pull
 chdir($base_path);
-$output = [];
-$return_var = 0;
+$log = [];
 
-// Set environment variable untuk menghindari masalah interaktif
-putenv('GIT_TERMINAL_PROMPT=0');
+// 3. AUTO-FIX: Inisialisasi Git jika folder .git hilang
+if (!is_dir($base_path . '/.git')) {
+    $log[] = "Folder .git tidak ditemukan. Melakukan inisialisasi ulang...";
+    exec('git init 2>&1', $o, $s);
+    exec("git remote add origin $repo_url 2>&1", $o, $s);
+}
 
-// Jalankan pull
-exec('git pull origin master 2>&1', $output, $return_var);
+// 4. Proses Update (Fetch & Reset)
+// Menggunakan fetch + reset --hard lebih ampuh daripada 'pull' untuk sinkronisasi pertama kali
+$log[] = "Mengambil data terbaru dari GitHub...";
+exec('git fetch --all 2>&1', $o1, $s1);
+$log = array_merge($log, $o1);
 
-if ($return_var === 0) {
-    // 4. Bersihkan Cache
+$log[] = "Menyelaraskan file dengan versi GitHub (Master)...";
+exec('git reset --hard origin/master 2>&1', $o2, $s2);
+$log = array_merge($log, $o2);
+
+if ($s2 === 0) {
+    // 5. Bersihkan Cache
     if (file_exists('clear_cache.php')) {
         ob_start();
         include 'clear_cache.php';
@@ -75,28 +68,15 @@ if ($return_var === 0) {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Aplikasi berhasil diperbarui ke versi terbaru dari GitHub.',
-        'log' => $output
+        'message' => 'Aplikasi berhasil disinkronkan dengan GitHub.',
+        'log' => $log
     ]);
 } else {
-    // Jika gagal, berikan detail log untuk diagnosa
-    $error_detail = implode("\n", $output);
-    
-    // Cek jika ada masalah permission atau conflict
-    if (strpos($error_detail, 'Permission denied') !== false) {
-        $advice = 'Masalah izin akses (Permission). Pastikan SSH Key sudah terpasang di hosting atau gunakan HTTPS.';
-    } elseif (strpos($error_detail, 'local changes') !== false) {
-        $advice = 'Ada perubahan file di hosting yang belum di-commit. Git menolak menimpa file tersebut.';
-    } else {
-        $advice = 'Periksa log detail di bawah untuk informasi lebih lanjut.';
-    }
-
     echo json_encode([
         'success' => false,
-        'message' => 'Gagal menarik data dari GitHub.',
-        'advice' => $advice,
-        'detail' => $error_detail,
-        'log' => $output
+        'message' => 'Gagal melakukan sinkronisasi file.',
+        'detail' => implode("\n", $log),
+        'log' => $log
     ]);
 }
 exit;
