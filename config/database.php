@@ -1,9 +1,13 @@
 <?php
 // Konfigurasi Database
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'rapor_mulok');
+if (file_exists(__DIR__ . '/database_local.php')) {
+    require_once __DIR__ . '/database_local.php';
+} else {
+    define('DB_HOST', 'localhost');
+    define('DB_USER', 'kvzveyrg_rmd');
+    define('DB_PASS', 'sultanfattah25');
+    define('DB_NAME', 'kvzveyrg_rmd');
+}
 
 // Koneksi Database
 function getConnection() {

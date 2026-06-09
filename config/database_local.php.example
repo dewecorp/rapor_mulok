@@ -1,0 +1,8 @@
+<?php
+// Konfigurasi Database Lokal (Gunakan file ini untuk pengaturan di komputer lokal)
+// File ini diabaikan oleh Git agar tidak menimpa pengaturan di hosting.
+
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'rapor_mulok');

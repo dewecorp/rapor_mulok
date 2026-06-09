@@ -1535,6 +1535,11 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                     ?>
                     <img src="<?php echo $avatar_src; ?>" alt="<?php echo $avatar_alt; ?>" class="user-avatar" id="userAvatarDropdown" onerror="<?php echo $onerror_handler; ?>">
                     <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <?php if ($user['role'] == 'proktor'): ?>
+                            <a href="<?php echo $basePath; ?>update_github.php" class="user-dropdown-item">
+                                <i class="fab fa-github"></i> Update GitHub
+                            </a>
+                        <?php endif; ?>
                         <a href="#" class="user-dropdown-item logout" onclick="logout(); return false;">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
