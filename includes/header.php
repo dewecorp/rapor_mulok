@@ -1536,7 +1536,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                     <img src="<?php echo $avatar_src; ?>" alt="<?php echo $avatar_alt; ?>" class="user-avatar" id="userAvatarDropdown" onerror="<?php echo $onerror_handler; ?>">
                     <div class="user-dropdown-menu" id="userDropdownMenu">
                         <?php if ($user['role'] == 'proktor'): ?>
-                            <a href="<?php echo $basePath; ?>update_github.php" class="user-dropdown-item">
+                            <a href="javascript:void(0);" onclick="updateAplikasi();" class="user-dropdown-item">
                                 <i class="fab fa-github"></i> Update GitHub
                             </a>
                         <?php endif; ?>
@@ -1549,6 +1549,70 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         </div>
     </nav>
     <script>
+    /**
+     * Fungsi untuk update aplikasi dari GitHub menggunakan AJAX
+     */
+    function updateAplikasi() {
+        Swal.fire({
+            title: 'Update Aplikasi?',
+            text: 'Sistem akan mengambil perubahan terbaru dari GitHub. Pastikan koneksi internet stabil.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#2d5016',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, Update!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Tampilkan loading
+                Swal.fire({
+                    title: 'Sedang Memperbarui...',
+                    text: 'Mohon tunggu sebentar, sistem sedang menarik data dari GitHub.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Jalankan AJAX
+                fetch('<?php echo $basePath; ?>update_github.php')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Update Berhasil!',
+                                text: data.message,
+                                icon: 'success',
+                                confirmButtonColor: '#2d5016'
+                            }).then(() => {
+                                // Reload halaman untuk menerapkan perubahan
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Update Gagal',
+                                text: data.message,
+                                icon: 'error',
+                                confirmButtonColor: '#2d5016'
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire({
+                            title: 'Terjadi Kesalahan',
+                            text: 'Gagal menghubungi server. Pastikan server aktif.',
+                            icon: 'error',
+                            confirmButtonColor: '#2d5016'
+                        });
+                    });
+            }
+        });
+    }
+
     (function () {
         function syncRmdNavbarOffset() {
             var nav = document.querySelector('nav.navbar');
