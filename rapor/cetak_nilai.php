@@ -274,11 +274,16 @@ function getSemesterText($semester) {
         @media print {
             @page {
                 size: A4;
-                margin: 0.5cm 1.5cm 1cm 1.5cm;
+                margin: 1cm 1.5cm 1cm 1.5cm;
             }
             body {
-                margin: 0;
-                padding: 0;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .container {
+                margin: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
             }
             .no-print {
                 display: none;

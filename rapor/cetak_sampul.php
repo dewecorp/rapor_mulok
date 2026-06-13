@@ -127,7 +127,7 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 0.5cm 2cm 1cm 2cm;
+                margin: 1cm 2cm 1cm 2cm;
             }
             body {
                 margin: 0;
@@ -274,7 +274,7 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 0.5cm 2cm 1cm 2cm;
+                margin: 1cm 2cm 1cm 2cm;
             }
             .page-break {
                 page-break-after: always;

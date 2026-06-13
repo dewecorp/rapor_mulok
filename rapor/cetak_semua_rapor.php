@@ -235,7 +235,7 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 0.5cm 1.5cm 1cm 1.5cm;
+                margin: 1cm 1.5cm 1cm 1.5cm;
             }
             body {
                 margin: 0;
