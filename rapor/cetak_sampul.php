@@ -127,8 +127,7 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 0.3cm 2cm 0.5cm 2cm;
-                margin-top: 0.3cm;
+                margin: 0.5cm 2cm 1cm 2cm;
             }
             body {
                 margin: 0;
@@ -165,6 +164,7 @@ try {
         .logo-container {
             text-align: center;
             margin-bottom: 10px;
+            margin-top: 0;
         }
         
         .logo {
@@ -274,8 +274,7 @@ try {
         @media print {
             @page {
                 size: A4;
-                margin: 1cm 2cm 0.5cm 2cm;
-                margin-top: 1cm;
+                margin: 0.5cm 2cm 1cm 2cm;
             }
             .page-break {
                 page-break-after: always;

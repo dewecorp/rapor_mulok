@@ -454,8 +454,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                                 AND siswa_id IN (SELECT id FROM siswa WHERE kelas_id = ?)
                                                 AND semester = ? 
                                                 AND tahun_ajaran IN ($inTaKirimNilai) 
-                                                AND nilai_pengetahuan IS NOT NULL 
-                                                AND nilai_pengetahuan != ''");
+                                                AND nilai_pengetahuan IS NOT NULL");
             $stmt_nilai_check->bind_param('iis' . str_repeat('s', count($taVarKirim)), $materi_id_post, $kelas_id_post, $semester_post, ...$taVarKirim);
             $stmt_nilai_check->execute();
             $result_nilai_check = $stmt_nilai_check->get_result();
@@ -998,7 +997,8 @@ if (isset($materi_data) && $materi_data && isset($materi_data['nama_mulok'])) {
                                     $predikat_value = $nilai ? ($nilai['predikat'] ?? '') : '';
                                     
                                     // Hitung predikat dari nilai jika belum ada
-                                    if (empty($predikat_value) && !empty($nilai_value)) {
+                                    $is_nilai_set = ($nilai_value !== '' && $nilai_value !== null);
+                                    if (empty($predikat_value) && $is_nilai_set) {
                                         $predikat_value = hitungPredikat($nilai_value);
                                     }
                                     
@@ -1025,9 +1025,9 @@ if (isset($materi_data) && $materi_data && isset($materi_data['nama_mulok'])) {
                                         <td><?php echo htmlspecialchars($siswa['nisn'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($siswa['nama'] ?? '-'); ?></td>
                                         <td><?php echo ($siswa['jenis_kelamin'] ?? '') == 'L' ? 'L' : 'P'; ?></td>
-                                        <td><?php echo htmlspecialchars($nilai_value ?: '-'); ?></td>
-                                        <td><?php echo htmlspecialchars($predikat_value ?: '-'); ?></td>
-                                        <td><?php echo htmlspecialchars($deskripsi_value ?: '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($is_nilai_set ? $nilai_value : '-'); ?></td>
+                                        <td><?php echo htmlspecialchars((!empty($predikat_value) && $predikat_value != '-') ? $predikat_value : '-'); ?></td>
+                                        <td><?php echo htmlspecialchars((!empty($deskripsi_value) && $deskripsi_value != '-') ? $deskripsi_value : '-'); ?></td>
                                     </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>
@@ -1390,7 +1390,7 @@ if (isset($materi_data) && $materi_data && isset($materi_data['nama_mulok'])) {
                 }
                 
                 // Cek jika nilai kosong atau tidak ada
-                if (!nilaiCell || nilaiCell === '' || nilaiCell === '-' || nilaiCell === '0') {
+                if (!nilaiCell || nilaiCell === '' || nilaiCell === '-') {
                     // Gunakan Map untuk menghindari duplikasi nama siswa
                     if (!siswaMap.has(namaSiswa)) {
                         siswaMap.set(namaSiswa, true);

@@ -294,8 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                                 AND siswa_id IN (SELECT id FROM siswa WHERE kelas_id = ?)
                                                 AND semester = ? 
                                                 AND tahun_ajaran = ? 
-                                                AND nilai_pengetahuan IS NOT NULL 
-                                                AND nilai_pengetahuan != ''");
+                                                AND nilai_pengetahuan IS NOT NULL");
             $stmt_nilai_check->bind_param("iiss", $materi_id_post, $kelas_id_post, $semester_post, $tahun_ajaran_post);
             $stmt_nilai_check->execute();
             $result_nilai_check = $stmt_nilai_check->get_result();
@@ -691,8 +690,11 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
                                 $predikat = $nilai ? ($nilai['predikat'] ?? '') : '';
                                 $deskripsi = $nilai ? ($nilai['deskripsi'] ?? '') : '';
                                 
+                                // Check if nilai_value is set (not empty string or null)
+                                $is_nilai_set = ($nilai_value !== '' && $nilai_value !== null);
+                                
                                 // Hitung predikat dari nilai jika belum ada
-                                if (empty($predikat) && !empty($nilai_value)) {
+                                if (empty($predikat) && $is_nilai_set) {
                                     $predikat = hitungPredikat($nilai_value);
                                 }
                                 
@@ -991,7 +993,7 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
                 }
                 
                 // Cek jika nilai kosong atau tidak ada
-                if (!nilaiCell || nilaiCell === '' || nilaiCell === '-' || nilaiCell === '0') {
+                if (!nilaiCell || nilaiCell === '' || nilaiCell === '-') {
                     // Gunakan Map untuk menghindari duplikasi nama siswa
                     if (!siswaMap.has(namaSiswa)) {
                         siswaMap.set(namaSiswa, true);

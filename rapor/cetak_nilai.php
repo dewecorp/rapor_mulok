@@ -274,8 +274,7 @@ function getSemesterText($semester) {
         @media print {
             @page {
                 size: A4;
-                margin: 1cm 1.5cm 0.5cm 1.5cm;
-                margin-top: 1cm;
+                margin: 0.5cm 1.5cm 1cm 1.5cm;
             }
             body {
                 margin: 0;
@@ -328,12 +327,14 @@ function getSemesterText($semester) {
         .header {
             display: flex;
             align-items: center;
-            margin-bottom: 20px;
+            margin-top: 0;
+            margin-bottom: 10px;
             gap: 15px;
         }
         
         .logo-container {
             flex-shrink: 0;
+            margin-top: 0;
         }
         
         .logo {
@@ -342,6 +343,7 @@ function getSemesterText($semester) {
             display: block;
             padding: 5px;
             background-color: #fff;
+            margin-top: 0;
         }
         
         .logo img {
@@ -587,7 +589,10 @@ function getSemesterText($semester) {
                         $predikat = $nilai ? ($nilai['predikat'] ?? '') : '';
                         $deskripsi = $nilai ? ($nilai['deskripsi'] ?? '') : '';
                         
-                        if (empty($predikat) && !empty($nilai_value)) {
+                        // Check if nilai_value is not empty string or null
+                        $is_nilai_set = ($nilai_value !== '' && $nilai_value !== null);
+                        
+                        if (empty($predikat) && $is_nilai_set) {
                             $predikat = hitungPredikat($nilai_value);
                         }
                         
@@ -615,12 +620,12 @@ function getSemesterText($semester) {
                         <td class="materi-col">
                             <?php echo htmlspecialchars($materi['nama_mulok']); ?>
                         </td>
-                        <td class="nilai-col"><?php echo htmlspecialchars($nilai_value ?: '-'); ?></td>
-                        <td class="predikat-col"><?php echo htmlspecialchars($predikat ?: '-'); ?></td>
-                        <td class="deskripsi-col"><?php echo htmlspecialchars($deskripsi ?: '-'); ?></td>
+                        <td class="nilai-col"><?php echo htmlspecialchars($is_nilai_set ? $nilai_value : '-'); ?></td>
+                        <td class="predikat-col"><?php echo htmlspecialchars((!empty($predikat) && $predikat != '-') ? $predikat : '-'); ?></td>
+                        <td class="deskripsi-col"><?php echo htmlspecialchars((!empty($deskripsi) && $deskripsi != '-') ? $deskripsi : '-'); ?></td>
                     </tr>
                     <?php 
-                        if (!empty($nilai_value)) {
+                        if ($is_nilai_set) {
                             $total_nilai += floatval($nilai_value);
                             $count_nilai++;
                         }
