@@ -1555,7 +1555,7 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
     function updateAplikasi() {
         Swal.fire({
             title: 'Update Aplikasi?',
-            text: 'Sistem akan mengambil perubahan terbaru dari GitHub. Pastikan koneksi internet stabil.',
+            text: 'Sistem akan mengambil perubahan terbaru. Pastikan koneksi internet stabil.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#2d5016',
@@ -1673,6 +1673,9 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                         <div class="collapse<?php echo $rmd_sidebar['open_lembagaMenu'] ? ' show' : ''; ?>" id="lembagaMenu" data-bs-parent=".sidebar">
                         <a class="nav-link ps-5<?php echo rmd_script_has($rmd_script, '/lembaga/profil.php') ? ' active' : ''; ?>" href="<?php echo $basePath; ?>lembaga/profil.php">
                             <i class="fas fa-circle"></i> <span>Profil Madrasah</span>
+                        </a>
+                        <a class="nav-link ps-5<?php echo rmd_script_has($rmd_script, '/lembaga/kategori_materi.php') ? ' active' : ''; ?>" href="<?php echo $basePath; ?>lembaga/kategori_materi.php">
+                            <i class="fas fa-circle"></i> <span>Kategori Materi Mulok</span>
                         </a>
                         <a class="nav-link ps-5<?php echo rmd_script_has($rmd_script, '/lembaga/materi.php') ? ' active' : ''; ?>" href="<?php echo $basePath; ?>lembaga/materi.php">
                             <i class="fas fa-circle"></i> <span>Materi Mulok</span>

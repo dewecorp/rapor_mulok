@@ -34,6 +34,36 @@ try {
     $error = 'Error mengecek struktur database: ' . $e->getMessage();
 }
 
+// Cek dan buat tabel kategori_mulok jika belum ada
+try {
+    $check_table = $conn->query("SHOW TABLES LIKE 'kategori_mulok'");
+    if ($check_table->num_rows == 0) {
+        $conn->query("
+            CREATE TABLE kategori_mulok (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nama_kategori VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+} catch (Exception $e) {
+    // Ignore error
+}
+
+// Ambil daftar kategori mulok
+$kategori_mulok_list = [];
+try {
+    $result = $conn->query("SELECT * FROM kategori_mulok ORDER BY nama_kategori ASC");
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $kategori_mulok_list[] = $row;
+        }
+    }
+} catch (Exception $e) {
+    // Ignore error
+}
+
 // Tentukan kolom yang digunakan
 $kolom_kategori = $has_kategori_mulok ? 'kategori_mulok' : 'kode_mulok';
 $use_kelas_semester = ($has_kelas_id && $has_semester);
@@ -47,6 +77,29 @@ if (isset($_SESSION['error_message'])) {
     $error = $_SESSION['error_message'];
     unset($_SESSION['error_message']);
 }
+
+// Ambil parameter filter
+$filter_kategori = isset($_GET['filter_kategori']) ? trim($_GET['filter_kategori']) : '';
+$filter_nama = isset($_GET['filter_nama']) ? trim($_GET['filter_nama']) : '';
+$filter_kelas = isset($_GET['filter_kelas']) ? intval($_GET['filter_kelas']) : 0;
+$filter_semester = isset($_GET['filter_semester']) ? trim($_GET['filter_semester']) : '';
+
+// Fungsi untuk membangun query string filter
+function buildFilterQueryString($include_edit = false, $edit_id = null) {
+    global $filter_kategori, $filter_nama, $filter_kelas, $filter_semester, $use_kelas_semester;
+    $params = [];
+    if (!empty($filter_kategori)) $params['filter_kategori'] = $filter_kategori;
+    if (!empty($filter_nama)) $params['filter_nama'] = $filter_nama;
+    if ($use_kelas_semester) {
+        if ($filter_kelas > 0) $params['filter_kelas'] = $filter_kelas;
+        if (!empty($filter_semester)) $params['filter_semester'] = $filter_semester;
+    }
+    if ($include_edit && $edit_id) $params['edit'] = $edit_id;
+    return http_build_query($params);
+}
+
+// Dapatkan query string filter saat ini
+$filter_query_string = buildFilterQueryString();
 
 // Handle CRUD
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -116,7 +169,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             )";
                                 $conn->query($sql_log);
                                 
-                                $success = 'Materi mulok berhasil ditambahkan!';
+                                $_SESSION['success_message'] = 'Materi mulok berhasil ditambahkan!';
+                                // Redirect dengan filter
+                                if (ob_get_level() > 0) {
+                                    ob_clean();
+                                }
+                                $redirect_url = 'materi.php';
+                                if (!empty($filter_query_string)) {
+                                    $redirect_url .= '?' . $filter_query_string;
+                                }
+                                header('Location: ' . $redirect_url);
+                                exit();
                             } else {
                                 $error = 'Gagal menambahkan materi mulok! Error: ' . $stmt->error;
                             }
@@ -170,7 +233,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             )";
                             $conn->query($sql_log);
                             
-                            $success = 'Materi mulok berhasil ditambahkan!';
+                            $_SESSION['success_message'] = 'Materi mulok berhasil ditambahkan!';
+                            // Redirect dengan filter
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
+                            $redirect_url = 'materi.php';
+                            if (!empty($filter_query_string)) {
+                                $redirect_url .= '?' . $filter_query_string;
+                            }
+                            header('Location: ' . $redirect_url);
+                            exit();
                         } else {
                             $error = 'Gagal menambahkan materi mulok! Error: ' . $stmt->error;
                         }
@@ -222,7 +295,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             )";
                             $conn->query($sql_log);
                             
-                            $success = 'Materi mulok berhasil ditambahkan!';
+                            $_SESSION['success_message'] = 'Materi mulok berhasil ditambahkan!';
+                            // Redirect dengan filter
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
+                            $redirect_url = 'materi.php';
+                            if (!empty($filter_query_string)) {
+                                $redirect_url .= '?' . $filter_query_string;
+                            }
+                            header('Location: ' . $redirect_url);
+                            exit();
                         } else {
                             $error = 'Gagal menambahkan materi mulok! Error: ' . $stmt->error;
                         }
@@ -296,7 +379,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             )";
                                 $conn->query($sql_log);
                                 
-                                $success = 'Materi mulok berhasil diperbarui!';
+                                $_SESSION['success_message'] = 'Materi mulok berhasil diperbarui!';
+                                // Redirect dengan filter
+                                if (ob_get_level() > 0) {
+                                    ob_clean();
+                                }
+                                $redirect_url = 'materi.php';
+                                if (!empty($filter_query_string)) {
+                                    $redirect_url .= '?' . $filter_query_string;
+                                }
+                                header('Location: ' . $redirect_url);
+                                exit();
                             } else {
                                 $error = 'Gagal memperbarui materi mulok! Error: ' . $stmt->error;
                             }
@@ -348,7 +441,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             )";
                             $conn->query($sql_log);
                             
-                            $success = 'Materi mulok berhasil diperbarui!';
+                            $_SESSION['success_message'] = 'Materi mulok berhasil diperbarui!';
+                                // Redirect dengan filter
+                                if (ob_get_level() > 0) {
+                                    ob_clean();
+                                }
+                                $redirect_url = 'materi.php';
+                                if (!empty($filter_query_string)) {
+                                    $redirect_url .= '?' . $filter_query_string;
+                                }
+                                header('Location: ' . $redirect_url);
+                                exit();
                         } else {
                             $error = 'Gagal memperbarui materi mulok! Error: ' . $stmt->error;
                         }
@@ -398,7 +501,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             )";
                             $conn->query($sql_log);
                             
-                            $success = 'Materi mulok berhasil diperbarui!';
+                            $_SESSION['success_message'] = 'Materi mulok berhasil diperbarui!';
+                                // Redirect dengan filter
+                                if (ob_get_level() > 0) {
+                                    ob_clean();
+                                }
+                                $redirect_url = 'materi.php';
+                                if (!empty($filter_query_string)) {
+                                    $redirect_url .= '?' . $filter_query_string;
+                                }
+                                header('Location: ' . $redirect_url);
+                                exit();
                         } else {
                             $error = 'Gagal memperbarui materi mulok! Error: ' . $stmt->error;
                         }
@@ -471,14 +584,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if (ob_get_level() > 0) {
                         ob_clean();
                     }
-                    header('Location: materi.php');
+                    $redirect_url = 'materi.php';
+                    if (!empty($filter_query_string)) {
+                        $redirect_url .= '?' . $filter_query_string;
+                    }
+                    header('Location: ' . $redirect_url);
                     exit();
                 } else {
                     $_SESSION['error_message'] = 'Gagal menghapus materi mulok! Error: ' . $conn->error;
                     if (ob_get_level() > 0) {
                         ob_clean();
                     }
-                    header('Location: materi.php');
+                    $redirect_url = 'materi.php';
+                    if (!empty($filter_query_string)) {
+                        $redirect_url .= '?' . $filter_query_string;
+                    }
+                    header('Location: ' . $redirect_url);
                     exit();
                 }
             } catch (Exception $e) {
@@ -486,7 +607,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (ob_get_level() > 0) {
                     ob_clean();
                 }
-                header('Location: materi.php');
+                $redirect_url = 'materi.php';
+                if (!empty($filter_query_string)) {
+                    $redirect_url .= '?' . $filter_query_string;
+                }
+                header('Location: ' . $redirect_url);
                 exit();
             }
         }
@@ -507,12 +632,6 @@ if (isset($_GET['edit']) && empty($success) && empty($error)) {
         $error = 'Error: ' . $e->getMessage();
     }
 }
-
-// Ambil parameter filter
-$filter_kategori = isset($_GET['filter_kategori']) ? trim($_GET['filter_kategori']) : '';
-$filter_nama = isset($_GET['filter_nama']) ? trim($_GET['filter_nama']) : '';
-$filter_kelas = isset($_GET['filter_kelas']) ? intval($_GET['filter_kelas']) : 0;
-$filter_semester = isset($_GET['filter_semester']) ? trim($_GET['filter_semester']) : '';
 
 // Ambil semua data dengan ORDER BY yang benar dan filter
 $materi_data = [];
@@ -602,18 +721,24 @@ try {
     $error = 'Error: ' . $e->getMessage();
 }
 
-// Ambil daftar kategori unik untuk dropdown filter
+// Ambil daftar kategori untuk dropdown filter
 $kategori_list = [];
-try {
-    $query_kategori = "SELECT DISTINCT $kolom_kategori FROM materi_mulok WHERE $kolom_kategori IS NOT NULL AND $kolom_kategori != '' ORDER BY $kolom_kategori";
-    $result_kategori = $conn->query($query_kategori);
-    if ($result_kategori) {
-        while ($row = $result_kategori->fetch_assoc()) {
-            $kategori_list[] = $row[$kolom_kategori];
-        }
+if (count($kategori_mulok_list) > 0) {
+    foreach ($kategori_mulok_list as $kat) {
+        $kategori_list[] = $kat['nama_kategori'];
     }
-} catch (Exception $e) {
-    // Ignore
+} else {
+    try {
+        $query_kategori = "SELECT DISTINCT $kolom_kategori FROM materi_mulok WHERE $kolom_kategori IS NOT NULL AND $kolom_kategori != '' ORDER BY $kolom_kategori";
+        $result_kategori = $conn->query($query_kategori);
+        if ($result_kategori) {
+            while ($row = $result_kategori->fetch_assoc()) {
+                $kategori_list[] = $row[$kolom_kategori];
+            }
+        }
+    } catch (Exception $e) {
+        // Ignore
+    }
 }
 
 // Ambil data kelas untuk dropdown (jika menggunakan kelas_id)
@@ -823,14 +948,28 @@ include '../includes/header.php';
                 <h5 class="modal-title" id="modalTitle">Tambah Materi Mulok</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="formMateri">
+            <form method="POST" id="formMateri" action="materi.php<?php echo !empty($filter_query_string) ? '?'.$filter_query_string : ''; ?>">
                 <div class="modal-body">
                     <input type="hidden" name="action" id="formAction" value="add">
                     <input type="hidden" name="id" id="formId">
                     
                     <div class="mb-3">
                         <label class="form-label"><?php echo $has_kategori_mulok ? 'Kategori' : 'Kode'; ?> Mulok <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="<?php echo $kolom_kategori; ?>" id="kategoriMulok" required>
+                        <?php if (count($kategori_mulok_list) > 0): ?>
+                            <select class="form-select" name="<?php echo $kolom_kategori; ?>" id="kategoriMulok" required>
+                                <option value="">Pilih Kategori</option>
+                                <?php foreach ($kategori_mulok_list as $kat): ?>
+                                    <option value="<?php echo htmlspecialchars($kat['nama_kategori']); ?>">
+                                        <?php echo htmlspecialchars($kat['nama_kategori']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php else: ?>
+                            <input type="text" class="form-control" name="<?php echo $kolom_kategori; ?>" id="kategoriMulok" required>
+                            <div class="form-text text-muted">
+                                <a href="kategori_materi.php" class="text-decoration-none">Tambah kategori terlebih dahulu</a>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="mb-3">
@@ -913,7 +1052,13 @@ include '../includes/header.php';
     });
     
     function editMateri(id) {
-        window.location.href = 'materi.php?edit=' + id;
+        var url = 'materi.php?edit=' + id;
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('filter_kategori')) url += '&filter_kategori=' + encodeURIComponent(urlParams.get('filter_kategori'));
+        if (urlParams.get('filter_nama')) url += '&filter_nama=' + encodeURIComponent(urlParams.get('filter_nama'));
+        if (urlParams.get('filter_kelas')) url += '&filter_kelas=' + encodeURIComponent(urlParams.get('filter_kelas'));
+        if (urlParams.get('filter_semester')) url += '&filter_semester=' + encodeURIComponent(urlParams.get('filter_semester'));
+        window.location.href = url;
     }
     
     function deleteMateri(id) {
@@ -930,6 +1075,7 @@ include '../includes/header.php';
             if (result.isConfirmed) {
                 var form = document.createElement('form');
                 form.method = 'POST';
+                form.action = 'materi.php' + window.location.search;
                 form.innerHTML = '<input type="hidden" name="action" value="delete">' +
                                 '<input type="hidden" name="id" value="' + id + '">';
                 document.body.appendChild(form);
@@ -985,7 +1131,8 @@ include '../includes/header.php';
     $(document).ready(function() {
         $('#formAction').val('edit');
         $('#formId').val(<?php echo $edit_data['id']; ?>);
-        $('#kategoriMulok').val('<?php echo addslashes($edit_data[$kolom_kategori] ?? ''); ?>');
+        var selectedKategori = '<?php echo addslashes($edit_data[$kolom_kategori] ?? ''); ?>';
+        $('#kategoriMulok').val(selectedKategori);
         $('#namaMulok').val('<?php echo addslashes($edit_data['nama_mulok']); ?>');
         <?php if ($use_kelas_semester): ?>
             $('#kelasId').val('<?php echo $edit_data['kelas_id'] ?? ''; ?>');
@@ -1008,7 +1155,15 @@ include '../includes/header.php';
         timerProgressBar: true,
         showConfirmButton: false
     }).then(() => {
-        window.location.href = window.location.pathname;
+        var url = window.location.pathname;
+        var urlParams = new URLSearchParams(window.location.search);
+        var filterParams = new URLSearchParams();
+        if (urlParams.get('filter_kategori')) filterParams.set('filter_kategori', urlParams.get('filter_kategori'));
+        if (urlParams.get('filter_nama')) filterParams.set('filter_nama', urlParams.get('filter_nama'));
+        if (urlParams.get('filter_kelas')) filterParams.set('filter_kelas', urlParams.get('filter_kelas'));
+        if (urlParams.get('filter_semester')) filterParams.set('filter_semester', urlParams.get('filter_semester'));
+        if (filterParams.toString()) url += '?' + filterParams.toString();
+        window.location.href = url;
     });
     <?php endif; ?>
     
