@@ -51,23 +51,40 @@ function hitungPredikat($nilai) {
 function hitungDeskripsi($predikat, $nama_materi, $kategori = '') {
     if (empty($predikat) || $predikat == '-') return '-';
     
-    // Gabungkan kategori dan nama materi jika kategori ada
-    $materi_full = $nama_materi;
-    if (!empty($kategori)) {
-        $materi_full = $kategori . ' ' . $nama_materi;
-    }
+    // Cek apakah kategori adalah Praktik Ibadah
+    $is_praktik_ibadah = (strpos(strtolower($kategori), 'praktik') !== false && strpos(strtolower($kategori), 'ibadah') !== false);
     
-    switch ($predikat) {
-        case 'A':
-            return 'Sangat baik dalam ' . $materi_full;
-        case 'B':
-            return 'Baik dalam ' . $materi_full;
-        case 'C':
-            return 'Cukup dalam ' . $materi_full;
-        case 'D':
-            return 'Kurang dalam ' . $materi_full;
-        default:
-            return '-';
+    if ($is_praktik_ibadah) {
+        switch ($predikat) {
+            case 'A':
+                return 'Sangat terampil dalam praktik ' . $nama_materi;
+            case 'B':
+                return 'Terampil dalam praktik ' . $nama_materi;
+            case 'C':
+                return 'Cukup terampil dalam praktik ' . $nama_materi;
+            case 'D':
+                return 'Kurang terampil dalam praktik ' . $nama_materi;
+            default:
+                return '-';
+        }
+    } else {
+        // Gabungkan kategori dan nama materi jika kategori ada
+        $materi_full = $nama_materi;
+        if (!empty($kategori)) {
+            $materi_full = $kategori . ' ' . $nama_materi;
+        }
+        switch ($predikat) {
+            case 'A':
+                return 'Sangat baik dalam ' . $materi_full;
+            case 'B':
+                return 'Baik dalam ' . $materi_full;
+            case 'C':
+                return 'Cukup dalam ' . $materi_full;
+            case 'D':
+                return 'Kurang dalam ' . $materi_full;
+            default:
+                return '-';
+        }
     }
 }
 

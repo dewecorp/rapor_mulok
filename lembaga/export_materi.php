@@ -233,12 +233,17 @@ if ($format == 'excel') {
     echo 'th, td { border: 1px solid #000; padding: 6px; text-align: left; font-size: 8pt; }';
     echo 'th { background-color: #f2f2f2; color: #000; font-weight: bold; }';
     echo 'tr:nth-child(even) { background-color: #f2f2f2; }';
+    echo '.print-button-container { text-align: center; margin-bottom: 20px; padding: 10px; }';
+    echo '@media print { .print-button-container { display: none; } }';
     echo '</style>';
-    echo '<script>';
-    echo 'window.onload = function() { window.print(); };';
     echo '</script>';
     echo '</head>';
     echo '<body>';
+    echo '<div class="print-button-container">';
+    echo '<button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">';
+    echo '<i class="fas fa-print"></i> Cetak Dokumen';
+    echo '</button>';
+    echo '</div>';
     
     echo '<div class="header">';
     echo '<div class="logo-container">';

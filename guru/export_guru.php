@@ -106,12 +106,17 @@ if ($format == 'excel') {
     echo 'tr:nth-child(even) { background-color: #f2f2f2; }';
     echo 'h2 { text-align: center; margin: 5px 0; font-size: 14pt; }';
     echo 'p { text-align: center; margin: 5px 0; font-size: 10pt; }';
+    echo '.print-button-container { text-align: center; margin-bottom: 20px; padding: 10px; }';
+    echo '@media print { .print-button-container { display: none; } }';
     echo '</style>';
-    echo '<script>';
-    echo 'window.onload = function() { window.print(); };';
     echo '</script>';
     echo '</head>';
     echo '<body>';
+    echo '<div class="print-button-container">';
+    echo '<button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">';
+    echo '<i class="fas fa-print"></i> Cetak Dokumen';
+    echo '</button>';
+    echo '</div>';
     
     echo '<h2>DATA GURU</h2>';
     echo '<p>Tanggal Export: ' . date('d/m/Y H:i:s') . '</p>';

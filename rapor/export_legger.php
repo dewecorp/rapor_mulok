@@ -313,10 +313,12 @@ if ($format == 'pdf') {
     echo '.ttd-item { width: 45%; text-align: center; }';
     echo '.ttd-item label { display: block; margin-bottom: 50px; font-size: 11pt; }';
     echo '.ttd-item .nama { font-weight: bold; margin-top: 5px; font-size: 11pt; }';
+    echo '.print-button-container { text-align: center; margin-bottom: 20px; padding: 10px; }';
+    echo '@media print { .print-button-container { display: none; } }';
     echo '</style>';
     echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>';
     echo '<script>';
-    echo 'window.onload = function() {';
+    echo 'document.addEventListener("DOMContentLoaded", function() {';
     if (!empty($profil_madrasah['jenis_ttd']) && $profil_madrasah['jenis_ttd'] === 'qrcode') {
         $wali_text = "Ditandatangani secara elektronik oleh: " . addslashes($kelas_data['wali_kelas_nama'] ?? 'Wali Kelas');
         $kepala_text = "Ditandatangani secara elektronik oleh: " . addslashes($profil_madrasah['nama_kepala'] ?? 'Kepala Madrasah');
@@ -341,11 +343,15 @@ if ($format == 'pdf') {
         echo '    });';
         echo '  }';
     }
-    echo '  window.print();';
-    echo '};';
+    echo '});';
     echo '</script>';
     echo '</head>';
     echo '<body>';
+    echo '<div class="print-button-container">';
+    echo '<button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">';
+    echo '<i class="fas fa-print"></i> Cetak Dokumen';
+    echo '</button>';
+    echo '</div>';
     
     // Header dengan Logo
     echo '<div class="header">';

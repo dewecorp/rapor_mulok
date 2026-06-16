@@ -227,30 +227,30 @@ $page_title = 'Cetak Rapor';
     });
     
     function cetakRaporSiswa(siswaId) {
-        window.open('cetak_rapor.php?siswa=' + siswaId, '_blank');
+        window.open('cetak_rapor.php?siswa=' + siswaId, '_blank', 'noopener,noreferrer');
     }
     
     function cetakSemuaRapor() {
         var kelasId = $('#filterKelas').val();
-        window.open('cetak_semua_rapor.php?kelas=' + kelasId, '_blank');
+        window.open('cetak_semua_rapor.php?kelas=' + kelasId, '_blank', 'noopener,noreferrer');
     }
     
     function cetakSemuaNilai() {
         var kelasId = $('#filterKelas').val();
-        window.open('cetak_nilai.php?kelas=' + kelasId, '_blank');
+        window.open('cetak_nilai.php?kelas=' + kelasId, '_blank', 'noopener,noreferrer');
     }
     
     function cetakSampul() {
         var kelasId = $('#filterKelas').val();
-        window.open('cetak_sampul.php?kelas=' + kelasId, '_blank');
+        window.open('cetak_sampul.php?kelas=' + kelasId, '_blank', 'noopener,noreferrer');
     }
     
     function cetakSampulSiswa(siswaId) {
-        window.open('cetak_sampul.php?siswa=' + siswaId, '_blank');
+        window.open('cetak_sampul.php?siswa=' + siswaId, '_blank', 'noopener,noreferrer');
     }
     
     function cetakNilaiSiswa(siswaId) {
-        window.open('cetak_nilai.php?siswa=' + siswaId, '_blank');
+        window.open('cetak_nilai.php?siswa=' + siswaId, '_blank', 'noopener,noreferrer');
     }
     
     function exportLeggerExcel() {
@@ -260,7 +260,7 @@ $page_title = 'Cetak Rapor';
     
     function exportLeggerPDF() {
         var kelasId = $('#filterKelas').val();
-        window.open('export_legger.php?format=pdf&kelas=' + kelasId, '_blank');
+        window.open('export_legger.php?format=pdf&kelas=' + kelasId, '_blank', 'noopener,noreferrer');
     }
 </script>
 

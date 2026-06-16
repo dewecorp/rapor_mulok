@@ -239,7 +239,7 @@ include '../includes/header.php';
             <a href="check_structure.php" class="btn btn-info btn-sm" target="_blank">
                 <i class="fas fa-info-circle"></i> Cek Struktur DB
             </a>
-            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMateri">
+            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalMateri">
                 <i class="fas fa-plus"></i> Tambah
             </button>
         </div>

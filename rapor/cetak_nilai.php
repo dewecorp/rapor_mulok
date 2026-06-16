@@ -13,7 +13,7 @@ $conn = getConnection();
 $kelas_id = isset($_GET['kelas']) ? intval($_GET['kelas']) : 0;
 $siswa_id = isset($_GET['siswa']) ? intval($_GET['siswa']) : 0;
 
-// Fungsi untuk menghitung predikat
+// Fungsi untuk menghitung predikat berdasarkan nilai
 function hitungPredikat($nilai) {
     $nilai_float = floatval($nilai);
     if ($nilai_float <= 60) return 'D';
@@ -27,22 +27,40 @@ function hitungPredikat($nilai) {
 function hitungDeskripsi($predikat, $nama_materi, $kategori = '') {
     if (empty($predikat) || $predikat == '-') return '-';
     
-    $materi_full = $nama_materi;
-    if (!empty($kategori)) {
-        $materi_full = $kategori . ' ' . $nama_materi;
-    }
+    // Cek apakah kategori adalah Praktik Ibadah
+    $is_praktik_ibadah = (strpos(strtolower($kategori), 'praktik') !== false && strpos(strtolower($kategori), 'ibadah') !== false);
     
-    switch ($predikat) {
-        case 'A':
-            return 'Sangat baik dalam ' . $materi_full;
-        case 'B':
-            return 'Baik dalam ' . $materi_full;
-        case 'C':
-            return 'Cukup dalam ' . $materi_full;
-        case 'D':
-            return 'Kurang dalam ' . $materi_full;
-        default:
-            return '-';
+    if ($is_praktik_ibadah) {
+        switch ($predikat) {
+            case 'A':
+                return 'Sangat terampil dalam praktik ' . $nama_materi;
+            case 'B':
+                return 'Terampil dalam praktik ' . $nama_materi;
+            case 'C':
+                return 'Cukup terampil dalam praktik ' . $nama_materi;
+            case 'D':
+                return 'Kurang terampil dalam praktik ' . $nama_materi;
+            default:
+                return '-';
+        }
+    } else {
+        // Gabungkan kategori dan nama materi jika kategori ada
+        $materi_full = $nama_materi;
+        if (!empty($kategori)) {
+            $materi_full = $kategori . ' ' . $nama_materi;
+        }
+        switch ($predikat) {
+            case 'A':
+                return 'Sangat baik dalam ' . $materi_full;
+            case 'B':
+                return 'Baik dalam ' . $materi_full;
+            case 'C':
+                return 'Cukup dalam ' . $materi_full;
+            case 'D':
+                return 'Kurang dalam ' . $materi_full;
+            default:
+                return '-';
+        }
     }
 }
 
@@ -499,16 +517,26 @@ function getSemesterText($semester) {
             font-size: 11pt;
         }
         
+        .print-button-container {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+        
+        @media print {
+            .print-button-container {
+                display: none;
+            }
+        }
     </style>
-    <script>
-        // Auto print saat halaman dimuat (mode windows print)
-        window.onload = function() {
-            window.print();
-        };
-    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
+    <div class="print-button-container">
+        <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+            <i class="fas fa-print"></i> Cetak Dokumen
+        </button>
+    </div>
     <div class="container">
         <?php foreach ($siswa_list as $index => $siswa): ?>
         <div class="student-page">

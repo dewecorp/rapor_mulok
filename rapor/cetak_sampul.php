@@ -284,15 +284,26 @@ try {
         .student-page {
             margin-bottom: 50px;
         }
+        
+        .print-button-container {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+        
+        @media print {
+            .print-button-container {
+                display: none;
+            }
+        }
     </style>
-    <script>
-        // Auto print saat halaman dimuat (mode windows print)
-        window.onload = function() {
-            window.print();
-        };
-    </script>
 </head>
 <body>
+    <div class="print-button-container">
+        <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+            <i class="fas fa-print"></i> Cetak Dokumen
+        </button>
+    </div>
     <div class="container">
         <?php if (!empty($siswa_data)): ?>
             <?php foreach ($siswa_data as $index => $siswa): ?>

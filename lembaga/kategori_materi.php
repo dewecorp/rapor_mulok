@@ -121,7 +121,7 @@ include '../includes/header.php';
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-tags"></i> Kategori Materi Mulok</h5>
         <div>
-            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalKategori">
+            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalKategori">
                 <i class="fas fa-plus"></i> Tambah
             </button>
         </div>

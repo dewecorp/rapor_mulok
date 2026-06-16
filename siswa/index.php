@@ -349,7 +349,7 @@ $page_title = 'Data Siswa';
             <button type="button" class="btn btn-light btn-sm" onclick="exportPDF()">
                 <i class="fas fa-file-pdf"></i> PDF
             </button>
-            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalSiswa">
+            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalSiswa">
                 <i class="fas fa-plus"></i> Tambah
             </button>
             <?php endif; ?>

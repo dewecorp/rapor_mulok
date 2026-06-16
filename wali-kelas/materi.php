@@ -56,23 +56,40 @@ function hitungPredikat($nilai) {
 function hitungDeskripsi($predikat, $nama_materi, $kategori = '') {
     if (empty($predikat) || $predikat == '-') return '-';
     
-    // Gabungkan kategori dan nama materi jika kategori ada
-    $materi_full = $nama_materi;
-    if (!empty($kategori)) {
-        $materi_full = $kategori . ' ' . $nama_materi;
-    }
+    // Cek apakah kategori adalah Praktik Ibadah
+    $is_praktik_ibadah = (strpos(strtolower($kategori), 'praktik') !== false && strpos(strtolower($kategori), 'ibadah') !== false);
     
-    switch ($predikat) {
-        case 'A':
-            return 'Sangat baik dalam ' . $materi_full;
-        case 'B':
-            return 'Baik dalam ' . $materi_full;
-        case 'C':
-            return 'Cukup dalam ' . $materi_full;
-        case 'D':
-            return 'Kurang dalam ' . $materi_full;
-        default:
-            return '-';
+    if ($is_praktik_ibadah) {
+        switch ($predikat) {
+            case 'A':
+                return 'Sangat terampil dalam praktik ' . $nama_materi;
+            case 'B':
+                return 'Terampil dalam praktik ' . $nama_materi;
+            case 'C':
+                return 'Cukup terampil dalam praktik ' . $nama_materi;
+            case 'D':
+                return 'Kurang terampil dalam praktik ' . $nama_materi;
+            default:
+                return '-';
+        }
+    } else {
+        // Gabungkan kategori dan nama materi jika kategori ada
+        $materi_full = $nama_materi;
+        if (!empty($kategori)) {
+            $materi_full = $kategori . ' ' . $nama_materi;
+        }
+        switch ($predikat) {
+            case 'A':
+                return 'Sangat baik dalam ' . $materi_full;
+            case 'B':
+                return 'Baik dalam ' . $materi_full;
+            case 'C':
+                return 'Cukup dalam ' . $materi_full;
+            case 'D':
+                return 'Kurang dalam ' . $materi_full;
+            default:
+                return '-';
+        }
     }
 }
 
@@ -127,10 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 if ($siswa_id > 0 && $nilai_value !== '') {
                     $nilai_float = floatval($nilai_value);
                     
-                    // Hitung predikat dari nilai
-                    $predikat = hitungPredikat($nilai_float);
-                    
-                    // Ambil nama materi dan kategori untuk deskripsi
+                    // Ambil nama materi dan kategori terlebih dahulu untuk deskripsi dan predikat
                     $nama_materi = '';
                     $kategori_materi = '';
                     // Cek apakah kolom kategori_mulok ada
@@ -154,6 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         $kategori_materi = isset($materi_row['kategori']) ? (string)$materi_row['kategori'] : '';
                     }
                     $stmt_materi_nama->close();
+                    
+                    // Hitung predikat dari nilai
+                    $predikat = hitungPredikat($nilai_float);
                     
                     // Hitung deskripsi dengan kategori dan nama materi
                     $deskripsi = hitungDeskripsi($predikat, $nama_materi, $kategori_materi);
@@ -650,7 +667,7 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
     </div>
     <div class="card-body">
             <div class="mb-3 d-flex gap-2">
-                <button type="button" class="btn btn-primary" id="btnTambahNilai" onclick="tambahNilai()" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
+                <button type="button" class="btn btn-warning" id="btnTambahNilai" onclick="tambahNilai()" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
                     <i class="fas fa-plus"></i> Tambah Nilai
                 </button>
                 <button type="button" class="btn btn-info" id="btnImporNilai" onclick="imporNilai()" <?php echo $status_kirim == 'terkirim' ? 'disabled' : ''; ?>>
@@ -693,6 +710,16 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
                                 // Check if nilai_value is set (not empty string or null)
                                 $is_nilai_set = ($nilai_value !== '' && $nilai_value !== null);
                                 
+                                // Ambil kategori dari materi_data
+                                $kategori_display = '';
+                                if (isset($materi_data['kategori_mulok']) && !empty($materi_data['kategori_mulok'])) {
+                                    $kategori_display = (string)$materi_data['kategori_mulok'];
+                                } elseif (isset($materi_data['kode_mulok']) && !empty($materi_data['kode_mulok'])) {
+                                    $kategori_display = (string)$materi_data['kode_mulok'];
+                                } elseif (isset($materi_data['kategori']) && !empty($materi_data['kategori'])) {
+                                    $kategori_display = (string)$materi_data['kategori'];
+                                }
+                                
                                 // Hitung predikat dari nilai jika belum ada
                                 if (empty($predikat) && $is_nilai_set) {
                                     $predikat = hitungPredikat($nilai_value);
@@ -700,15 +727,6 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
                                 
                                 // Hitung atau update deskripsi - selalu update untuk memastikan format baru dengan kategori
                                 if (!empty($predikat) && $predikat != '-' && !empty($materi_data['nama_mulok'])) {
-                                    // Ambil kategori dari materi_data
-                                    $kategori_display = '';
-                                    if (isset($materi_data['kategori_mulok']) && !empty($materi_data['kategori_mulok'])) {
-                                        $kategori_display = (string)$materi_data['kategori_mulok'];
-                                    } elseif (isset($materi_data['kode_mulok']) && !empty($materi_data['kode_mulok'])) {
-                                        $kategori_display = (string)$materi_data['kode_mulok'];
-                                    } elseif (isset($materi_data['kategori']) && !empty($materi_data['kategori'])) {
-                                        $kategori_display = (string)$materi_data['kategori'];
-                                    }
                                     // Selalu hitung ulang deskripsi untuk memastikan format baru dengan kategori
                                     $deskripsi = hitungDeskripsi($predikat, $materi_data['nama_mulok'], $kategori_display);
                                 }
