@@ -33,13 +33,13 @@ function hitungDeskripsi($predikat, $nama_materi, $kategori = '') {
     if ($is_praktik_ibadah) {
         switch ($predikat) {
             case 'A':
-                return 'Sangat terampil dalam praktik ' . $nama_materi;
+                return 'Sangat terampil dalam Praktik Ibadah ' . $nama_materi;
             case 'B':
-                return 'Terampil dalam praktik ' . $nama_materi;
+                return 'Terampil dalam Praktik Ibadah ' . $nama_materi;
             case 'C':
-                return 'Cukup terampil dalam praktik ' . $nama_materi;
+                return 'Cukup terampil dalam Praktik Ibadah ' . $nama_materi;
             case 'D':
-                return 'Kurang terampil dalam praktik ' . $nama_materi;
+                return 'Kurang terampil dalam Praktik Ibadah ' . $nama_materi;
             default:
                 return '-';
         }
@@ -620,7 +620,7 @@ function getSemesterText($semester) {
                         
                         $nilai_value = $nilai ? ($nilai['nilai_pengetahuan'] ?? $nilai['harian'] ?? '') : '';
                         $predikat = $nilai ? ($nilai['predikat'] ?? '') : '';
-                        $deskripsi = $nilai ? ($nilai['deskripsi'] ?? '') : '';
+                        $deskripsi = '';
                         
                         // Check if nilai_value is not empty string or null
                         $is_nilai_set = ($nilai_value !== '' && $nilai_value !== null);
@@ -630,9 +630,7 @@ function getSemesterText($semester) {
                         }
                         
                         if (!empty($predikat) && $predikat != '-' && !empty($materi['nama_mulok'])) {
-                            if (empty($deskripsi)) {
-                                $deskripsi = hitungDeskripsi($predikat, $materi['nama_mulok'], $kategori);
-                            }
+                            $deskripsi = hitungDeskripsi($predikat, $materi['nama_mulok'], $kategori);
                         }
                         
                         // Tampilkan kategori sebagai header jika berbeda

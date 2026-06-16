@@ -42,13 +42,13 @@ function hitungDeskripsi($predikat, $nama_materi, $kategori = '') {
     if ($is_praktik_ibadah) {
         switch ($predikat) {
             case 'A':
-                return 'Sangat terampil dalam praktik ' . $nama_materi;
+                return 'Sangat terampil dalam Praktik Ibadah ' . $nama_materi;
             case 'B':
-                return 'Terampil dalam praktik ' . $nama_materi;
+                return 'Terampil dalam Praktik Ibadah ' . $nama_materi;
             case 'C':
-                return 'Cukup terampil dalam praktik ' . $nama_materi;
+                return 'Cukup terampil dalam Praktik Ibadah ' . $nama_materi;
             case 'D':
-                return 'Kurang terampil dalam praktik ' . $nama_materi;
+                return 'Kurang terampil dalam Praktik Ibadah ' . $nama_materi;
             default:
                 return '-';
         }
