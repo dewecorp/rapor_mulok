@@ -36,12 +36,14 @@ try {
 // Cek struktur database materi_mulok
 $has_kelas_id = false;
 $has_semester = false;
+$has_kategori_mulok = false;
 try {
     $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
     if ($columns) {
         while ($col = $columns->fetch_assoc()) {
             if ($col['Field'] == 'kelas_id') $has_kelas_id = true;
             if ($col['Field'] == 'semester') $has_semester = true;
+            if ($col['Field'] == 'kategori_mulok') $has_kategori_mulok = true;
         }
     }
 } catch (Exception $e) {
@@ -59,20 +61,21 @@ if ($kelas_id && !empty($semester)) {
     // Gunakan query langsung (bukan prepared statement) seperti test_query.php
     $kelas_id_safe = intval($kelas_id);
     $semester_safe = $conn->real_escape_string($semester);
+    $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
     
     if ($has_kelas_id && $has_semester) {
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, m.kode_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = $kelas_id_safe
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
                          WHERE m.kelas_id = $kelas_id_safe AND m.semester = '$semester_safe'
-                         ORDER BY m.nama_mulok";
+                         ORDER BY $kolom_kategori, m.nama_mulok";
     } else {
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, m.kode_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = $kelas_id_safe
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
-                         ORDER BY m.nama_mulok";
+                         ORDER BY $kolom_kategori, m.nama_mulok";
     }
     
     $materi_result = $conn->query($query_materi);
@@ -112,6 +115,7 @@ if ($kelas_id && !empty($semester)) {
             $status_nilai_materi_list[] = [
                 'materi_id' => $materi_id,
                 'nama_mulok' => $materi['nama_mulok'],
+                'kategori_mulok' => $materi['kategori_mulok'] ?? $materi['kode_mulok'],
                 'guru_id' => $materi['guru_id'],
                 'nama_guru' => $materi['nama_guru'] ?? '-',
                 'status' => $ada_nilai ? 'terkirim' : 'belum'
@@ -183,6 +187,7 @@ if (isset($_SESSION['status_nilai_materi_list'])) {
                     <thead>
                         <tr>
                             <th width="50">No</th>
+                            <th><?php echo $has_kategori_mulok ? 'Kategori Mulok' : 'Kode Mulok'; ?></th>
                             <th>Materi Mulok</th>
                             <th>Nama Guru</th>
                             <th>Status Nilai</th>
@@ -191,10 +196,25 @@ if (isset($_SESSION['status_nilai_materi_list'])) {
                     <tbody>
                         <?php 
                         $no = 1;
+                        $current_kategori = '';
                         foreach ($materi_list as $materi): 
+                            $kategori = $materi['kategori_mulok'] ?? '';
+                            // Tampilkan kategori sebagai header jika berbeda
+                            $show_kategori = false;
+                            if (!empty($kategori) && $kategori != $current_kategori) {
+                                $show_kategori = true;
+                                $current_kategori = $kategori;
+                            }
+                            
+                            if ($show_kategori && !empty($kategori)):
                         ?>
+                            <tr class="table-secondary">
+                                <td colspan="5" class="fw-bold"><?php echo htmlspecialchars($kategori); ?></td>
+                            </tr>
+                        <?php endif; ?>
                             <tr>
                                 <td><?php echo $no++; ?></td>
+                                <td><?php echo htmlspecialchars($materi['kategori_mulok'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($materi['nama_guru'] ?? '-'); ?></td>
                                 <td>

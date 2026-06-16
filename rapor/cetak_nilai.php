@@ -205,6 +205,8 @@ if ($kelas_id > 0) {
     $materi_query = "SELECT m.* FROM materi_mulok m WHERE m.kelas_id = ? AND m.semester = ? ORDER BY ";
     if ($has_kategori_mulok) {
         $materi_query .= "m.kategori_mulok, ";
+    } else {
+        $materi_query .= "m.kode_mulok, ";
     }
     $materi_query .= "m.nama_mulok";
     
@@ -614,13 +616,15 @@ function getSemesterText($semester) {
                         $nilai = $nilai_data[$key] ?? null;
                         
                         $kategori = '';
-                        if ($has_kategori_mulok && !empty($materi['kategori_mulok'])) {
-                            $kategori = $materi['kategori_mulok'];
-                        }
+                            if ($has_kategori_mulok && !empty($materi['kategori_mulok'])) {
+                                $kategori = $materi['kategori_mulok'];
+                            } elseif (!empty($materi['kode_mulok'])) {
+                                $kategori = $materi['kode_mulok'];
+                            }
                         
                         $nilai_value = $nilai ? ($nilai['nilai_pengetahuan'] ?? $nilai['harian'] ?? '') : '';
                         $predikat = $nilai ? ($nilai['predikat'] ?? '') : '';
-                        $deskripsi = '';
+                        $deskripsi = ''; // Selalu hitung ulang, tidak pakai dari database
                         
                         // Check if nilai_value is not empty string or null
                         $is_nilai_set = ($nilai_value !== '' && $nilai_value !== null);

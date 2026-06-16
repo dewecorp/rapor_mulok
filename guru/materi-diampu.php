@@ -23,12 +23,14 @@ try {
 // Cek struktur database materi_mulok
 $has_kelas_id = false;
 $has_semester = false;
+$has_kategori_mulok = false;
 try {
     $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
     if ($columns) {
         while ($col = $columns->fetch_assoc()) {
             if ($col['Field'] == 'kelas_id') $has_kelas_id = true;
             if ($col['Field'] == 'semester') $has_semester = true;
+            if ($col['Field'] == 'kategori_mulok') $has_kategori_mulok = true;
         }
     }
 } catch (Exception $e) {
@@ -43,22 +45,23 @@ $materi_terkirim = 0;
 
 try {
     // Ambil semua materi yang diampu oleh guru ini di semester aktif
+    $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
     if ($has_semester) {
-        $query_materi = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, k.id as kelas_id, k.nama_kelas
+        $query_materi = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, m.kode_mulok, $kolom_kategori as kategori_mulok, k.id as kelas_id, k.nama_kelas
                          FROM mengampu_materi mm
                          INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                          INNER JOIN kelas k ON mm.kelas_id = k.id
                          WHERE mm.guru_id = ? AND m.semester = ?
-                         ORDER BY k.nama_kelas, m.nama_mulok";
+                         ORDER BY k.nama_kelas, $kolom_kategori, m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("is", $user_id, $semester);
     } else {
-        $query_materi = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, k.id as kelas_id, k.nama_kelas
+        $query_materi = "SELECT DISTINCT m.id as materi_id, m.nama_mulok, m.kode_mulok, $kolom_kategori as kategori_mulok, k.id as kelas_id, k.nama_kelas
                          FROM mengampu_materi mm
                          INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                          INNER JOIN kelas k ON mm.kelas_id = k.id
                          WHERE mm.guru_id = ?
-                         ORDER BY k.nama_kelas, m.nama_mulok";
+                         ORDER BY k.nama_kelas, $kolom_kategori, m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("i", $user_id);
     }
@@ -91,6 +94,7 @@ try {
             $materi_list[] = [
                 'materi_id' => $materi_id,
                 'nama_mulok' => $materi['nama_mulok'],
+                'kategori_mulok' => $materi['kategori_mulok'] ?? $materi['kode_mulok'],
                 'kelas_id' => $kelas_id,
                 'nama_kelas' => $materi['nama_kelas'],
                 'status' => $ada_nilai ? 'terkirim' : 'belum'
@@ -143,6 +147,7 @@ $page_title = 'Materi yang Diampu';
                     <thead>
                         <tr>
                             <th width="50">No</th>
+                            <th><?php echo $has_kategori_mulok ? 'Kategori Mulok' : 'Kode Mulok'; ?></th>
                             <th>Materi Mulok</th>
                             <th>Kelas</th>
                             <th>Status Nilai</th>
@@ -151,10 +156,41 @@ $page_title = 'Materi yang Diampu';
                     <tbody>
                         <?php 
                         $no = 1;
+                        $current_kelas = '';
+                        $current_kategori = '';
                         foreach ($materi_list as $materi): 
+                            // Tampilkan kelas sebagai header jika berbeda
+                            $show_kelas = false;
+                            if (!empty($materi['nama_kelas']) && $materi['nama_kelas'] != $current_kelas) {
+                                $show_kelas = true;
+                                $current_kelas = $materi['nama_kelas'];
+                                $current_kategori = ''; // Reset kategori ketika kelas berubah
+                            }
+                            
+                            // Tampilkan kategori sebagai header jika berbeda
+                            $kategori = $materi['kategori_mulok'] ?? '';
+                            $show_kategori = false;
+                            if (!empty($kategori) && $kategori != $current_kategori) {
+                                $show_kategori = true;
+                                $current_kategori = $kategori;
+                            }
+                            
+                            if ($show_kelas && !empty($materi['nama_kelas'])):
                         ?>
+                            <tr class="table-info">
+                                <td colspan="5" class="fw-bold">Kelas: <?php echo htmlspecialchars($materi['nama_kelas']); ?></td>
+                            </tr>
+                        <?php endif; 
+                        
+                        if ($show_kategori && !empty($kategori)):
+                        ?>
+                            <tr class="table-secondary">
+                                <td colspan="5" class="fw-bold"><?php echo htmlspecialchars($kategori); ?></td>
+                            </tr>
+                        <?php endif; ?>
                             <tr>
                                 <td><?php echo $no++; ?></td>
+                                <td><?php echo htmlspecialchars($materi['kategori_mulok'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($materi['nama_mulok'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($materi['nama_kelas'] ?? ''); ?></td>
                                 <td>

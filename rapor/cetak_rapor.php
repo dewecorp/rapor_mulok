@@ -186,6 +186,8 @@ if ($final_kelas_id > 0) {
     $materi_query = "SELECT m.* FROM materi_mulok m WHERE m.kelas_id = ? AND m.semester = ? ORDER BY ";
     if ($has_kategori_mulok) {
         $materi_query .= "m.kategori_mulok, ";
+    } else {
+        $materi_query .= "m.kode_mulok, ";
     }
     $materi_query .= "m.nama_mulok";
     
@@ -787,23 +789,23 @@ if (!empty($siswa_list) && count($siswa_list) === 1) {
                             $kategori = '';
                             if ($has_kategori_mulok && !empty($materi['kategori_mulok'])) {
                                 $kategori = $materi['kategori_mulok'];
+                            } elseif (!empty($materi['kode_mulok'])) {
+                                $kategori = $materi['kode_mulok'];
                             }
                             
                             $nilai_value = $nilai ? ($nilai['nilai_pengetahuan'] ?? $nilai['harian'] ?? '') : '';
                             $predikat = $nilai ? ($nilai['predikat'] ?? '') : '';
-                            $deskripsi = $nilai ? ($nilai['deskripsi'] ?? '') : '';
+                            $deskripsi = ''; // Selalu hitung ulang, tidak pakai dari database
                             
                             // Check if nilai_value is not empty string or null
                             $is_nilai_set = ($nilai_value !== '' && $nilai_value !== null);
                             
                             if (empty($predikat) && $is_nilai_set) {
-                        $predikat = hitungPredikat($nilai_value);
-                    }
+                                $predikat = hitungPredikat($nilai_value);
+                            }
                     
                     if (!empty($predikat) && $predikat != '-' && !empty($materi['nama_mulok'])) {
-                        if (empty($deskripsi)) {
-                            $deskripsi = hitungDeskripsi($predikat, $materi['nama_mulok'], $kategori);
-                        }
+                        $deskripsi = hitungDeskripsi($predikat, $materi['nama_mulok'], $kategori);
                     }
                     
                     // Tampilkan kategori sebagai header jika berbeda

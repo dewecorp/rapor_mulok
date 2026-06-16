@@ -586,11 +586,12 @@ if ($materi_id > 0 && $kelas_id > 0) {
     $materi_list = [];
     if ($kelas_id > 0) {
         try {
-            $stmt = $conn->prepare("SELECT DISTINCT m.id, m.nama_mulok, m.kode_mulok, m.jumlah_jam
+            $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
+            $stmt = $conn->prepare("SELECT DISTINCT m.id, m.nama_mulok, m.kode_mulok, m.jumlah_jam, $kolom_kategori as kategori_mulok
               FROM mengampu_materi mm
               INNER JOIN materi_mulok m ON mm.materi_mulok_id = m.id
                       WHERE mm.guru_id = ? AND mm.kelas_id = ? AND m.semester = ?
-                      ORDER BY m.nama_mulok");
+                      ORDER BY $kolom_kategori, m.nama_mulok");
             $stmt->bind_param("iis", $user_id, $kelas_id, $semester_aktif);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -764,7 +765,7 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
                         <thead>
                             <tr>
                                 <th width="50">No</th>
-                                <th>Kode Mulok</th>
+                                <th><?php echo $has_kategori_mulok ? 'Kategori Mulok' : 'Kode Mulok'; ?></th>
                                 <th>Materi Mulok</th>
                                 <th>Jumlah Jam</th>
                                 <th>Status Nilai</th>
@@ -773,11 +774,25 @@ if ($materi_id > 0 && isset($materi_data) && $materi_data) {
                         <tbody>
                             <?php 
                             $no = 1;
+                            $current_kategori = '';
                             foreach ($materi_list as $materi): 
+                                $kategori = $materi['kategori_mulok'] ?? '';
+                                // Tampilkan kategori sebagai header jika berbeda
+                                $show_kategori = false;
+                                if (!empty($kategori) && $kategori != $current_kategori) {
+                                    $show_kategori = true;
+                                    $current_kategori = $kategori;
+                                }
+                                
+                                if ($show_kategori && !empty($kategori)):
                             ?>
+                                <tr class="table-secondary">
+                                    <td colspan="5" class="fw-bold"><?php echo htmlspecialchars($kategori); ?></td>
+                                </tr>
+                            <?php endif; ?>
                                 <tr>
                                     <td><?php echo $no++; ?></td>
-                                    <td><?php echo htmlspecialchars($materi['kode_mulok']); ?></td>
+                                    <td><?php echo htmlspecialchars($materi['kategori_mulok'] ?? $materi['kode_mulok']); ?></td>
                                     <td>
                                         <a href="materi.php?id=<?php echo $materi['id']; ?>">
                                             <?php echo htmlspecialchars($materi['nama_mulok']); ?>
