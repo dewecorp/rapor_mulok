@@ -38,12 +38,16 @@ try {
 // Cek struktur database materi_mulok
 $has_kelas_id = false;
 $has_semester = false;
+$has_kategori_mulok = false;
+$has_kode_mulok = false;
 try {
     $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
     if ($columns) {
         while ($col = $columns->fetch_assoc()) {
             if ($col['Field'] == 'kelas_id') $has_kelas_id = true;
             if ($col['Field'] == 'semester') $has_semester = true;
+            if ($col['Field'] == 'kategori_mulok') $has_kategori_mulok = true;
+            if ($col['Field'] == 'kode_mulok') $has_kode_mulok = true;
         }
     }
 } catch (Exception $e) {
@@ -53,27 +57,30 @@ try {
 // Query status nilai per kelas dan materi
 $status_data = [];
 $materi_status_list = [];
+$kolom_kategori_label = 'Kategori';
 if ($kelas_filter) {
     $kelas_id = intval($kelas_filter);
+    $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : ($has_kode_mulok ? 'm.kode_mulok' : 'm.id');
+    $kolom_kategori_label = $has_kategori_mulok ? 'Kategori Mulok' : ($has_kode_mulok ? 'Kode Mulok' : 'Kategori');
     
     // Ambil semua materi untuk kelas ini dan semester aktif beserta gurunya
     if ($has_kelas_id && $has_semester) {
         // Struktur baru: ambil semua materi berdasarkan kelas_id dan semester
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
                          WHERE m.kelas_id = ? AND m.semester = ?
-                         ORDER BY m.nama_mulok";
+                         ORDER BY $kolom_kategori, m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("iis", $kelas_id, $kelas_id, $semester);
     } else {
         // Struktur lama: ambil semua materi untuk kelas ini
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, mm.guru_id, p.nama as nama_guru
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = ?
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
-                         ORDER BY m.nama_mulok";
+                         ORDER BY $kolom_kategori, m.nama_mulok";
         $stmt_materi = $conn->prepare($query_materi);
         $stmt_materi->bind_param("i", $kelas_id);
     }
@@ -109,6 +116,7 @@ if ($kelas_filter) {
             $materi_status_list[] = [
                 'materi_id' => $materi_id,
                 'nama_mulok' => $materi['nama_mulok'],
+                'kategori_mulok' => $materi['kategori_mulok'] ?? '',
                 'guru_id' => $materi['guru_id'],
                 'nama_guru' => $materi['nama_guru'] ?? '-',
                 'status' => $ada_nilai ? 'terkirim' : 'belum'
@@ -180,10 +188,11 @@ $page_title = 'Status Nilai';
             
             <!-- Tabel Status Nilai -->
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="tableStatusNilai">
                     <thead>
                         <tr>
                             <th width="50">No</th>
+                            <th><?php echo htmlspecialchars($kolom_kategori_label); ?></th>
                             <th>Materi Mulok</th>
                             <th>Nama Guru</th>
                             <th>Status Nilai</th>
@@ -196,6 +205,7 @@ $page_title = 'Status Nilai';
                         ?>
                             <tr>
                                 <td><?php echo $no++; ?></td>
+                                <td><?php echo htmlspecialchars($materi['kategori_mulok']); ?></td>
                                 <td><?php echo htmlspecialchars($materi['nama_mulok']); ?></td>
                                 <td><?php echo htmlspecialchars($materi['nama_guru']); ?></td>
                                 <td>
@@ -233,5 +243,21 @@ $page_title = 'Status Nilai';
             window.location.href = 'status-nilai.php';
         }
     }
+
+    $(document).ready(function() {
+        if ($('#tableStatusNilai').length > 0) {
+            $('#tableStatusNilai').DataTable({
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                },
+                orderFixed: [[1, 'asc']],
+                order: [[2, 'asc']],
+                pageLength: 25,
+                searching: true,
+                paging: true,
+                info: true
+            });
+        }
+    });
 </script>
 
