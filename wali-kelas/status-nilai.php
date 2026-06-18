@@ -37,6 +37,7 @@ try {
 $has_kelas_id = false;
 $has_semester = false;
 $has_kategori_mulok = false;
+$has_kode_mulok = false;
 try {
     $columns = $conn->query("SHOW COLUMNS FROM materi_mulok");
     if ($columns) {
@@ -44,6 +45,7 @@ try {
             if ($col['Field'] == 'kelas_id') $has_kelas_id = true;
             if ($col['Field'] == 'semester') $has_semester = true;
             if ($col['Field'] == 'kategori_mulok') $has_kategori_mulok = true;
+            if ($col['Field'] == 'kode_mulok') $has_kode_mulok = true;
         }
     }
 } catch (Exception $e) {
@@ -61,17 +63,18 @@ if ($kelas_id && !empty($semester)) {
     // Gunakan query langsung (bukan prepared statement) seperti test_query.php
     $kelas_id_safe = intval($kelas_id);
     $semester_safe = $conn->real_escape_string($semester);
-    $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : 'm.kode_mulok';
+    $kolom_kategori = $has_kategori_mulok ? 'm.kategori_mulok' : ($has_kode_mulok ? 'm.kode_mulok' : 'm.id');
+    $kolom_kode = $has_kode_mulok ? 'm.kode_mulok' : ($has_kategori_mulok ? 'm.kategori_mulok' : 'm.id');
     
     if ($has_kelas_id && $has_semester) {
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, m.kode_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, $kolom_kode as kode_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = $kelas_id_safe
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
                          WHERE m.kelas_id = $kelas_id_safe AND m.semester = '$semester_safe'
                          ORDER BY $kolom_kategori, m.nama_mulok";
     } else {
-        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, m.kode_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
+        $query_materi = "SELECT m.id as materi_id, m.nama_mulok, $kolom_kode as kode_mulok, $kolom_kategori as kategori_mulok, mm.guru_id, p.nama as nama_guru
                          FROM materi_mulok m
                          LEFT JOIN mengampu_materi mm ON m.id = mm.materi_mulok_id AND mm.kelas_id = $kelas_id_safe
                          LEFT JOIN pengguna p ON mm.guru_id = p.id
@@ -196,22 +199,8 @@ if (isset($_SESSION['status_nilai_materi_list'])) {
                     <tbody>
                         <?php 
                         $no = 1;
-                        $current_kategori = '';
                         foreach ($materi_list as $materi): 
-                            $kategori = $materi['kategori_mulok'] ?? '';
-                            // Tampilkan kategori sebagai header jika berbeda
-                            $show_kategori = false;
-                            if (!empty($kategori) && $kategori != $current_kategori) {
-                                $show_kategori = true;
-                                $current_kategori = $kategori;
-                            }
-                            
-                            if ($show_kategori && !empty($kategori)):
                         ?>
-                            <tr class="table-secondary">
-                                <td colspan="5" class="fw-bold"><?php echo htmlspecialchars($kategori); ?></td>
-                            </tr>
-                        <?php endif; ?>
                             <tr>
                                 <td><?php echo $no++; ?></td>
                                 <td><?php echo htmlspecialchars($materi['kategori_mulok'] ?? ''); ?></td>
@@ -251,8 +240,9 @@ if (isset($_SESSION['status_nilai_materi_list'])) {
                 language: {
                     url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
                 },
-                order: [[1, 'asc']], // Sort by Nama Materi ascending
-                pageLength: 10,
+                orderFixed: [[1, 'asc']],
+                order: [[2, 'asc']],
+                pageLength: 25,
                 searching: true,
                 paging: true,
                 info: true
