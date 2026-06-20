@@ -280,8 +280,16 @@ try {
             .nilai-table tr {
                 page-break-inside: avoid;
             }
-            .ttd-row, .ttd-center {
+            .ttd-row {
                 page-break-inside: avoid;
+                page-break-after: avoid;
+            }
+            .tanggal {
+                page-break-after: avoid;
+            }
+            .ttd-center {
+                page-break-inside: avoid;
+                page-break-before: avoid;
             }
         }
         
