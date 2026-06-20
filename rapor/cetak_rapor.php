@@ -513,26 +513,26 @@ if (!empty($siswa_list) && count($siswa_list) === 1) {
             text-align: center;
         }
         
-        .no-col {
+        .nilai-table .no-col {
             width: 5%;
             text-align: center;
         }
         
-        .materi-col {
+        .nilai-table .materi-col {
             width: 30%;
         }
         
-        .nilai-col {
+        .nilai-table .nilai-col {
             width: 10%;
             text-align: center;
         }
         
-        .predikat-col {
+        .nilai-table .predikat-col {
             width: 10%;
             text-align: center;
         }
         
-        .deskripsi-col {
+        .nilai-table .deskripsi-col {
             width: 45%;
         }
         

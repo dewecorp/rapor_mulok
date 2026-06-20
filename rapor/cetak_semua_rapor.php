@@ -334,7 +334,7 @@ try {
         .info-container {
             border: 2px solid #000;
             padding: 15px;
-            margin: 25px 0 15px 0;
+            margin: 60px 0 15px 0;
         }
         
         .info-siswa-table {
@@ -384,7 +384,7 @@ try {
         }
         
         .footer {
-            margin-top: 120px;
+            margin-top: 200px;
             text-align: center;
             font-size: 14pt;
             font-weight: bold;
@@ -479,26 +479,26 @@ try {
             text-align: center;
         }
         
-        .no-col {
+        .nilai-table .no-col {
             width: 5%;
             text-align: center;
         }
         
-        .materi-col {
+        .nilai-table .materi-col {
             width: 30%;
         }
         
-        .nilai-col {
+        .nilai-table .nilai-col {
             width: 10%;
             text-align: center;
         }
         
-        .predikat-col {
+        .nilai-table .predikat-col {
             width: 10%;
             text-align: center;
         }
         
-        .deskripsi-col {
+        .nilai-table .deskripsi-col {
             width: 45%;
         }
         

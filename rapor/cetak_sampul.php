@@ -203,7 +203,7 @@ try {
         .info-container {
             border: 2px solid #000;
             padding: 15px;
-            margin: 25px 0 15px 0;
+            margin: 60px 0 15px 0;
         }
         
         .info-siswa-box {
@@ -264,7 +264,7 @@ try {
         }
         
         .footer {
-            margin-top: 120px;
+            margin-top: 200px;
             text-align: center;
             font-size: 14pt;
             font-weight: bold;
