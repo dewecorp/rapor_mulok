@@ -75,6 +75,26 @@ try {
     // Kolom mungkin sudah ada atau ada error lain, lanjutkan saja
 }
 
+// Pastikan kolom tahun_ajaran ada di tabel siswa
+try {
+    $check_column = $conn->query("SHOW COLUMNS FROM siswa LIKE 'tahun_ajaran'");
+    if ($check_column->num_rows == 0) {
+        $conn->query("ALTER TABLE siswa ADD COLUMN tahun_ajaran VARCHAR(20) NULL AFTER kelas_id");
+        
+        // Isi kolom tahun_ajaran dengan tahun ajaran aktif untuk semua siswa yang belum memiliki nilai
+        if (!empty($tahun_ajaran)) {
+            $conn->query("UPDATE siswa SET tahun_ajaran = '" . $conn->real_escape_string($tahun_ajaran) . "' WHERE tahun_ajaran IS NULL OR tahun_ajaran = ''");
+        }
+    } else {
+        // Isi kolom tahun_ajaran dengan tahun ajaran aktif untuk semua siswa yang belum memiliki nilai
+        if (!empty($tahun_ajaran)) {
+            $conn->query("UPDATE siswa SET tahun_ajaran = '" . $conn->real_escape_string($tahun_ajaran) . "' WHERE tahun_ajaran IS NULL OR tahun_ajaran = ''");
+        }
+    }
+} catch (Exception $e) {
+    // Kolom mungkin sudah ada atau ada error lain, lanjutkan saja
+}
+
 // Cek apakah kelas tujuan adalah kelas Alumni
 $is_kelas_alumni = false;
 if (isset($_POST['kelas_baru_id'])) {
@@ -161,11 +181,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                             $tahun_ajaran_lulus = ($tahun_sekarang - 1) . '/' . $tahun_sekarang;
                         }
                         
-                        // Update siswa dengan kelas Alumni dan tahun ajaran lulus
+                        // Update siswa dengan kelas Alumni dan tahun ajaran lulus (tidak ubah tahun_ajaran)
                         $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ?, tahun_ajaran_lulus = ? WHERE id = ?");
                         $stmt->bind_param("isi", $kelas_baru_id, $tahun_ajaran_lulus, $siswa_id);
                     } else {
-                        // Jika bukan Alumni, update kelas_id saja (jaga tahun_ajaran_lulus jika sudah ada)
+                        // Jika bukan Alumni, update kelas_id saja (tidak ubah tahun_ajaran)
                         // Reset tahun_ajaran_lulus jika bukan Alumni (untuk memastikan hanya alumni yang punya tahun lulus)
                         $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ?, tahun_ajaran_lulus = NULL WHERE id = ?");
                         $stmt->bind_param("ii", $kelas_baru_id, $siswa_id);
@@ -226,8 +246,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             foreach ($siswa_ids_batal as $siswa_id) {
                 $siswa_id = intval($siswa_id);
                 if ($siswa_id > 0) {
-                    $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ? WHERE id = ?");
-                    $stmt->bind_param("ii", $kelas_asal_id, $siswa_id);
+                    $stmt = $conn->prepare("UPDATE siswa SET kelas_id = ?, tahun_ajaran = ? WHERE id = ?");
+                    $stmt->bind_param("isi", $kelas_asal_id, $tahun_ajaran, $siswa_id);
                     if ($stmt->execute()) {
                         $batal_count++;
                     }

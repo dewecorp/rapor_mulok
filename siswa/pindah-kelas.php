@@ -8,6 +8,37 @@ $success = '';
 $error = '';
 $success_message = '';
 
+// Ambil tahun ajaran aktif
+$tahun_ajaran = '';
+try {
+    $query_profil = "SELECT tahun_ajaran_aktif FROM profil_madrasah LIMIT 1";
+    $result_profil = $conn->query($query_profil);
+    $profil = $result_profil ? $result_profil->fetch_assoc() : null;
+    $tahun_ajaran = $profil['tahun_ajaran_aktif'] ?? '';
+} catch (Exception $e) {
+    $tahun_ajaran = '';
+}
+
+// Pastikan kolom tahun_ajaran ada di tabel siswa
+try {
+    $check_column = $conn->query("SHOW COLUMNS FROM siswa LIKE 'tahun_ajaran'");
+    if ($check_column->num_rows == 0) {
+        $conn->query("ALTER TABLE siswa ADD COLUMN tahun_ajaran VARCHAR(20) NULL AFTER kelas_id");
+        
+        // Isi kolom tahun_ajaran dengan tahun ajaran aktif untuk semua siswa yang belum memiliki nilai
+        if (!empty($tahun_ajaran)) {
+            $conn->query("UPDATE siswa SET tahun_ajaran = '" . $conn->real_escape_string($tahun_ajaran) . "' WHERE tahun_ajaran IS NULL OR tahun_ajaran = ''");
+        }
+    } else {
+        // Isi kolom tahun_ajaran dengan tahun ajaran aktif untuk semua siswa yang belum memiliki nilai
+        if (!empty($tahun_ajaran)) {
+            $conn->query("UPDATE siswa SET tahun_ajaran = '" . $conn->real_escape_string($tahun_ajaran) . "' WHERE tahun_ajaran IS NULL OR tahun_ajaran = ''");
+        }
+    }
+} catch (Exception $e) {
+    // Kolom mungkin sudah ada atau ada error lain, lanjutkan saja
+}
+
 // Ambil success message dari session jika ada (hanya sekali)
 $refresh_after_alert = false;
 if (isset($_SESSION['success_message'])) {

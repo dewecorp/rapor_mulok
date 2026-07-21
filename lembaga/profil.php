@@ -32,6 +32,43 @@ if (!$profil) {
     $profil = $result->fetch_assoc();
 }
 
+// Pastikan kolom kepala_id ada
+try {
+    $check_kepala = $conn->query("SHOW COLUMNS FROM profil_madrasah LIKE 'kepala_id'");
+    if (!$check_kepala || $check_kepala->num_rows == 0) {
+        $conn->query("ALTER TABLE profil_madrasah ADD COLUMN kepala_id INT NULL AFTER nip_kepala");
+    }
+} catch (Exception $e) {
+    // abaikan
+}
+
+$result = $conn->query($query);
+$profil = $result->fetch_assoc();
+
+// Ambil daftar guru untuk dropdown kepala
+$guru_list = [];
+$guru_query = "SELECT id, nama FROM pengguna WHERE role IN ('guru', 'wali_kelas') ORDER BY nama";
+$guru_result = $conn->query($guru_query);
+if ($guru_result) {
+    while ($row = $guru_result->fetch_assoc()) {
+        $guru_list[] = $row;
+    }
+}
+
+// Ambil data guru terpilih untuk tampilan
+$kepala_nama = $profil['nama_kepala'] ?? '';
+if (!empty($profil['kepala_id'])) {
+    $stmt_kg = $conn->prepare("SELECT nama FROM pengguna WHERE id=?");
+    $stmt_kg->bind_param("i", $profil['kepala_id']);
+    $stmt_kg->execute();
+    $kg_res = $stmt_kg->get_result();
+    if ($kg_res && $kg_res->num_rows > 0) {
+        $kg = $kg_res->fetch_assoc();
+        $kepala_nama = $kg['nama'];
+    }
+    $stmt_kg->close();
+}
+
 // Isi historis tahun ajaran jika kolom baru kosong namun tahun ajaran aktif sudah ada
 if (!empty($profil['id'])) {
     $histRaw = trim((string) ($profil['tahun_ajaran_pernah_aktif'] ?? ''));
@@ -121,23 +158,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = 'Gagal memperbarui info madrasah!';
         }
     } elseif ($action == 'update_pimpinan') {
-        // Update pimpinan
-        $nama_kepala = $_POST['nama_kepala'] ?? '';
-        $nip_kepala = $_POST['nip_kepala'] ?? '';
+        $kepala_id = $_POST['kepala_id'] ?? '';
         
-        $stmt = $conn->prepare("UPDATE profil_madrasah SET nama_kepala=?, nip_kepala=? WHERE id=?");
-        $stmt->bind_param("ssi", $nama_kepala, $nip_kepala, $profil['id']);
-        
-        if ($stmt->execute()) {
-            $_SESSION['success_message'] = 'Data pimpinan berhasil diperbarui!';
-            if (ob_get_level() > 0) {
-                ob_clean();
+        if (!empty($kepala_id)) {
+            $stmt_guru = $conn->prepare("SELECT nama FROM pengguna WHERE id=?");
+            $stmt_guru->bind_param("i", $kepala_id);
+            $stmt_guru->execute();
+            $guru_res = $stmt_guru->get_result();
+            if ($guru_res && $guru_res->num_rows > 0) {
+                $guru = $guru_res->fetch_assoc();
+                $nama_kepala = $guru['nama'];
+                
+                $stmt = $conn->prepare("UPDATE profil_madrasah SET kepala_id=?, nama_kepala=? WHERE id=?");
+                $stmt->bind_param("isi", $kepala_id, $nama_kepala, $profil['id']);
+                
+                if ($stmt->execute()) {
+                    $_SESSION['success_message'] = 'Data pimpinan berhasil diperbarui!';
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    header('Location: profil.php');
+                    exit();
+                } else {
+                    $error = 'Gagal memperbarui data pimpinan!';
+                }
+            } else {
+                $error = 'Guru tidak ditemukan!';
             }
-            // Redirect ke file yang sama di direktori yang sama
-            header('Location: profil.php');
-            exit();
+            $stmt_guru->close();
         } else {
-            $error = 'Gagal memperbarui data pimpinan!';
+            $error = 'Silakan pilih kepala madrasah!';
         }
     } elseif ($action == 'update_akademik') {
         // Update akademik — format tahun ajaran dinormalisasi ke YYYY/YYYY
@@ -309,14 +359,15 @@ $page_title = 'Profil Madrasah';
                 <form method="POST">
                     <input type="hidden" name="action" value="update_pimpinan">
                     <div class="mb-3">
-                        <label class="form-label">Nama Kepala Madrasah</label>
-                        <input type="text" class="form-control" name="nama_kepala" 
-                               value="<?php echo htmlspecialchars($profil['nama_kepala'] ?? ''); ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">NIP Kepala Madrasah</label>
-                        <input type="text" class="form-control" name="nip_kepala" 
-                               value="<?php echo htmlspecialchars($profil['nip_kepala'] ?? ''); ?>">
+                        <label class="form-label">Kepala Madrasah</label>
+                        <select class="form-select" name="kepala_id" required>
+                            <option value="">-- Pilih Guru --</option>
+                            <?php foreach ($guru_list as $guru): ?>
+                                <option value="<?php echo $guru['id']; ?>" <?php echo ($profil['kepala_id'] ?? '') == $guru['id'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($guru['nama']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <button type="submit" class="btn btn-success w-100">
                         <i class="fas fa-save"></i> Simpan
