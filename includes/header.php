@@ -646,23 +646,32 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
         .sidebar .nav-link {
             min-width: 0;
             color: #2d5016;
-            padding: 10px 20px;
+            padding: 10px 15px;
             border-left: 4px solid transparent;
-            transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
             font-weight: 500;
             margin: 1px 8px;
             border-radius: 8px;
             font-size: 14px;
             line-height: 1.4;
-            /* Optimasi rendering */
-            will-change: background-color, border-color, transform;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        .sidebar .nav-link span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex: 1;
         }
         
         .sidebar .nav-link:hover {
             background-color: rgba(45, 80, 22, 0.1);
             border-left-color: var(--hijau-kemenag-light);
             color: var(--hijau-kemenag-dark);
-            transform: translateX(5px);
         }
         
         .sidebar .nav-link.active {
@@ -671,7 +680,6 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             color: white !important;
             font-weight: 600 !important;
             box-shadow: 0 4px 8px rgba(45, 80, 22, 0.3) !important;
-            transform: translateX(5px);
         }
         
         .sidebar .nav-link.active i {
@@ -693,24 +701,27 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
             margin-right: 10px;
             color: inherit;
             transition: color 0.3s ease;
+            flex-shrink: 0;
         }
         
         .sidebar .nav-link:hover i {
             color: var(--hijau-kemenag-dark);
         }
         
+        /* Style untuk menu materi tanpa icon */
+        .sidebar .nav-link.materi-link {
+            padding-left: 20px !important;
+        }
+
         /* Style untuk submenu */
-        .sidebar .nav-link.ps-5 {
-            padding: 8px 15px 8px 2.5rem !important;
+        .sidebar .nav-link.ps-4 {
+            padding-left: 1.75rem !important;
             font-size: 13px;
-            margin-left: 15px;
-            margin-top: 0;
-            margin-bottom: 0;
-            line-height: 1.3;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-width: 0;
+        }
+
+        .sidebar .nav-link.ps-5 {
+            padding-left: 2.25rem !important;
+            font-size: 13px;
         }
         
         .sidebar .nav-link.ps-5.active {
@@ -1741,41 +1752,25 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                             <i class="fas fa-home"></i> <span>Dashboard</span>
                         </a>
                         <?php if (!empty($materi_wali_kelas_by_kategori)): ?>
-                            <a class="nav-link<?php echo $rmd_sidebar['open_materiMenu'] ? ' has-active-child' : ''; ?>" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenu" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
-                            </a>
-                            <div class="collapse<?php echo $rmd_sidebar['open_materiMenu'] ? ' show' : ''; ?>" id="materiMenu" data-bs-parent=".sidebar">
-                                <?php foreach ($materi_wali_kelas_by_kategori as $kategori => $materi_list): ?>
-                                    <?php
-                                    $kat_hash = md5($kategori);
-                                    $kat_open = $rmd_sidebar['open_materiMenu'] && (string) $rmd_open_kategori_wali === $kat_hash;
-                                    ?>
-                                    <a class="nav-link ps-5<?php echo $kat_open ? ' has-active-child' : ''; ?>" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#kategoriMenu<?php echo $kat_hash; ?>" onclick="event.stopPropagation();">
-                                        <i class="fas fa-folder"></i> <span><?php echo htmlspecialchars($kategori); ?></span> <i class="fas fa-chevron-down float-end"></i>
+                            <?php foreach ($materi_wali_kelas_by_kategori as $kategori => $materi_list): ?>
+                                <a class="nav-link fw-bold pe-none text-dark" href="javascript:void(0);" style="opacity: 0.85;">
+                                    <i class="fas fa-folder text-warning"></i> <span><?php echo htmlspecialchars($kategori); ?></span>
+                                </a>
+                                <?php foreach ($materi_list as $materi): ?>
+                                    <a class="nav-link materi-link<?php echo ($rmd_wali_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>wali-kelas/materi.php?id=<?php echo $materi['id']; ?>">
+                                        <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
                                     </a>
-                                    <div class="collapse<?php echo $kat_open ? ' show' : ''; ?>" id="kategoriMenu<?php echo $kat_hash; ?>">
-                                        <?php foreach ($materi_list as $materi): ?>
-                                            <a class="nav-link ps-5<?php echo ($rmd_wali_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>wali-kelas/materi.php?id=<?php echo $materi['id']; ?>" style="padding-left: 3rem !important;">
-                                                <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
-                                            </a>
-                                        <?php endforeach; ?>
-                                    </div>
                                 <?php endforeach; ?>
-                            </div>
+                            <?php endforeach; ?>
                         <?php elseif (!empty($materi_wali_kelas)): ?>
-                            <a class="nav-link<?php echo $rmd_sidebar['open_materiMenu'] ? ' has-active-child' : ''; ?>" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenu" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
-                            </a>
-                            <div class="collapse<?php echo $rmd_sidebar['open_materiMenu'] ? ' show' : ''; ?>" id="materiMenu" data-bs-parent=".sidebar">
-                                <?php foreach ($materi_wali_kelas as $materi): ?>
-                                    <a class="nav-link ps-5<?php echo ($rmd_wali_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>wali-kelas/materi.php?id=<?php echo $materi['id']; ?>">
-                                        <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
-                                    </a>
-                                <?php endforeach; ?>
-                            </div>
+                            <?php foreach ($materi_wali_kelas as $materi): ?>
+                                <a class="nav-link materi-link<?php echo ($rmd_wali_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>wali-kelas/materi.php?id=<?php echo $materi['id']; ?>">
+                                    <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
+                                </a>
+                            <?php endforeach; ?>
                         <?php else: ?>
-                            <a class="nav-link<?php echo rmd_script_has($rmd_script, '/wali-kelas/materi.php') ? ' active' : ''; ?>" href="<?php echo $basePath; ?>wali-kelas/materi.php">
-                                <i class="fas fa-book"></i> <span>Materi Mulok</span>
+                            <a class="nav-link materi-link<?php echo rmd_script_has($rmd_script, '/wali-kelas/materi.php') ? ' active' : ''; ?>" href="<?php echo $basePath; ?>wali-kelas/materi.php">
+                                <span>Materi Mulok</span>
                             </a>
                         <?php endif; ?>
                         <a class="nav-link<?php echo $rmd_sidebar['open_waliMenu'] ? ' has-active-child' : ''; ?>" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#waliMenu" onclick="event.stopPropagation();">
@@ -1798,41 +1793,25 @@ $full_title = $page_title_value . ' - ' . APP_NAME;
                             <i class="fas fa-home"></i> <span>Dashboard</span>
                         </a>
                         <?php if (!empty($materi_guru_by_kategori)): ?>
-                            <a class="nav-link<?php echo $rmd_sidebar['open_materiMenuGuru'] ? ' has-active-child' : ''; ?>" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenuGuru" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
-                            </a>
-                            <div class="collapse<?php echo $rmd_sidebar['open_materiMenuGuru'] ? ' show' : ''; ?>" id="materiMenuGuru" data-bs-parent=".sidebar">
-                                <?php foreach ($materi_guru_by_kategori as $kategori => $materi_list): ?>
-                                    <?php
-                                    $kat_hash_g = md5($kategori);
-                                    $kat_open_g = $rmd_sidebar['open_materiMenuGuru'] && (string) $rmd_open_kategori_guru === $kat_hash_g;
-                                    ?>
-                                    <a class="nav-link ps-5<?php echo $kat_open_g ? ' has-active-child' : ''; ?>" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#kategoriMenuGuru<?php echo $kat_hash_g; ?>" onclick="event.stopPropagation();">
-                                        <i class="fas fa-folder"></i> <span><?php echo htmlspecialchars($kategori); ?></span> <i class="fas fa-chevron-down float-end"></i>
+                            <?php foreach ($materi_guru_by_kategori as $kategori => $materi_list): ?>
+                                <a class="nav-link fw-bold pe-none text-dark" href="javascript:void(0);" style="opacity: 0.85;">
+                                    <i class="fas fa-folder text-warning"></i> <span><?php echo htmlspecialchars($kategori); ?></span>
+                                </a>
+                                <?php foreach ($materi_list as $materi): ?>
+                                    <a class="nav-link materi-link<?php echo ($rmd_guru_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>">
+                                        <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
                                     </a>
-                                    <div class="collapse<?php echo $kat_open_g ? ' show' : ''; ?>" id="kategoriMenuGuru<?php echo $kat_hash_g; ?>">
-                                        <?php foreach ($materi_list as $materi): ?>
-                                            <a class="nav-link ps-5<?php echo ($rmd_guru_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>" style="padding-left: 3rem !important;">
-                                                <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
-                                            </a>
-                                        <?php endforeach; ?>
-                                    </div>
                                 <?php endforeach; ?>
-                            </div>
+                            <?php endforeach; ?>
                         <?php elseif (!empty($materi_guru)): ?>
-                            <a class="nav-link<?php echo $rmd_sidebar['open_materiMenuGuru'] ? ' has-active-child' : ''; ?>" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#materiMenuGuru" onclick="event.stopPropagation();">
-                                <i class="fas fa-book"></i> <span>Materi Mulok</span> <i class="fas fa-chevron-down float-end"></i>
-                            </a>
-                            <div class="collapse<?php echo $rmd_sidebar['open_materiMenuGuru'] ? ' show' : ''; ?>" id="materiMenuGuru" data-bs-parent=".sidebar">
-                                <?php foreach ($materi_guru as $materi): ?>
-                                    <a class="nav-link ps-5<?php echo ($rmd_guru_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>">
-                                        <i class="fas fa-circle"></i> <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
-                                    </a>
-                                <?php endforeach; ?>
-                            </div>
+                            <?php foreach ($materi_guru as $materi): ?>
+                                <a class="nav-link materi-link<?php echo ($rmd_guru_materi_id === (int) $materi['id']) ? ' active' : ''; ?>" href="<?php echo $basePath; ?>guru/penilaian.php?materi_id=<?php echo $materi['id']; ?>">
+                                    <span><?php echo htmlspecialchars($materi['nama_mulok']); ?></span>
+                                </a>
+                            <?php endforeach; ?>
                         <?php else: ?>
-                            <a class="nav-link<?php echo rmd_script_has($rmd_script, '/guru/materi-diampu.php') ? ' active' : ''; ?>" href="<?php echo $basePath; ?>guru/materi-diampu.php">
-                                <i class="fas fa-book"></i> <span>Materi yang Diampu</span>
+                            <a class="nav-link materi-link<?php echo rmd_script_has($rmd_script, '/guru/materi-diampu.php') ? ' active' : ''; ?>" href="<?php echo $basePath; ?>guru/materi-diampu.php">
+                                <span>Materi yang Diampu</span>
                             </a>
                         <?php endif; ?>
                     <?php endif; ?>
