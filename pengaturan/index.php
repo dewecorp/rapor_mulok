@@ -13,10 +13,26 @@ try {
     $conn->query("CREATE TABLE IF NOT EXISTS `pengaturan_aplikasi` (
         `id` int(11) NOT NULL AUTO_INCREMENT,
         `info_aplikasi` text DEFAULT NULL,
+        `simad_api_url` varchar(255) DEFAULT NULL,
+        `simad_teachers_api_url` varchar(255) DEFAULT NULL,
+        `simad_api_key` varchar(255) DEFAULT NULL,
         `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         `updated_by` int(11) DEFAULT NULL,
         PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Pastikan kolom SIMAD ada jika tabel sudah dibuat sebelumnya
+    $cols_simad = [
+        'simad_api_url' => 'ALTER TABLE pengaturan_aplikasi ADD COLUMN simad_api_url VARCHAR(255) DEFAULT NULL',
+        'simad_teachers_api_url' => 'ALTER TABLE pengaturan_aplikasi ADD COLUMN simad_teachers_api_url VARCHAR(255) DEFAULT NULL',
+        'simad_api_key' => 'ALTER TABLE pengaturan_aplikasi ADD COLUMN simad_api_key VARCHAR(255) DEFAULT NULL'
+    ];
+    foreach ($cols_simad as $col => $ddl) {
+        $check_col = $conn->query("SHOW COLUMNS FROM pengaturan_aplikasi LIKE '$col'");
+        if ($check_col && $check_col->num_rows === 0) {
+            @$conn->query($ddl);
+        }
+    }
     
     // Insert default jika belum ada
     $check = $conn->query("SELECT COUNT(*) as total FROM pengaturan_aplikasi");
@@ -277,6 +293,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             exit();
         }
+    } elseif ($action == 'update_simad_endpoint') {
+        $simad_api_url = trim($_POST['simad_api_url'] ?? '');
+        $simad_teachers_api_url = trim($_POST['simad_teachers_api_url'] ?? '');
+        $simad_api_key = trim($_POST['simad_api_key'] ?? '');
+
+        // Olah secara cerdas: jika dimasukkan domain saja tanpa path file .php
+        if (!empty($simad_api_url) && !preg_match('/\.php($|\?)/i', $simad_api_url)) {
+            $simad_api_url = rtrim($simad_api_url, '/') . '/api/v1/students.php';
+        }
+        if (!empty($simad_teachers_api_url) && !preg_match('/\.php($|\?)/i', $simad_teachers_api_url)) {
+            $simad_teachers_api_url = rtrim($simad_teachers_api_url, '/') . '/api/v1/teachers.php';
+        }
+
+        try {
+            if ($pengaturan && isset($pengaturan['id'])) {
+                $stmt = $conn->prepare("UPDATE pengaturan_aplikasi SET simad_api_url=?, simad_teachers_api_url=?, simad_api_key=?, updated_by=? WHERE id=?");
+                $stmt->bind_param("sssii", $simad_api_url, $simad_teachers_api_url, $simad_api_key, $user_id, $pengaturan['id']);
+            } else {
+                $stmt = $conn->prepare("INSERT INTO pengaturan_aplikasi (simad_api_url, simad_teachers_api_url, simad_api_key, updated_by) VALUES (?, ?, ?, ?)");
+                $stmt->bind_param("sssi", $simad_api_url, $simad_teachers_api_url, $simad_api_key, $user_id);
+            }
+
+            if ($stmt->execute()) {
+                $_SESSION['success_message'] = 'Pengaturan Endpoint SIMAD berhasil diperbarui!';
+                if (ob_get_level() > 0) ob_clean();
+                $redirect_url = '/pengaturan/index.php';
+                if (isset($_SERVER['HTTP_HOST'])) {
+                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                    header('Location: ' . $protocol . '://' . $_SERVER['HTTP_HOST'] . $redirect_url);
+                } else {
+                    header('Location: ' . $redirect_url);
+                }
+                exit();
+            } else {
+                $error = 'Gagal menyimpan pengaturan endpoint!';
+            }
+        } catch (Exception $e) {
+            $error = 'Error: ' . $e->getMessage();
+        }
     }
 }
 
@@ -344,6 +399,55 @@ $page_title = 'Pengaturan';
         <?php endif; ?>
         
         <div class="row">
+            <!-- Box Pengaturan Endpoint SIMAD -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header" style="background-color: #2d5016; color: white;">
+                        <h6 class="mb-0"><i class="fas fa-network-wired"></i> Pengaturan Endpoint Integrasi SIMAD</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="formSimadEndpoint">
+                            <input type="hidden" name="action" value="update_simad_endpoint">
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Endpoint ini digunakan untuk tarik data siswa dan guru dari SIMAD. Jika domain SIMAD berubah, Anda dapat langsung menempelkan URL/Domain baru di sini tanpa mengubah file script di backend.
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">URL Endpoint Siswa SIMAD</label>
+                                <input type="url" class="form-control" name="simad_api_url" 
+                                       value="<?php echo htmlspecialchars($pengaturan['simad_api_url'] ?? 'https://simad.misultanfattah.sch.id/api/v1/students.php'); ?>" 
+                                       placeholder="https://simad.misultanfattah.sch.id/api/v1/students.php" required>
+                                <small class="text-muted">Contoh: https://simad.sekolah.sch.id/api/v1/students.php (atau cukup isi domain https://simad.sekolah.sch.id)</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">URL Endpoint Guru SIMAD</label>
+                                <input type="url" class="form-control" name="simad_teachers_api_url" 
+                                       value="<?php echo htmlspecialchars($pengaturan['simad_teachers_api_url'] ?? 'https://simad.misultanfattah.sch.id/api/v1/teachers.php'); ?>" 
+                                       placeholder="https://simad.misultanfattah.sch.id/api/v1/teachers.php" required>
+                                <small class="text-muted">Contoh: https://simad.sekolah.sch.id/api/v1/teachers.php</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">API Key / Token SIMAD</label>
+                                <input type="text" class="form-control" name="simad_api_key" 
+                                       value="<?php echo htmlspecialchars($pengaturan['simad_api_key'] ?? 'SIS_CENTRAL_HUB_SECRET_2026'); ?>" 
+                                       placeholder="SIS_CENTRAL_HUB_SECRET_2026" required>
+                                <small class="text-muted">Kunci rahasia/token otentikasi integrasi SIMAD.</small>
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> Simpan Endpoint SIMAD
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- Box Info Aplikasi -->
             <div class="col-md-12 mb-4">
                 <div class="card">

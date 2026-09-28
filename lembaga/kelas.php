@@ -414,7 +414,9 @@ $kelas_data = [];
 $guru_list = null;
 try {
     $query = "SELECT k.*, p.nama as nama_wali_kelas,
-              (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id) as jumlah_siswa
+              (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id) as jumlah_siswa,
+              (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id AND (s.jenis_kelamin = 'L' OR s.jenis_kelamin = 'Laki-laki')) as jml_l,
+              (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id AND (s.jenis_kelamin = 'P' OR s.jenis_kelamin = 'Perempuan')) as jml_p
               FROM kelas k 
               LEFT JOIN pengguna p ON k.wali_kelas_id = p.id 
               WHERE LOWER(TRIM(k.nama_kelas)) != 'alumni'
@@ -488,7 +490,11 @@ $page_title = 'Kelas';
                         <tr>
                             <td><?php echo $no++; ?></td>
                             <td><?php echo htmlspecialchars($row['nama_kelas']); ?></td>
-                            <td><?php echo intval($row['jumlah_siswa'] ?? 0); ?> Siswa</td>
+                            <td>
+                                <span class="badge bg-primary" title="Laki-laki">L = <?php echo intval($row['jml_l'] ?? 0); ?></span>
+                                <span class="badge bg-danger" title="Perempuan">P = <?php echo intval($row['jml_p'] ?? 0); ?></span>
+                                <span class="badge bg-success" title="Total Siswa">Jumlah = <?php echo intval($row['jumlah_siswa'] ?? 0); ?></span>
+                            </td>
                             <td><?php echo htmlspecialchars($row['nama_wali_kelas'] ?? '-'); ?></td>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick="editKelas(<?php echo $row['id']; ?>)" title="Edit">

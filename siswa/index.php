@@ -281,7 +281,11 @@ if (isset($_GET['edit'])) {
 }
 
 // Ambil data kelas
-$query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas";
+$query_kelas = "SELECT k.*,
+    (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id AND (s.jenis_kelamin = 'L' OR s.jenis_kelamin = 'Laki-laki')) as jml_l,
+    (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id AND (s.jenis_kelamin = 'P' OR s.jenis_kelamin = 'Perempuan')) as jml_p,
+    (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = k.id) as total_siswa
+    FROM kelas k ORDER BY k.nama_kelas";
 $kelas_list = $conn->query($query_kelas);
 
 // Query data siswa
@@ -370,23 +374,46 @@ $page_title = 'Data Siswa';
             </div>
         <?php endif; ?>
         
-        <div class="mb-3">
-            <label class="form-label">Filter Kelas</label>
-            <select class="form-select" id="filterKelas" onchange="filterKelas()" style="max-width: 300px;">
-                <option value="">-- Semua Kelas --</option>
-                <?php 
-                $kelas_list->data_seek(0);
-                while ($kelas = $kelas_list->fetch_assoc()): 
-                    // Skip kelas Alumni dari filter
-                    if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
-                        continue;
+        <?php 
+            $filter_l = 0;
+            $filter_p = 0;
+            if (!empty($kelas_filter) && !empty($siswa_data)) {
+                foreach ($siswa_data as $sd) {
+                    if (strtoupper($sd['jenis_kelamin'] ?? 'L') === 'P' || strtolower($sd['jenis_kelamin'] ?? '') === 'perempuan') {
+                        $filter_p++;
+                    } else {
+                        $filter_l++;
                     }
-                ?>
-                    <option value="<?php echo $kelas['id']; ?>" <?php echo $kelas_filter == $kelas['id'] ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
-                    </option>
-                <?php endwhile; ?>
-            </select>
+                }
+            }
+        ?>
+
+        <div class="d-flex align-items-end flex-wrap gap-3 mb-3">
+            <div>
+                <label class="form-label mb-1">Filter Kelas</label>
+                <select class="form-select" id="filterKelas" onchange="filterKelas()" style="min-width: 200px;">
+                    <option value="">-- Semua Kelas --</option>
+                    <?php 
+                    $kelas_list->data_seek(0);
+                    while ($kelas = $kelas_list->fetch_assoc()): 
+                        // Skip kelas Alumni dari filter
+                        if (stripos($kelas['nama_kelas'], 'Alumni') !== false || stripos($kelas['nama_kelas'], 'Lulus') !== false) {
+                            continue;
+                        }
+                    ?>
+                        <option value="<?php echo $kelas['id']; ?>" <?php echo $kelas_filter == $kelas['id'] ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($kelas['nama_kelas']); ?>
+                        </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+            <?php if (!empty($kelas_filter) && count($siswa_data) > 0): ?>
+            <div class="pb-1">
+                <span class="badge bg-primary fs-6 me-1">L = <?php echo $filter_l; ?></span>
+                <span class="badge bg-danger fs-6 me-1">P = <?php echo $filter_p; ?></span>
+                <span class="badge bg-success fs-6">Jumlah = <?php echo count($siswa_data); ?></span>
+            </div>
+            <?php endif; ?>
         </div>
         
         <?php if (!$result && !empty($error)): ?>

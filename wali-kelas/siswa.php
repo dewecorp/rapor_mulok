@@ -50,7 +50,22 @@ $page_title = 'Data Siswa';
     </div>
     <div class="card-body">
         <?php if ($kelas_id): ?>
-            <?php if (count($siswa_data) > 0): ?>
+            <?php if (count($siswa_data) > 0): 
+                $wl_l = 0;
+                $wl_p = 0;
+                foreach ($siswa_data as $sw) {
+                    if (strtoupper($sw['jenis_kelamin'] ?? 'L') === 'P' || strtolower($sw['jenis_kelamin'] ?? '') === 'perempuan') {
+                        $wl_p++;
+                    } else {
+                        $wl_l++;
+                    }
+                }
+            ?>
+                <div class="mb-3">
+                    <span class="badge bg-primary fs-6 me-1">L = <?php echo $wl_l; ?></span>
+                    <span class="badge bg-danger fs-6 me-1">P = <?php echo $wl_p; ?></span>
+                    <span class="badge bg-success fs-6">Jumlah = <?php echo count($siswa_data); ?></span>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped" id="tableSiswa">
                         <thead>
